@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  phone     String?
+  role      Role     @default(CUSTOMER)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  slug             String   @id
+  name             String
+  reference        String   @unique
+  collection       String
+  priceUsd         Int
+  priceVnd         BigInt
+  shortDescription String   @db.Text
+  badges           String[]
+  strapLabel       String
+  cardImage        String
+  images           String[]
+  calibre          String
+  diameterMm       Float
+  caseMaterial     String
+  complications    String[]
+  inBoutique       Boolean  @default(true)
+  specs            Json
+  narrative        String   @db.Text
+  orderItems       OrderItem[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  userId       String?
+  user         User?       @relation(fields: [userId], references: [id])
+  customerName String
+  contact      String
+  address      String
+  slot         String?
+  status       OrderStatus @default(PENDING)
+  totalUsd     Int
+  totalVnd     BigInt
+  items        OrderItem[]
+  payments     Payment[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productSlug String?
+  product     Product? @relation(fields: [productSlug], references: [slug])
+  name        String
+  priceUsd    Int
+  priceVnd    BigInt
+  image       String
+  strap       String
+  engraving   String?
+  qty         Int      @default(1)
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method    String
+  amountUsd Int
+  status    PaymentStatus @default(PENDING)
+  txnRef    String?
+  createdAt DateTime      @default(now())
+}

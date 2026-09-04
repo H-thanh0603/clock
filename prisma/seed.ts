@@ -1,0 +1,60 @@
+import { PrismaClient } from "@prisma/client";
+import { products } from "../src/data/products";
+
+const prisma = new PrismaClient();
+
+async function main() {
+  for (const p of products) {
+    await prisma.product.upsert({
+      where: { slug: p.slug },
+      update: {
+        name: p.name,
+        reference: p.reference,
+        collection: p.collection,
+        priceUsd: p.priceUsd,
+        priceVnd: p.priceVnd,
+        shortDescription: p.shortDescription,
+        badges: p.badges,
+        strapLabel: p.strapLabel,
+        cardImage: p.cardImage,
+        images: p.images,
+        calibre: p.calibre,
+        diameterMm: p.diameterMm,
+        caseMaterial: p.caseMaterial,
+        complications: p.complications,
+        inBoutique: p.inBoutique,
+        specs: p.specs,
+        narrative: p.narrative,
+      },
+      create: {
+        slug: p.slug,
+        name: p.name,
+        reference: p.reference,
+        collection: p.collection,
+        priceUsd: p.priceUsd,
+        priceVnd: p.priceVnd,
+        shortDescription: p.shortDescription,
+        badges: p.badges,
+        strapLabel: p.strapLabel,
+        cardImage: p.cardImage,
+        images: p.images,
+        calibre: p.calibre,
+        diameterMm: p.diameterMm,
+        caseMaterial: p.caseMaterial,
+        complications: p.complications,
+        inBoutique: p.inBoutique,
+        specs: p.specs,
+        narrative: p.narrative,
+      },
+    });
+  }
+  const count = await prisma.product.count();
+  console.log(`Seeded ${products.length} products (total in DB: ${count})`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());
