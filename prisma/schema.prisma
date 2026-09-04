@@ -28,14 +28,16 @@ enum PaymentStatus {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  phone     String?
-  role      Role     @default(CUSTOMER)
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String?
+  phone        String?
+  passwordHash String?
+  role         Role       @default(CUSTOMER)
+  orders       Order[]
+  cartItems    CartItem[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model Product {
@@ -104,4 +106,21 @@ model Payment {
   status    PaymentStatus @default(PENDING)
   txnRef    String?
   createdAt DateTime      @default(now())
+}
+
+model CartItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productSlug String
+  name        String
+  priceUsd    Int
+  priceVnd    BigInt
+  image       String
+  strap       String
+  engraving   String?
+  qty         Int      @default(1)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, productSlug, strap])
 }

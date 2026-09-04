@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "./CartProvider";
 import { useCurrency } from "./CurrencyProvider";
+import { useAuth } from "./AuthProvider";
 import { useWishlist } from "./WishlistProvider";
 import { productBySlug, formatUsd } from "@/data/products";
 
@@ -18,6 +19,7 @@ const links = [
 export default function Header() {
   const { totalQty } = useCart();
   const { currency, setCurrency } = useCurrency();
+  const { user, logout } = useAuth();
   const { slugs, count, remove } = useWishlist();
   const [menuOpen, setMenuOpen] = useState(false);
   const [wishOpen, setWishOpen] = useState(false);
@@ -207,24 +209,72 @@ export default function Header() {
             </span>
           </button>
           <div className="hidden h-6 w-[1px] bg-surface-container-highest sm:block"></div>
-          <div className="group flex cursor-pointer items-center gap-space-xs pl-space-xs">
-            <div className="relative">
-              <img
-                alt="Profile"
-                className="h-8 w-8 rounded-full object-cover ring-1 ring-primary/40"
-                src="/images/vip-collector-profile.jpg"
-              />
-              <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-primary ring-1 ring-surface"></span>
+          {user ? (
+            <div className="flex items-center gap-space-xs pl-space-xs">
+              <Link href="/account" className="group flex items-center gap-space-xs">
+                <div className="relative">
+                  <img
+                    alt="Profile"
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-primary/40"
+                    src="/images/vip-collector-profile.jpg"
+                  />
+                  <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-primary ring-1 ring-surface"></span>
+                </div>
+                <div className="hidden flex-col xl:flex">
+                  <span className="font-label-badge max-w-28 truncate text-[10px] tracking-wider text-on-surface uppercase transition-colors group-hover:text-primary">
+                    {user.name || user.email}
+                  </span>
+                  <span className="font-label-spec text-[9px] tracking-widest text-secondary uppercase">
+                    {user.role === "ADMIN" ? "Atelier Admin" : "Collector Tier"}
+                  </span>
+                </div>
+              </Link>
+              {user.role === "ADMIN" && (
+                <Link
+                  href="/admin/orders"
+                  aria-label="Quản trị"
+                  className="p-1.5 text-on-surface-variant transition-colors hover:text-primary"
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    shield_person
+                  </span>
+                </Link>
+              )}
+              <button
+                onClick={() => logout()}
+                aria-label="Đăng xuất"
+                className="p-1.5 text-on-surface-variant transition-colors hover:text-primary"
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  logout
+                </span>
+              </button>
             </div>
-            <div className="hidden flex-col xl:flex">
-              <span className="font-label-badge text-[10px] tracking-wider text-on-surface uppercase transition-colors group-hover:text-primary">
-                Private Client
-              </span>
-              <span className="font-label-spec text-[9px] tracking-widest text-secondary uppercase">
-                Collector Tier
-              </span>
+          ) : (
+            <div className="flex items-center gap-space-xs pl-space-xs">
+              <Link
+                href="/login"
+                className="group hidden items-center gap-space-xs sm:flex"
+              >
+                <div className="relative">
+                  <img
+                    alt="Profile"
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-primary/40"
+                    src="/images/vip-collector-profile.jpg"
+                  />
+                  <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-surface-container-highest ring-1 ring-surface"></span>
+                </div>
+                <div className="hidden flex-col xl:flex">
+                  <span className="font-label-badge text-[10px] tracking-wider text-on-surface uppercase transition-colors group-hover:text-primary">
+                    Đăng Nhập
+                  </span>
+                  <span className="font-label-spec text-[9px] tracking-widest text-secondary uppercase">
+                    Circle Privé
+                  </span>
+                </div>
+              </Link>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -240,6 +290,34 @@ export default function Header() {
               {l.label}
             </Link>
           ))}
+          {user ? (
+            <>
+              <Link
+                href="/account"
+                onClick={() => setMenuOpen(false)}
+                className="block py-3 text-xs font-medium tracking-[0.2em] text-on-surface-variant uppercase transition-colors hover:text-primary"
+              >
+                Đơn Của Tôi
+              </Link>
+              <button
+                onClick={() => {
+                  logout();
+                  setMenuOpen(false);
+                }}
+                className="block py-3 text-xs font-medium tracking-[0.2em] text-on-surface-variant uppercase transition-colors hover:text-primary"
+              >
+                Đăng Xuất ({user.email})
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="block py-3 text-xs font-medium tracking-[0.2em] text-primary uppercase"
+            >
+              Đăng Nhập / Đăng Ký
+            </Link>
+          )}
         </nav>
       )}
     </header>

@@ -1,9 +1,23 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { products } from "../src/data/products";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@aurel.local";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!";
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      email: adminEmail,
+      name: "Atelier Admin",
+      passwordHash: await bcrypt.hash(adminPassword, 10),
+      role: "ADMIN",
+    },
+  });
+  console.log(`Admin sẵn sàng: ${adminEmail}`);
   for (const p of products) {
     await prisma.product.upsert({
       where: { slug: p.slug },

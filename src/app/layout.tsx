@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
+import { AuthProvider } from "@/components/AuthProvider";
 
 const playfair = Playfair_Display({
   subsets: ["latin", "vietnamese"],
@@ -38,13 +39,15 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary">
         <CurrencyProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <Header />
-              <main className="min-h-[calc(100vh-200px)] w-full bg-surface pt-20">{children}</main>
-              <Footer />
-            </WishlistProvider>
-          </CartProvider>
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <Header />
+                <main className="min-h-[calc(100vh-200px)] w-full bg-surface pt-20">{children}</main>
+                <Footer />
+              </WishlistProvider>
+            </CartProvider>
+          </AuthProvider>
         </CurrencyProvider>
       </body>
     </html>
