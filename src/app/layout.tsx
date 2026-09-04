@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   title: "Aurel & Co. — Haute Horlogerie | Genève 1892",
   description:
     "Manufacture de Haute Horlogerie tại Genève từ 1892. Đồng hồ cơ cao cấp, tourbillon và bộ sưu tập cá nhân hóa (bespoke).",
+  icons: { icon: "/images/logo.png" },
 };
 
 export default function RootLayout({

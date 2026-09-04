@@ -154,7 +154,7 @@ export default function Page() {
                   Nghệ nhân thư pháp tại Genève chép tay bằng mực vàng 24K trên giấy dó sợi bông truyền thống nước Ý.
                 </p>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Thông điệp đề tặng (Tối đa 120 ký tự):</label>
-<textarea className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3}>Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.</textarea>
+<textarea className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
 </div>
 <span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Bao gồm huy hiệu đóng dấu nổi của xưởng Aurel &amp; Co.</span>
 </div>
@@ -195,7 +195,7 @@ export default function Page() {
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-md items-center">
 <div className="sm:col-span-2">
-<input className="w-full bg-surface-container-lowest px-space-md py-space-xs rounded text-body-md text-primary font-title-editorial uppercase tracking-[0.2em] focus:outline-none focus:ring-1 focus:ring-primary" type="text" value="CHOPIN 1853 - M.D."/>
+<input className="w-full bg-surface-container-lowest px-space-md py-space-xs rounded text-body-md text-primary font-title-editorial uppercase tracking-[0.2em] focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="CHOPIN 1853 - M.D."/>
 <span className="text-xs text-on-surface-variant/70 mt-1 block">Khắc trực tiếp lên khung rotor vàng 21K của cỗ máy chuyển động Tourbillon.</span>
 </div>
 <div className="bg-surface-container-lowest p-space-xs rounded text-center">
@@ -251,16 +251,16 @@ export default function Page() {
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Họ Tên Thượng Khách / Đại Diện</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" value="Michel Du Pont"/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" defaultValue="Michel Du Pont"/>
 </div>
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Kênh Liên Lạc Bảo Mật (Signal / WhatsApp VIP)</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value="+84 90 888 9999 (Private Encrypted)"/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="+84 90 888 9999 (Private Encrypted)"/>
 </div>
 </div>
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Địa Chỉ Dinh Thự / Văn Phòng Bảo Mật</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value="Penthouse B-3201, Tòa tháp The Crown, Quận 1, TP. Hồ Chí Minh"/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="Penthouse B-3201, Tòa tháp The Crown, Quận 1, TP. Hồ Chí Minh"/>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
@@ -273,7 +273,7 @@ export default function Page() {
 </div>
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Mã Nhận Diện Bảo Mật (PIN An Ninh Bàn Giao)</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" value="********"/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" defaultValue="********"/>
 </div>
 </div>
 </div>
