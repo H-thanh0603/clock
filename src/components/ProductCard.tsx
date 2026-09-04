@@ -38,10 +38,10 @@ export default function ProductCard({ product }: { product: Product }) {
           sizes="(max-width: 768px) 100vw, 33vw"
           className="object-cover transition-transform duration-700 group-hover:scale-105"
         />
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+        <div className="absolute top-3 left-3 flex max-w-[80%] flex-wrap gap-1.5">
           {product.badges.map((b) => (
             <SpecBadge key={b} gold>
-              {b}
+              <span className="block max-w-[180px] truncate">{b}</span>
             </SpecBadge>
           ))}
         </div>
@@ -87,7 +87,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <div className="flex items-end justify-between border-t border-outline-variant/20 pt-4">
           <div>
-            <div className="font-display text-lg font-semibold text-primary">
+            <div className="font-display text-lg font-semibold whitespace-nowrap text-primary">
               {price(product.priceUsd, product.priceVnd)}
             </div>
             <div className="text-[10px] tracking-[0.15em] text-on-surface-variant/60 uppercase">

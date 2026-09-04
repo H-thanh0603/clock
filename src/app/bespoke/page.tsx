@@ -25,17 +25,17 @@ const journeySteps = [
 
 const masterpieces = [
   {
-    image: "/images/ultra-luxury-bespoke-swiss-wristwatch-featuring-genuine-muon.jpg",
+    image: "/images/exquisite-macro-studio-shot-of-aurel-chronos-tourbillon-luxu.jpg",
     name: "Muonionalusta Unique N°1",
     note: "Vỏ platinum, mặt đá thiên thạch — trao tay năm 2019",
   },
   {
-    image: "/images/exquisite-haute-horlogerie-split-seconds-chronograph-with-gr.jpg",
+    image: "/images/classic-dress-watch-with-18k-rose-gold-case-opaline-cream-su.jpg",
     name: "Split-Seconds Grand Caption",
     note: "Chronograph rattrapante độc bản — sưu tầm tư nhân Monaco",
   },
   {
-    image: "/images/hand-skeletonized-cathedral-gong-minute-repeater-wristwatch-.jpg",
+    image: "/images/royal-chronograph-flyback-watch-with-black-ceramic-bezel-hig.jpg",
     name: "Cathedral Gong Repeater",
     note: "Minute repeater skeleton tay — trưng bày tại atelier Genève",
   },
@@ -69,7 +69,7 @@ export default function BespokePage() {
           </div>
           <div className="relative aspect-[16/10] overflow-hidden border border-primary-container/30">
             <Image
-              src="/images/ultra-luxury-bespoke-swiss-wristwatch-featuring-genuine-muon.jpg"
+              src="/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg"
               alt="Đồng hồ bespoke Aurel & Co."
               fill
               priority

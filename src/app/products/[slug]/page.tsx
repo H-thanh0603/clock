@@ -12,7 +12,7 @@ const accessories = [
     name: "Watch Winder Gỗ Óc Chó",
     desc: "Hộp quay tự động da Thụy Sĩ, thân gỗ óc chó thủ công.",
     priceUsd: 4200,
-    image: "/images/high-end-artisan-swiss-leather-watch-winder-box-with-walnut-.jpg",
+    image: "/images/macro-view-of-watch-exhibition-sapphire-caseback-revealing-h.jpg",
   },
   {
     slug: "rose-gold-cufflinks",

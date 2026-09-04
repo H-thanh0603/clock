@@ -7,9 +7,9 @@ export default function SpecBadge({
 }) {
   return (
     <span
-      className={`spec-badge px-2.5 py-1 ${
+      className={`spec-badge backdrop-blur-sm px-2.5 py-1 ${
         gold
-          ? "border-primary-container/50 bg-primary/5 text-primary"
+          ? "border-primary-container/50 bg-surface-lowest/80 text-primary"
           : "bg-surface-lowest/60"
       }`}
     >

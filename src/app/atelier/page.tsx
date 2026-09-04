@@ -128,8 +128,8 @@ export default function AtelierPage() {
                   }`}
                 >
                   <span
-                    className={`absolute top-1 left-2.5 h-3.5 w-3.5 rotate-45 border border-primary bg-surface md:left-auto ${
-                      i % 2 === 0 ? "md:-right-[7px]" : "md:-left-[7px]"
+                    className={`absolute top-1 left-2.5 h-3.5 w-3.5 rotate-45 border border-primary bg-surface ${
+                      i % 2 === 0 ? "md:left-auto md:-right-[7px]" : "md:-left-[7px]"
                     }`}
                   />
                   <span className="font-display text-2xl font-semibold text-primary">
@@ -179,7 +179,7 @@ export default function AtelierPage() {
         <div className="mt-14 grid items-start gap-10 lg:grid-cols-2">
           <div className="relative aspect-[4/3] overflow-hidden border border-primary-container/30">
             <Image
-              src="/images/high-end-artisan-swiss-leather-watch-winder-box-with-walnut-.jpg"
+              src="/images/extreme-macro-extreme-close-up-view-of-a-watch-tourbillon-ca.jpg"
               alt="Không gian atelier Aurel & Co."
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
