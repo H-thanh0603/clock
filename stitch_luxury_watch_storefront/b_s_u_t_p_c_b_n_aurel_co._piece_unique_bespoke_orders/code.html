@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {"darkMode":"class","theme":{"extend":{"colors":{"inverse-primary":"#735c00","surface":"#121315","inverse-on-surface":"#303033","surface-bright":"#38393b","secondary-fixed-dim":"#e9c176","on-secondary":"#412d00","on-primary-fixed-variant":"#574500","on-error":"#690005","inverse-surface":"#e3e2e5","on-tertiary-fixed-variant":"#434751","primary-container":"#d4af37","tertiary-fixed":"#dfe2f0","surface-container-highest":"#343537","background":"#121315","tertiary":"#cacddb","outline-variant":"#4d4635","on-secondary-fixed-variant":"#5d4201","tertiary-container":"#afb2bf","on-primary":"#3c2f00","primary":"#f2ca50","on-secondary-fixed":"#261900","surface-tint":"#e9c349","secondary-container":"#604403","surface-container-high":"#292a2c","error-container":"#93000a","secondary":"#e9c176","tertiary-fixed-dim":"#c3c6d3","on-secondary-container":"#dab36a","surface-container-low":"#1b1c1e","primary-fixed-dim":"#e9c349","on-surface":"#e3e2e5","on-primary-container":"#554300","surface-dim":"#121315","on-surface-variant":"#d0c5af","error":"#ffb4ab","on-tertiary-fixed":"#171b25","on-error-container":"#ffdad6","primary-fixed":"#ffe088","secondary-fixed":"#ffdea5","surface-container-lowest":"#0d0e10","on-tertiary":"#2c303b","on-background":"#e3e2e5","surface-variant":"#343537","on-primary-fixed":"#241a00","outline":"#99907c","on-tertiary-container":"#41454f","surface-container":"#1f2022"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-2xl":"3rem","container-max":"1360px","gutter-mobile":"1rem","space-3xl":"4rem","space-4xl":"6rem","space-2xs":"0.25rem","space-lg":"1.5rem","space-xs":"0.5rem","space-sm":"0.75rem","gutter-desktop":"2rem","space-xl":"2rem","space-md":"1rem"},"fontFamily":{"body-sm":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"display-hero-mobile":["Playfair Display"],"headline-lg":["Playfair Display"],"label-badge":["Plus Jakarta Sans"],"label-spec":["Plus Jakarta Sans"],"headline-md":["Playfair Display"],"headline-sm":["Playfair Display"],"headline-lg-mobile":["Playfair Display"],"display-hero":["Playfair Display"],"title-editorial":["Playfair Display"]},"fontSize":{"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"body-lg":["16px",{"lineHeight":"26px","letterSpacing":"0.01em","fontWeight":"300"}],"body-md":["14px",{"lineHeight":"22px","fontWeight":"400"}],"display-hero-mobile":["38px",{"lineHeight":"46px","letterSpacing":"-0.01em","fontWeight":"400"}],"headline-lg":["40px",{"lineHeight":"48px","letterSpacing":"-0.01em","fontWeight":"400"}],"label-badge":["10px",{"lineHeight":"14px","letterSpacing":"0.15em","fontWeight":"700"}],"label-spec":["11px",{"lineHeight":"16px","letterSpacing":"0.12em","fontWeight":"600"}],"headline-md":["28px",{"lineHeight":"36px","fontWeight":"500"}],"headline-sm":["22px",{"lineHeight":"30px","fontWeight":"500"}],"headline-lg-mobile":["28px",{"lineHeight":"36px","fontWeight":"400"}],"display-hero":["56px",{"lineHeight":"64px","letterSpacing":"-0.02em","fontWeight":"400"}],"title-editorial":["18px",{"lineHeight":"26px","letterSpacing":"0.01em","fontWeight":"600"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary min-h-screen"><header class="fixed top-0 left-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.6)]"><div class="bg-surface-container-low px-gutter-desktop h-7 flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20"><div class="flex items-center gap-space-xs"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span><span class="font-label-badge text-label-badge uppercase text-secondary tracking-widest">Manufacture de Haute Horlogerie • Genève</span></div><div class="hidden md:block font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant/80">SWISS CHRONOMETER CERTIFIED • COMPLIMENTARY SECURED CONCIERGE DELIVERY WORLDWIDE • PRIVATE SALON APPOINTMENTS</div><div class="flex items-center gap-space-sm font-label-badge text-label-badge text-primary uppercase"><span class="material-symbols-outlined text-[14px]">verified</span><span>Atelier Direct</span></div></div><div class="h-20 max-w-[1360px] mx-auto px-gutter-desktop flex items-center justify-between gap-space-md"><a class="flex items-center gap-space-md group shrink-0" data-path="trang-chu" href="#"><img alt="Aurel &amp; Co. Haute Horlogerie Logo" class="h-9 w-auto object-contain transition-transform group-hover:scale-105 duration-300" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_S2rIl_KbGOGT8VdDBfLyYLnCy0VAlOnymuooSC6zF6_fPbOHYPl0pXSbALHCMPbABUA5JbnrmEl110gFq7vbTIKiuaQgdr-2jcHrNA8WNr3QSwiEZ854aHaNhaRbLaM3kIUXT5ZtnWCOa0pkuaqVvZebjHe8kFfLERpiA_xn9ZSDRO_RT7QVHuQaWRE_qdBngXd0twzKhY-1Hsnkj_OBsiDnPQcXFsObwzpmRhfQl8_omfQDuLD-"/><div class="flex flex-col"><span class="font-title-editorial text-title-editorial uppercase tracking-[0.25em] text-on-surface leading-none group-hover:text-primary transition-colors">Aurel &amp; Co.</span><span class="font-label-badge text-[9px] tracking-[0.35em] text-secondary uppercase mt-1 leading-none">Genève 1892</span></div></a><nav class="hidden lg:flex items-center gap-space-lg xl:gap-space-xl h-full" data-active-classes="text-primary font-medium border-b-2 border-primary shadow-[0_1px_12px_rgba(242,202,80,0.3)]"><a class="h-full flex items-center text-on-surface-variant hover:text-primary transition-colors font-body-sm text-body-sm tracking-[0.1em] uppercase whitespace-nowrap" data-path="trang-chu" href="#">Trang Chủ</a><a class="h-full flex items-center text-on-surface-variant hover:text-primary transition-colors font-body-sm text-body-sm tracking-[0.1em] uppercase whitespace-nowrap" data-path="bo-suu-tap" href="#">Bộ Sưu Tập</a><a class="h-full flex items-center text-on-surface-variant hover:text-primary transition-colors font-body-sm text-body-sm tracking-[0.1em] uppercase whitespace-nowrap" data-path="doc-ban-piece-unique" href="#">Độc Bản</a><a class="h-full flex items-center text-on-surface-variant hover:text-primary transition-colors font-body-sm text-body-sm tracking-[0.1em] uppercase whitespace-nowrap" data-path="chi-tiet-san-pham" href="#">Chi Tiết Sản Phẩm</a><a class="h-full flex items-center text-on-surface-variant hover:text-primary transition-colors font-body-sm text-body-sm tracking-[0.1em] uppercase whitespace-nowrap" data-path="atelier-di-san" href="#">Atelier &amp; Di Sản</a><a class="h-full flex items-center text-on-surface-variant hover:text-primary transition-colors font-body-sm text-body-sm tracking-[0.1em] uppercase whitespace-nowrap" data-path="gio-hang-concierge" href="#">Giỏ Hàng &amp; Concierge</a></nav><div class="flex items-center gap-space-md shrink-0"><div class="hidden sm:flex items-center px-space-xs py-1 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-label-spec tracking-wider uppercase cursor-pointer hover:text-primary transition-colors border border-outline-variant/30"><span>USD</span><span class="mx-1 text-outline-variant">/</span><span class="text-primary font-semibold">VND</span></div><button aria-label="Search Horological Archive" class="text-on-surface-variant hover:text-primary transition-colors p-1 flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">search</span></button><a aria-label="Wishlist Vault" class="relative text-on-surface-variant hover:text-primary transition-colors p-1 flex items-center justify-center" data-path="bo-suu-tap" href="#"><span class="material-symbols-outlined text-[20px]">favorite</span><span class="absolute -top-1 -right-1 bg-primary text-on-primary font-label-badge text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">2</span></a><a aria-label="Concierge Reserve" class="relative text-on-surface-variant hover:text-primary transition-colors p-1 flex items-center justify-center" data-path="gio-hang-concierge" href="#"><span class="material-symbols-outlined text-[20px]">shopping_bag</span><span class="absolute -top-1 -right-1 bg-primary-container text-on-primary font-label-badge text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">1</span></a><div class="h-6 w-[1px] bg-surface-container-highest hidden sm:block"></div><div class="flex items-center gap-space-xs pl-space-xs cursor-pointer group"><div class="relative"><img alt="VIP Collector Profile" class="w-8 h-8 rounded-full object-cover ring-1 ring-primary/50 group-hover:ring-primary transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzBPzES5ic4DtNPunNgu5CrG20cVDV1w4diAgZG0WHT8z1sBRqkds7BqgsquC0_S4Y4UL44ATr2HIMv61V11zQkiFOYNyyQhG5xWRFfTn_7VboIGDwiQEnRmnxBh_mDXAefEtSDil7s14g6xXUNSN_FQp49wFtBt0sj5jsv5cKMKYB5DUYI2rJh6CGx2WTLy_hynaW87F-v7SOkxe-KMsvUNa0oeCDLs92yNTKtqwgQVsHWU8tpl8X"/><span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary ring-1 ring-surface"></span></div><div class="hidden xl:flex flex-col"><span class="font-label-badge text-[10px] uppercase tracking-wider text-on-surface group-hover:text-primary transition-colors">Private Client</span><span class="font-label-spec text-[9px] uppercase tracking-widest text-secondary">Collector Tier</span></div></div></div></div></header><main class="w-full pt-20 bg-surface min-h-[calc(100vh-200px)]"><div class="flex flex-col w-full">
+<!-- 1. HERO SECTION: COMMISSION DE HAUTE HORLOGERIE -->
+<section class="relative w-full overflow-hidden bg-surface-container-lowest -mt-20 pt-28 pb-space-3xl border-b border-outline-variant/20">
+<!-- Ambient Radial Gold Backdrops -->
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-gradient-to-b from-primary/10 via-secondary-container/5 to-transparent rounded-full blur-3xl pointer-events-none -z-0"></div>
+<div class="absolute -top-32 right-10 w-96 h-96 bg-primary/5 rounded-full blur-2xl pointer-events-none -z-0"></div>
+<div class="max-w-[1360px] mx-auto px-gutter-desktop relative z-10">
+<!-- Atelier Emblem & Top Micro-tag -->
+<div class="flex flex-col items-center text-center max-w-4xl mx-auto">
+<div class="inline-flex items-center gap-space-sm px-space-md py-1 rounded bg-surface-container-high/80 backdrop-blur-md border border-outline-variant/30 mb-space-lg shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+<span class="font-label-badge text-label-badge uppercase tracking-[0.25em] text-secondary">Cabinet des Pièces Rares • Commission de Haute Horlogerie</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg md:text-display-hero text-on-surface tracking-tight leading-tight uppercase font-display-hero mb-space-md">
+          Kiệt Tác Độc Bản &amp; <span class="text-primary italic font-normal">Đặt Chế Tác Riêng</span>
+</h1>
+<p class="font-title-editorial text-body-lg text-secondary tracking-widest uppercase mb-space-lg">
+          Pièce Unique &amp; Bespoke Commissions • Genève 1892
+        </p>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-3xl leading-relaxed mb-space-2xl">
+          Mỗi năm, xưởng chế tác Aurel &amp; Co. chỉ tiếp nhận tối đa <strong>07 dự án ủy thác độc bản</strong> từ các nhà sưu tập thượng lưu trên toàn cầu. Mỗi cỗ máy thời gian ra đời là một tạo tác vi cơ học duy nhất trên trần thế, mang dấu ấn linh hồn và câu chuyện vĩnh cửu của chính chủ nhân.
+        </p>
+<!-- Exclusive Allocation Metrics Banner -->
+<div class="w-full grid grid-cols-1 md:grid-cols-3 gap-px bg-outline-variant/30 rounded overflow-hidden p-px shadow-xl">
+<div class="bg-surface-container-low/90 backdrop-blur-md p-space-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">Hạn Ngạch Năm 2025</span>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md text-primary font-bold">04</span>
+<span class="text-on-surface-variant text-body-md">/ 07 Ủy Thác Đã Ký</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">Chỉ còn 03 suất tiếp nhận</span>
+</div>
+<div class="bg-surface-container-low/90 backdrop-blur-md p-space-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">Thời Gian Chế Tác Vi Cơ Học</span>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-md text-headline-md text-on-surface font-bold">08 – 14</span>
+<span class="text-on-surface-variant text-body-md">Tháng Thủ Công</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">Hơn 600 giờ gia công tỉ mỉ</span>
+</div>
+<div class="bg-surface-container-low/90 backdrop-blur-md p-space-lg flex flex-col items-center justify-center text-center">
+<span class="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">Bảo Chứng Độc Bản Toàn Cầu</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-primary text-[22px]">verified</span>
+<span class="font-title-editorial text-body-md text-on-surface uppercase tracking-wider">Sole Custody Registry</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">Hộ chiếu số hóa Blockchain &amp; Triện Thụy Sĩ</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. GALLERY: HISTORICAL UNIQUE MASTERPIECES (TRIỂN LÃM KIỆT TÁC ĐỘC BẢN) -->
+<section class="w-full py-space-4xl bg-surface">
+<div class="max-w-[1360px] mx-auto px-gutter-desktop">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-space-2xl border-b border-outline-variant/20 pb-space-lg gap-space-md">
+<div>
+<div class="flex items-center gap-space-xs text-primary mb-space-xs">
+<span class="material-symbols-outlined text-[18px]">history_edu</span>
+<span class="font-label-spec text-label-spec uppercase tracking-[0.2em]">Geneva Archive Ledger</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight">
+            Di Sản Đã Hoàn Thành <span class="text-secondary italic font-serif">N°01/01</span>
+</h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md">
+          Các cỗ máy được lưu giữ vĩnh viễn trong kho tàng lịch sử xưởng Genève. Mỗi thiết kế được niêm phong khuôn đúc, không bao giờ tái sản xuất.
+        </p>
+</div>
+<!-- 3 Unique Masterpieces Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-xl">
+<!-- Masterpiece 1 -->
+<article class="group flex flex-col bg-surface-container-low rounded overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-all duration-500 shadow-lg hover:shadow-[0_16px_40px_rgba(212,175,55,0.12)]">
+<div class="relative w-full h-80 overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Ultra-luxury bespoke Swiss wristwatch featuring genuine Muonionalusta meteorite dial with custom baguette diamond indices, floating flying tourbillon carriage at 6 o'clock, polished Platinum 950 case, deep obsidian and champagne gold reflections, macro watchmaking photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAy3JT6Ju2kzi6a4JENnrjJujIAFh7WNEDWeiD4L4vSOzZ9XZjM3M46zBJ2dv81P2Xjiq_QAq86CBv8uGtdAApF5N_fwIpmp1qp81cQuNmv9Vt3wt78fTtAECxfWBaXn7ZJ2aXr1lr73FZ9kxjEb8jGEZzCoeDn-JIEJ-bqglNsS-QlC5Mu8ASpPJCMSwcYDmUfqf1-9S12eNdumzwtL87uHZJ4XvEErf4moI5ty-J-PPCttTfNohua"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-black/30"></div>
+<div class="absolute top-space-md left-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-md text-[10px] font-label-badge uppercase tracking-widest text-primary border border-primary/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                In Private Collection
+              </span>
+</div>
+<div class="absolute top-space-md right-space-md">
+<span class="font-label-spec text-label-spec uppercase tracking-widest text-secondary/90 bg-surface/80 px-2 py-1 rounded backdrop-blur-sm border border-outline-variant/30">
+                Pièce N° 01/01
+              </span>
+</div>
+<div class="absolute bottom-space-md left-space-md right-space-md flex justify-between items-end">
+<div>
+<span class="font-label-badge text-label-badge text-secondary uppercase tracking-[0.2em]">Commission Privée</span>
+<p class="font-headline-sm text-headline-sm text-on-surface font-title-editorial">Céleste Mystérieux</p>
+</div>
+<span class="font-label-spec text-label-spec text-primary font-bold tracking-wider">$420,000 USD</span>
+</div>
+</div>
+<div class="p-space-lg flex flex-col flex-grow justify-between bg-surface-container-low">
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed mb-space-md">
+              Vỏ chế tác từ Bạch kim Platinum 950 đúc nguyên khối. Mặt số cắt từ thiên thạch tự nhiên Muonionalusta nạp năng lượng vũ trụ kết hợp kim cương Baguette giác cắt riêng. Lưng đáy sapphire khắc bản đồ thiên văn ngày sinh của chủ nhân.
+            </p>
+<div class="space-y-2 border-t border-b border-outline-variant/20 py-space-sm mb-space-md font-body-sm">
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Calibre:</span>
+<span class="text-on-surface font-medium">AC-9801 Flying Tourbillon (3Hz)</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Chất liệu:</span>
+<span class="text-on-surface font-medium">Platinum 950 &amp; Thiên Thạch</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Bảo hành di sản:</span>
+<span class="text-primary font-medium">Trọn đời (Lifetime Escapement)</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm pt-space-xs">
+<button class="flex-1 py-2 px-3 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1 border border-outline-variant/30">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+<span>Hồ Sơ Lưu Trữ</span>
+</button>
+<button class="p-2 rounded bg-surface-container-high hover:text-primary text-on-surface-variant transition-colors border border-outline-variant/30" title="Chi tiết vi cơ học">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+</div>
+</article>
+<!-- Masterpiece 2 -->
+<article class="group flex flex-col bg-surface-container-low rounded overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-all duration-500 shadow-lg hover:shadow-[0_16px_40px_rgba(212,175,55,0.12)]">
+<div class="relative w-full h-80 overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Exquisite Haute Horlogerie split-seconds chronograph with Grand Feu enamel dial portraying an imperial golden dragon, 18k 5N rose gold sculpted case, twin column-wheel complication visible, warm golden reflections on dark obsidian backdrop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHV8JkYB48swyHXl89Yz6q_nqR_pSMkv2bqj6Uu4Rh8BdrFW375PHN6XCLRMupdGaVLNcL9pL9TUfermORcDm73c7Z7bgU_bM5sZf9wt86CZqvH3EoT83lR1TWWlYf02Nguult7PSNZEsfTx1JODkA_5R-TIva-WsLopu5CkS8G8ItZ8nYSWo1TH_dUpWArU4QLLdFHRnVauUgk3YS_HSCwpRS4zAPTbIOfPhuelbt_fBId-QUyTyL"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-black/30"></div>
+<div class="absolute top-space-md left-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-md text-[10px] font-label-badge uppercase tracking-widest text-primary border border-primary/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                In Private Collection
+              </span>
+</div>
+<div class="absolute top-space-md right-space-md">
+<span class="font-label-spec text-label-spec uppercase tracking-widest text-secondary/90 bg-surface/80 px-2 py-1 rounded backdrop-blur-sm border border-outline-variant/30">
+                Pièce N° 01/01
+              </span>
+</div>
+<div class="absolute bottom-space-md left-space-md right-space-md flex justify-between items-end">
+<div>
+<span class="font-label-badge text-label-badge text-secondary uppercase tracking-[0.2em]">Commission Métiers d’Art</span>
+<p class="font-headline-sm text-headline-sm text-on-surface font-title-editorial">Rattrapante Dragon Impérial</p>
+</div>
+<span class="font-label-spec text-label-spec text-primary font-bold tracking-wider">$385,000 USD</span>
+</div>
+</div>
+<div class="p-space-lg flex flex-col flex-grow justify-between bg-surface-container-low">
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed mb-space-md">
+              Mặt số tiểu họa men Grand Feu nung thủ công 7 lần ở nhiệt độ 850°C, khắc họa hình tượng Rồng Hoàng gia uy nghi. Tính năng bấm giờ kép chia giây Rattrapante với hệ thống bánh xe cột kép tinh vi.
+            </p>
+<div class="space-y-2 border-t border-b border-outline-variant/20 py-space-sm mb-space-md font-body-sm">
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Calibre:</span>
+<span class="text-on-surface font-medium">AC-7700 Twin Column-Wheel</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Chất liệu:</span>
+<span class="text-on-surface font-medium">Vàng 18K 5N Rose Gold &amp; Grand Feu</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Tiêu chuẩn:</span>
+<span class="text-primary font-medium">Poinçon de Genève Certified</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm pt-space-xs">
+<button class="flex-1 py-2 px-3 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1 border border-outline-variant/30">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+<span>Hồ Sơ Lưu Trữ</span>
+</button>
+<button class="p-2 rounded bg-surface-container-high hover:text-primary text-on-surface-variant transition-colors border border-outline-variant/30" title="Chi tiết vi cơ học">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+</div>
+</article>
+<!-- Masterpiece 3 -->
+<article class="group flex flex-col bg-surface-container-low rounded overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-all duration-500 shadow-lg hover:shadow-[0_16px_40px_rgba(212,175,55,0.12)]">
+<div class="relative w-full h-80 overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Hand-skeletonized cathedral gong minute repeater wristwatch, exposed intricate gears, bridges hand-beveled with black polish, titanium acoustic resonance case, dramatic macro lighting, dark luxury Swiss watch workshop aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnMcjWnGOQS4oq2kpkH23yMJhwWRO2YtqCc7e3ijmBiIEiQVS29pwg6pIqtmhCo_qErou0rWXrbTQfEdpwDP7j_ymCPCkF6ZIwxqj1T9ltDmu7L7Hx2QyhbG-hsF7gOcJ-fi8RvfK18kZWNKn0r-ROcnHIC1CoeWPEWBB93M3R0DxKcR45daQsv913hGcVD1cuRASUPI6R6v2ZGjoWp8plt-dqWr8A4p-i6rp6xwfSVEZoUBdasbMj"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-black/30"></div>
+<div class="absolute top-space-md left-space-md">
+<span class="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-md text-[10px] font-label-badge uppercase tracking-widest text-primary border border-primary/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                In Private Collection
+              </span>
+</div>
+<div class="absolute top-space-md right-space-md">
+<span class="font-label-spec text-label-spec uppercase tracking-widest text-secondary/90 bg-surface/80 px-2 py-1 rounded backdrop-blur-sm border border-outline-variant/30">
+                Pièce N° 01/01
+              </span>
+</div>
+<div class="absolute bottom-space-md left-space-md right-space-md flex justify-between items-end">
+<div>
+<span class="font-label-badge text-label-badge text-secondary uppercase tracking-[0.2em]">Acoustic Complication</span>
+<p class="font-headline-sm text-headline-sm text-on-surface font-title-editorial">Minute Repeater 'Chopin Opus'</p>
+</div>
+<span class="font-label-spec text-label-spec text-primary font-bold tracking-wider">$560,000 USD</span>
+</div>
+</div>
+<div class="p-space-lg flex flex-col flex-grow justify-between bg-surface-container-low">
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed mb-space-md">
+              Cỗ máy điểm chuông vang vọng với hệ thống Cathedral Gongs uốn vòng kép. Khung cầu nối được khoét rỗng Skeleton và vát cạnh bóng gương (anglage) hoàn toàn bằng tay trong 180 giờ bởi Trưởng nghệ nhân.
+            </p>
+<div class="space-y-2 border-t border-b border-outline-variant/20 py-space-sm mb-space-md font-body-sm">
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Âm học:</span>
+<span class="text-on-surface font-medium">Cathedral Gong (Cung Trầm F/A)</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Hoàn thiện:</span>
+<span class="text-on-surface font-medium">Hand-skeletonized Skeleton Art</span>
+</div>
+<div class="flex justify-between text-on-surface-variant">
+<span class="font-label-badge uppercase text-secondary">Âm vang đo đạc:</span>
+<span class="text-primary font-medium">68dB tại phòng thử âm Genève</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm pt-space-xs">
+<button class="flex-1 py-2 px-3 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1 border border-outline-variant/30">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+<span>Hồ Sơ Lưu Trữ</span>
+</button>
+<button class="p-2 rounded bg-surface-container-high hover:text-primary text-on-surface-variant transition-colors border border-outline-variant/30" title="Chi tiết vi cơ học">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+</div>
+</article>
+</div>
+</div>
+</section>
+<!-- 3. INTERACTIVE BESPOKE COMMISSION ATELIER (TRÌNH CẤU HÌNH ĐẶT CHẾ TÁC TRỰC TUYẾN) -->
+<section class="w-full py-space-4xl bg-surface-container-lowest border-t border-b border-outline-variant/20 relative" id="bespoke-configurator">
+<div class="max-w-[1360px] mx-auto px-gutter-desktop">
+<div class="text-center max-w-3xl mx-auto mb-space-3xl">
+<div class="inline-flex items-center gap-space-xs text-primary mb-space-xs">
+<span class="material-symbols-outlined text-[18px]">architecture</span>
+<span class="font-label-spec text-label-spec uppercase tracking-[0.25em]">Atelier de Création Sur-Mesure</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight mb-space-xs">
+          Trình Cấu Hình Ủy Thác <span class="text-primary italic font-serif">Độc Bản</span>
+</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+          Lựa chọn các nền tảng kỹ nghệ vi cơ học đỉnh cao để phác thảo cỗ máy ước mơ của quý khách. Hội đồng Nghệ nhân Aurel &amp; Co. sẽ phản hồi bản dựng kỹ thuật bảo mật trong vòng 24 giờ.
+        </p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- Configuration Steps Panel (8 Cols) -->
+<div class="lg:col-span-8 space-y-space-xl">
+<!-- Step 1: Movement Archetype -->
+<div class="bg-surface-container-low p-space-xl rounded border border-outline-variant/30">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">1</span>
+<div>
+<h3 class="font-title-editorial text-title-editorial text-on-surface uppercase">Cỗ Máy Cơ Khí Đỉnh Cao</h3>
+<span class="font-label-spec text-label-spec text-secondary uppercase">Movement Archetype &amp; Complications</span>
+</div>
+</div>
+<span class="font-label-badge text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded uppercase">Bắt buộc</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md" id="opt-movements">
+<label class="relative flex flex-col p-space-md rounded bg-surface-container-high border-2 border-primary cursor-pointer transition-all hover:bg-surface-bright group">
+<input checked="" class="sr-only" name="movement" onchange="updateEstimator()" type="radio" value="tourbillon"/>
+<div class="flex justify-between items-start mb-2">
+<span class="font-title-editorial text-body-md text-on-surface font-semibold group-hover:text-primary">Flying Tourbillon 3D</span>
+<span class="text-primary material-symbols-outlined text-[20px] check-indicator">radio_button_checked</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Cơ cấu lồng xoay triệt tiêu trọng trường 60 giây, nung ốc xanh nung nhiệt, cầu vát tay.</p>
+<span class="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $190,000</span>
+</label>
+<label class="relative flex flex-col p-space-md rounded bg-surface-container-high border border-outline-variant/40 cursor-pointer transition-all hover:bg-surface-bright group">
+<input class="sr-only" name="movement" onchange="updateEstimator()" type="radio" value="repeater"/>
+<div class="flex justify-between items-start mb-2">
+<span class="font-title-editorial text-body-md text-on-surface font-semibold group-hover:text-primary">Cathedral Minute Repeater</span>
+<span class="text-outline-variant material-symbols-outlined text-[20px] check-indicator">radio_button_unchecked</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Điểm chuông nhà thờ âm vực trầm vang, bộ búa gõ thép cường lực đánh bóng gương.</p>
+<span class="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $280,000</span>
+</label>
+<label class="relative flex flex-col p-space-md rounded bg-surface-container-high border border-outline-variant/40 cursor-pointer transition-all hover:bg-surface-bright group">
+<input class="sr-only" name="movement" onchange="updateEstimator()" type="radio" value="chronograph"/>
+<div class="flex justify-between items-start mb-2">
+<span class="font-title-editorial text-body-md text-on-surface font-semibold group-hover:text-primary">Chronographe Monopoussoir</span>
+<span class="text-outline-variant material-symbols-outlined text-[20px] check-indicator">radio_button_unchecked</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Bấm giờ một nút bấm tích hợp trục đồng tâm trên núm vặn, ly hợp ngang cổ điển.</p>
+<span class="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $150,000</span>
+</label>
+<label class="relative flex flex-col p-space-md rounded bg-surface-container-high border border-outline-variant/40 cursor-pointer transition-all hover:bg-surface-bright group">
+<input class="sr-only" name="movement" onchange="updateEstimator()" type="radio" value="perpetual"/>
+<div class="flex justify-between items-start mb-2">
+<span class="font-title-editorial text-body-md text-on-surface font-semibold group-hover:text-primary">Celestial Perpetual Calendar</span>
+<span class="text-outline-variant material-symbols-outlined text-[20px] check-indicator">radio_button_unchecked</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Lịch vạn niên thiên văn hiển thị chu kỳ mặt trăng thật chính xác 122 năm.</p>
+<span class="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $210,000</span>
+</label>
+</div>
+</div>
+<!-- Step 2: Case Metallurgy -->
+<div class="bg-surface-container-low p-space-xl rounded border border-outline-variant/30">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">2</span>
+<div>
+<h3 class="font-title-editorial text-title-editorial text-on-surface uppercase">Chất Liệu Vỏ Quý Hiếm</h3>
+<span class="font-label-spec text-label-spec text-secondary uppercase">Case Metallurgy &amp; Finishing</span>
+</div>
+</div>
+<span class="font-label-badge text-[10px] text-secondary bg-surface-container-high px-2 py-0.5 rounded uppercase">Tùy chọn đúc riêng</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-sm" id="opt-materials">
+<label class="p-space-md rounded bg-surface-container-high border-2 border-primary cursor-pointer text-center group flex flex-col items-center">
+<input checked="" class="sr-only" name="material" onchange="updateEstimator()" type="radio" value="rose-gold"/>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-700 via-rose-300 to-amber-500 mb-2 ring-1 ring-primary/40"></div>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface group-hover:text-primary">Aurel 5N Rose Gold</span>
+<span class="font-label-badge text-[10px] text-secondary mt-1">Đúc nguyên khối 18K</span>
+</label>
+<label class="p-space-md rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer text-center group flex flex-col items-center">
+<input class="sr-only" name="material" onchange="updateEstimator()" type="radio" value="platinum"/>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-zinc-500 via-slate-200 to-zinc-400 mb-2 ring-1 ring-white/30"></div>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface group-hover:text-primary">Platinum 950</span>
+<span class="font-label-badge text-[10px] text-secondary mt-1">+ $35,000 USD</span>
+</label>
+<label class="p-space-md rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer text-center group flex flex-col items-center">
+<input class="sr-only" name="material" onchange="updateEstimator()" type="radio" value="titanium"/>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-stone-600 via-neutral-400 to-stone-700 mb-2 ring-1 ring-white/20"></div>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface group-hover:text-primary">Titanium Grade 5</span>
+<span class="font-label-badge text-[10px] text-secondary mt-1">Siêu nhẹ chải xước</span>
+</label>
+<label class="p-space-md rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer text-center group flex flex-col items-center">
+<input class="sr-only" name="material" onchange="updateEstimator()" type="radio" value="ceramic"/>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-black via-zinc-800 to-neutral-900 mb-2 ring-1 ring-white/20"></div>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface group-hover:text-primary">Ceramic Nhám Velvet</span>
+<span class="font-label-badge text-[10px] text-secondary mt-1">Chống trầy tuyệt đối</span>
+</label>
+</div>
+</div>
+<!-- Step 3: Métiers d'Art Dial -->
+<div class="bg-surface-container-low p-space-xl rounded border border-outline-variant/30">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">3</span>
+<div>
+<h3 class="font-title-editorial text-title-editorial text-on-surface uppercase">Nghệ Thuật Mặt Số Métiers d'Art</h3>
+<span class="font-label-spec text-label-spec text-secondary uppercase">Dial Craftsmanship &amp; Rare Handcrafts</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md" id="opt-dial">
+<label class="p-space-md rounded bg-surface-container-high border-2 border-primary cursor-pointer flex items-center gap-space-md group">
+<input checked="" class="sr-only" name="dial" onchange="updateEstimator()" type="radio" value="guilloche"/>
+<span class="material-symbols-outlined text-primary text-[28px]">grain</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface group-hover:text-primary">Guilloché Rose Engine Thủ Công</p>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tiện tay trên máy tiện cổ 1920s họa tiết sóng Clous de Paris</span>
+</div>
+</label>
+<label class="p-space-md rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer flex items-center gap-space-md group">
+<input class="sr-only" name="dial" onchange="updateEstimator()" type="radio" value="meteorite"/>
+<span class="material-symbols-outlined text-secondary text-[28px]">diamond</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface group-hover:text-primary">Phiến Thiên Thạch Muonionalusta</p>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Họa tiết Widmanstätten 4.5 tỷ năm tuổi (+ $20,000)</span>
+</div>
+</label>
+<label class="p-space-md rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer flex items-center gap-space-md group">
+<input class="sr-only" name="dial" onchange="updateEstimator()" type="radio" value="grandfeu"/>
+<span class="material-symbols-outlined text-secondary text-[28px]">local_fire_department</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface group-hover:text-primary">Tráng Men Lửa Lớn Grand Feu</p>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Nung men kính 7 lần, vẽ tiểu họa vi mô độc quyền (+ $25,000)</span>
+</div>
+</label>
+<label class="p-space-md rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer flex items-center gap-space-md group">
+<input class="sr-only" name="dial" onchange="updateEstimator()" type="radio" value="skeleton"/>
+<span class="material-symbols-outlined text-secondary text-[28px]">all_inclusive</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface group-hover:text-primary">Khắc Chạm Rỗng Skeleton</p>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Lộ toàn bộ cơ cấu bánh răng, vát cạnh bóng gương 100%</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Step 4: Bespoke Personalization -->
+<div class="bg-surface-container-low p-space-xl rounded border border-outline-variant/30">
+<div class="flex items-center justify-between mb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">4</span>
+<div>
+<h3 class="font-title-editorial text-title-editorial text-on-surface uppercase">Dấu Ấn Cá Nhân Hóa Độc Quyền</h3>
+<span class="font-label-spec text-label-spec text-secondary uppercase">Personalized Signature &amp; Crest</span>
+</div>
+</div>
+</div>
+<div class="space-y-space-sm">
+<label class="flex items-center gap-space-sm p-space-sm rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer hover:bg-surface-bright">
+<input checked="" class="accent-primary w-4 h-4 rounded" id="check-crest" onchange="updateEstimator()" type="checkbox"/>
+<div class="flex-1">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Khắc Gia Huy Hoàng Gia / Chữ Ký Tay Trên Rô-To Vàng 21K</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Nghệ nhân chạm khắc phù điêu 3D bằng kính hiển vi điện tử</p>
+</div>
+<span class="font-label-spec text-label-spec text-secondary font-medium">Kèm theo</span>
+</label>
+<label class="flex items-center gap-space-sm p-space-sm rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer hover:bg-surface-bright">
+<input class="accent-primary w-4 h-4 rounded" id="check-constellation" onchange="updateEstimator()" type="checkbox"/>
+<div class="flex-1">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Bản Đồ Chòm Sao Thiên Văn Cá Nhân Khắc Đáy Sapphire</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Tọa độ chính xác bầu trời đêm vào khoảnh khắc quý khách yêu cầu</p>
+</div>
+<span class="font-label-spec text-label-spec text-secondary font-medium">+ $12,000</span>
+</label>
+<label class="flex items-center gap-space-sm p-space-sm rounded bg-surface-container-high border border-outline-variant/30 cursor-pointer hover:bg-surface-bright">
+<input class="accent-primary w-4 h-4 rounded" id="check-gem" onchange="updateEstimator()" type="checkbox"/>
+<div class="flex-1">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Khảm Đá Quý Phong Thủy / Kim Cương D-Flawless Tại Góc 12 Giờ</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Viên chủ cắt cabochon hoặc giác cắt Brilliant giác độc quyền</p>
+</div>
+<span class="font-label-spec text-label-spec text-secondary font-medium">+ $18,000</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Realtime Bespoke Summary Estimator (4 Cols Sticky) -->
+<div class="lg:col-span-4 sticky top-28 space-y-space-md">
+<div class="bg-surface-container-high rounded p-space-xl border border-primary/40 shadow-2xl relative overflow-hidden">
+<div class="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm mb-space-md">
+<span class="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary">Dự Toán Ủy Thác</span>
+<span class="font-label-badge text-[10px] text-primary bg-primary/20 px-2 py-0.5 rounded font-bold">ESTIMATION</span>
+</div>
+<!-- Dynamic Selected Summary Items -->
+<div class="space-y-space-sm font-body-sm pb-space-md border-b border-outline-variant/20">
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Cỗ máy cơ khí:</span>
+<span class="text-on-surface font-semibold text-right" id="summary-movement">Flying Tourbillon 3D</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Chất liệu vỏ:</span>
+<span class="text-on-surface font-semibold text-right" id="summary-material">Aurel 5N Rose Gold</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Nghệ thuật mặt:</span>
+<span class="text-on-surface font-semibold text-right" id="summary-dial">Guilloché Rose Engine</span>
+</div>
+<div class="flex justify-between">
+<span class="text-on-surface-variant">Dấu ấn cá nhân:</span>
+<span class="text-secondary font-semibold text-right" id="summary-addon">Khắc Gia Huy Rô-to</span>
+</div>
+</div>
+<!-- Metrics: Lead Time & Estimation Price -->
+<div class="pt-space-md space-y-space-sm mb-space-lg">
+<div class="flex items-baseline justify-between">
+<span class="font-body-sm text-on-surface-variant">Thời gian chế tác:</span>
+<span class="font-title-editorial text-body-md text-primary font-bold" id="summary-duration">10 – 12 Tháng</span>
+</div>
+<div class="flex flex-col pt-2 border-t border-outline-variant/20">
+<span class="font-label-badge text-label-badge uppercase tracking-wider text-secondary">Ngân Sách Ủy Thác Ước Tính:</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-headline-md text-headline-md text-primary font-bold tracking-tight" id="summary-price">$190,000</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">USD*</span>
+</div>
+<span class="text-[11px] text-on-surface-variant/70 italic mt-0.5">*Đã bao gồm thuế hải quan ngoại giao &amp; chuyên xe an ninh</span>
+</div>
+</div>
+<!-- Action Button: Jump to Inquiry Form -->
+<a class="w-full py-space-sm px-space-md rounded bg-primary hover:bg-secondary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] font-bold flex items-center justify-center gap-space-xs transition-all shadow-[0_4px_20px_rgba(242,202,80,0.3)]" href="#bespoke-inquiry">
+<span>Gửi Yêu Cầu Khảo Sát Kín</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</a>
+<div class="mt-space-md p-space-sm rounded bg-surface-container-lowest text-center border border-outline-variant/20">
+<span class="text-[11px] text-on-surface-variant flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-primary text-[14px]">lock</span>
+                Cam kết ký kết thỏa thuận bảo mật NDA trước khi diện kiến
+              </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. THE 5-STEP BESPOKE JOURNEY (QUY TRÌNH 5 BƯỚC CHẾ TÁC ĐỘC BẢN) -->
+<section class="w-full py-space-4xl bg-surface border-b border-outline-variant/20">
+<div class="max-w-[1360px] mx-auto px-gutter-desktop">
+<div class="text-center max-w-3xl mx-auto mb-space-3xl">
+<div class="inline-flex items-center gap-space-xs text-primary mb-space-xs">
+<span class="material-symbols-outlined text-[18px]">timeline</span>
+<span class="font-label-spec text-label-spec uppercase tracking-[0.25em]">Le Protocole de Haute Horlogerie</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight">
+          Hành Trình Chế Tác <span class="text-primary italic font-serif">05 Giai Đoạn</span>
+</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">
+          Từ ý tưởng sơ khởi đến kiệt tác cơ khí hiện hữu trên cổ tay – một nghi thức danh giá kéo dài hàng trăm giờ miệt mài.
+        </p>
+</div>
+<!-- Timeline Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-5 gap-space-md relative">
+<!-- Step 1 -->
+<div class="relative bg-surface-container-low p-space-lg rounded border border-outline-variant/30 flex flex-col justify-between group hover:border-primary/50 transition-colors">
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<span class="font-headline-md text-headline-md text-primary font-title-editorial font-bold">01</span>
+<span class="material-symbols-outlined text-secondary text-[24px]">key</span>
+</div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Diện Kiến Bí Mật</h4>
+<span class="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Private Salon Consultation</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Hội kiến kín cùng Giám đốc Sáng tạo và Trưởng Nghệ nhân tại Genève, Zürich hoặc tư gia để ghi nhận phong thái và tinh thần mong muốn.
+            </p>
+</div>
+<div class="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
+            Thời lượng: 2 - 4 Tuần
+          </div>
+</div>
+<!-- Step 2 -->
+<div class="relative bg-surface-container-low p-space-lg rounded border border-outline-variant/30 flex flex-col justify-between group hover:border-primary/50 transition-colors">
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<span class="font-headline-md text-headline-md text-primary font-title-editorial font-bold">02</span>
+<span class="material-symbols-outlined text-secondary text-[24px]">brush</span>
+</div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Phác Thảo Gouache</h4>
+<span class="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Artistic Blueprint &amp; 3D</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Thực hiện bản vẽ màu nước nghệ thuật Gouache tỉ lệ 1:1 cùng mô hình cơ khí 3D mô phỏng góc đặt chi tiết và ánh sắc kim loại.
+            </p>
+</div>
+<div class="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
+            Thời lượng: 4 - 6 Tuần
+          </div>
+</div>
+<!-- Step 3 -->
+<div class="relative bg-surface-container-low p-space-lg rounded border border-outline-variant/30 flex flex-col justify-between group hover:border-primary/50 transition-colors">
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<span class="font-headline-md text-headline-md text-primary font-title-editorial font-bold">03</span>
+<span class="material-symbols-outlined text-secondary text-[24px]">precision_manufacturing</span>
+</div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Đúc Phôi &amp; Chế Tác</h4>
+<span class="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Atelier Hand-Finishing</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Hơn 600 giờ gọt giũa thủ công các chi tiết cầu nối, đánh bóng đen miroir, vát cạnh và chạm khắc hoa văn gia huy độc bản.
+            </p>
+</div>
+<div class="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
+            Thời lượng: 6 - 9 Tháng
+          </div>
+</div>
+<!-- Step 4 -->
+<div class="relative bg-surface-container-low p-space-lg rounded border border-outline-variant/30 flex flex-col justify-between group hover:border-primary/50 transition-colors">
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<span class="font-headline-md text-headline-md text-primary font-title-editorial font-bold">04</span>
+<span class="material-symbols-outlined text-secondary text-[24px]">hourglass_empty</span>
+</div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Kiểm Định 1,000 Giờ</h4>
+<span class="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Master Chronometer Testing</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Trải qua quy chuẩn thử nghiệm khắt khe 1,000 giờ trong 6 vị trí không gian và 3 dải nhiệt độ, vượt trên cả tiêu chuẩn COSC.
+            </p>
+</div>
+<div class="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
+            Thời lượng: ~ 6 Tuần
+          </div>
+</div>
+<!-- Step 5 -->
+<div class="relative bg-surface-container-low p-space-lg rounded border border-outline-variant/30 flex flex-col justify-between group hover:border-primary/50 transition-colors">
+<div>
+<div class="flex items-center justify-between mb-space-md">
+<span class="font-headline-md text-headline-md text-primary font-title-editorial font-bold">05</span>
+<span class="material-symbols-outlined text-secondary text-[24px]">local_police</span>
+</div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Nghi Lễ Bàn Giao</h4>
+<span class="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Solemn Handover Protocol</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              Bàn giao trang trọng tại tư gia cùng đội xe bọc thép an ninh hoặc dạ tiệc riêng tại Lâu đài Genève kèm chứng thư số hóa NFT độc bản.
+            </p>
+</div>
+<div class="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
+            Độc quyền vĩnh cửu
+          </div>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. VIP BESPOKE INQUIRY CONCIERGE (FORM LIÊN HỆ ĐẶT HẸN ỦY THÁC) -->
+<section class="w-full py-space-4xl bg-surface-container-lowest relative overflow-hidden" id="bespoke-inquiry">
+<div class="max-w-[1360px] mx-auto px-gutter-desktop">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-2xl">
+<!-- Left Column: Atelier Philosophy & Reassurance (5 cols) -->
+<div class="lg:col-span-5 flex flex-col justify-between">
+<div>
+<div class="inline-flex items-center gap-space-xs text-primary mb-space-xs">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span class="font-label-spec text-label-spec uppercase tracking-[0.2em]">Protocole de Confidentialité Absolue</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight mb-space-md">
+              Khởi Đầu Hành Trình Sở Hữu <span class="text-primary italic font-serif">Di Sản Độc Nhất</span>
+</h2>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed mb-space-xl">
+              Thư ký Hội đồng Nghệ nhân Aurel &amp; Co. sẽ trực tiếp kết nối cùng quý vị qua kênh liên lạc cơ mật. Toàn bộ thông tin danh tính và nội dung trao đổi được bảo đảm tuyệt đối theo Thỏa thuận Bảo Mật NDA Thụy Sĩ.
+            </p>
+<div class="space-y-space-md">
+<div class="flex items-start gap-space-md p-space-md bg-surface-container-low rounded border border-outline-variant/20">
+<span class="material-symbols-outlined text-primary text-[24px] mt-0.5">lock_person</span>
+<div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase">Bảo Mật Cấp Ngoại Giao</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Danh tính khách hàng được mã hóa dưới bí danh định danh (Alias Cryptographic Key) trong sổ cái Atelier.</p>
+</div>
+</div>
+<div class="flex items-start gap-space-md p-space-md bg-surface-container-low rounded border border-outline-variant/20">
+<span class="material-symbols-outlined text-primary text-[24px] mt-0.5">handshake</span>
+<div>
+<h4 class="font-title-editorial text-body-md text-on-surface uppercase">Cam Kết Độc Bản Vĩnh Viễn</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">Bản vẽ kỹ thuật và khuôn chế tác được niêm phong hoặc bàn giao trọn vẹn lại cho quý chủ nhân.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-space-xl mt-space-xl border-t border-outline-variant/20">
+<span class="font-label-badge text-label-badge text-secondary uppercase tracking-widest block mb-1">Geneva Direct Salon Contact</span>
+<div class="font-headline-sm text-headline-sm text-on-surface font-title-editorial tracking-wider">
+              +41 22 819 92 00 <span class="text-primary text-body-sm font-sans font-normal">(VIP Desk)</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Rue du Rhône 48, 1204 Genève, Suisse</span>
+</div>
+</div>
+<!-- Right Column: Bespoke Dossier Inquiry Form (7 cols) -->
+<div class="lg:col-span-7 bg-surface-container-low p-space-xl md:p-space-2xl rounded border border-outline-variant/30 shadow-2xl relative">
+<form class="space-y-space-md" id="bespoke-form" onsubmit="handleBespokeSubmit(event)">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div>
+<label class="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Danh Xưng &amp; Họ Tên Thượng Khách *</label>
+<input class="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Ví dụ: Mr. Alexandre Nguyen" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Kênh Bảo Mật (Signal / WhatsApp / Phone) *</label>
+<input class="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="+84 90 000 0000" required="" type="tel"/>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div>
+<label class="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Email Liên Lạc Cơ Mật *</label>
+<input class="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="vip.collector@domain.com" required="" type="email"/>
+</div>
+<div>
+<label class="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Quốc Gia &amp; Thành Phố Tiếp Đón *</label>
+<input class="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Genève / TP. Hồ Chí Minh / Hà Nội" required="" type="text"/>
+</div>
+</div>
+<div>
+<label class="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Hạn Mức Ngân Sách Dự Kiến Dành Cho Dự Án</label>
+<select class="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30">
+<option value="150-250k">$150,000 – $250,000 USD (Chrono Monopusher / Tourbillon Classic)</option>
+<option selected="" value="250-400k">$250,000 – $400,000 USD (Flying Tourbillon / Perpetual Celestial)</option>
+<option value="400-600k">$400,000 – $600,000 USD (Minute Repeater / Grand Feu Dragon)</option>
+<option value="600k+">Trên $600,000 USD (Grand Complication Bespoke Độc Bản Kép)</option>
+</select>
+</div>
+<div>
+<label class="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Ý Tưởng Hoặc Câu Chuyện Muốn Gửi Gắm Vào Cỗ Máy</label>
+<textarea class="w-full bg-surface-container-high p-space-md rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Chia sẻ về biểu tượng gia đình, câu chuyện thành tựu, các loại đá quý phong thủy hoặc chi tiết máy cơ khí quý khách muốn độc quyền đưa vào tác phẩm..." rows="4"></textarea>
+</div>
+<div class="flex items-start gap-space-sm pt-space-xs">
+<input class="accent-primary w-4 h-4 rounded mt-0.5" id="nda-consent" required="" type="checkbox"/>
+<label class="font-body-sm text-body-sm text-on-surface-variant leading-tight cursor-pointer" for="nda-consent">
+                Tôi yêu cầu bảo mật thông tin tuyệt đối và đồng ý để Thư ký Hội đồng Nghệ nhân Aurel &amp; Co. gửi văn bản Thỏa thuận Bảo mật NDA (Non-Disclosure Agreement) trước buổi diện kiến.
+              </label>
+</div>
+<div class="pt-space-sm">
+<button class="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all flex items-center justify-center gap-space-sm shadow-[0_6px_25px_rgba(242,202,80,0.35)]" type="submit">
+<span class="material-symbols-outlined text-[20px]">shield_with_heart</span>
+<span>Gửi Yêu Cầu Ủy Thác Độc Bản &amp; Ký Kết NDA</span>
+</button>
+</div>
+</form>
+<!-- Confirmation message overlay (hidden initially) -->
+<div class="hidden absolute inset-0 bg-surface-container-low/95 backdrop-blur-md flex flex-col items-center justify-center p-space-2xl text-center rounded" id="form-success">
+<div class="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-space-md">
+<span class="material-symbols-outlined text-[36px]">done_all</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface uppercase mb-space-xs">Yêu Cầu Đã Được Niêm Phong</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mb-space-lg">
+              Thư ký Hội đồng Nghệ nhân Aurel &amp; Co. đã tiếp nhận hồ sơ bí mật của Quý Khách. Thư xác nhận bảo mật và dự thảo NDA sẽ được gửi tới phương thức liên lạc đã chọn trong vòng 24 giờ.
+            </p>
+<span class="font-label-badge text-label-badge text-primary uppercase tracking-widest border border-primary/30 px-3 py-1 rounded">
+              Dossier Protocol: #AUC-2025-05U
+            </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Script for Micro-Interactions & Realtime Configurator Calculation -->
+<script>
+    function updateEstimator() {
+      // 1. Movement pricing
+      const movementEl = document.querySelector('input[name="movement"]:checked');
+      const movementVal = movementEl ? movementEl.value : 'tourbillon';
+      
+      let basePrice = 190000;
+      let moveName = 'Flying Tourbillon 3D';
+      let duration = '10 – 12 Tháng';
+
+      if (movementVal === 'repeater') {
+        basePrice = 280000;
+        moveName = 'Minute Repeater Cathedral';
+        duration = '12 – 14 Tháng';
+      } else if (movementVal === 'chronograph') {
+        basePrice = 150000;
+        moveName = 'Chronographe Monopoussoir';
+        duration = '8 – 10 Tháng';
+      } else if (movementVal === 'perpetual') {
+        basePrice = 210000;
+        moveName = 'Celestial Perpetual Calendar';
+        duration = '10 – 12 Tháng';
+      }
+
+      // Update Radio UI borders
+      document.querySelectorAll('#opt-movements label').forEach(lbl => {
+        const inp = lbl.querySelector('input');
+        const icon = lbl.querySelector('.check-indicator');
+        if (inp.checked) {
+          lbl.classList.add('border-primary', 'border-2');
+          lbl.classList.remove('border-outline-variant/40', 'border');
+          if(icon) {
+            icon.textContent = 'radio_button_checked';
+            icon.classList.add('text-primary');
+            icon.classList.remove('text-outline-variant');
+          }
+        } else {
+          lbl.classList.remove('border-primary', 'border-2');
+          lbl.classList.add('border-outline-variant/40', 'border');
+          if(icon) {
+            icon.textContent = 'radio_button_unchecked';
+            icon.classList.remove('text-primary');
+            icon.classList.add('text-outline-variant');
+          }
+        }
+      });
+
+      // 2. Material Pricing
+      const matEl = document.querySelector('input[name="material"]:checked');
+      const matVal = matEl ? matEl.value : 'rose-gold';
+      let matPrice = 0;
+      let matName = 'Aurel 5N Rose Gold';
+
+      if (matVal === 'platinum') {
+        matPrice = 35000;
+        matName = 'Platinum 950 Đúc';
+      } else if (matVal === 'titanium') {
+        matPrice = 10000;
+        matName = 'Titanium Grade 5';
+      } else if (matVal === 'ceramic') {
+        matPrice = 15000;
+        matName = 'Ceramic Nhám Velvet';
+      }
+
+      document.querySelectorAll('#opt-materials label').forEach(lbl => {
+        const inp = lbl.querySelector('input');
+        if (inp.checked) {
+          lbl.classList.add('border-primary', 'border-2');
+          lbl.classList.remove('border-outline-variant/30', 'border');
+        } else {
+          lbl.classList.remove('border-primary', 'border-2');
+          lbl.classList.add('border-outline-variant/30', 'border');
+        }
+      });
+
+      // 3. Dial Craft Pricing
+      const dialEl = document.querySelector('input[name="dial"]:checked');
+      const dialVal = dialEl ? dialEl.value : 'guilloche';
+      let dialPrice = 0;
+      let dialName = 'Guilloché Rose Engine';
+
+      if (dialVal === 'meteorite') {
+        dialPrice = 20000;
+        dialName = 'Thiên Thạch Muonionalusta';
+      } else if (dialVal === 'grandfeu') {
+        dialPrice = 25000;
+        dialName = 'Grand Feu Enamel';
+      } else if (dialVal === 'skeleton') {
+        dialPrice = 18000;
+        dialName = 'Khắc Skeleton Mở';
+      }
+
+      document.querySelectorAll('#opt-dial label').forEach(lbl => {
+        const inp = lbl.querySelector('input');
+        if (inp.checked) {
+          lbl.classList.add('border-primary', 'border-2');
+          lbl.classList.remove('border-outline-variant/30', 'border');
+        } else {
+          lbl.classList.remove('border-primary', 'border-2');
+          lbl.classList.add('border-outline-variant/30', 'border');
+        }
+      });
+
+      // 4. Addons
+      let addonPrice = 0;
+      let addonList = ['Gia Huy Rô-to'];
+
+      if (document.getElementById('check-constellation')?.checked) {
+        addonPrice += 12000;
+        addonList.push('Chòm Sao Khắc Đáy');
+      }
+      if (document.getElementById('check-gem')?.checked) {
+        addonPrice += 18000;
+        addonList.push('Kim Cương 12h');
+      }
+
+      // Calculations
+      const total = basePrice + matPrice + dialPrice + addonPrice;
+
+      // Update Summary DOM
+      const summaryMove = document.getElementById('summary-movement');
+      const summaryMat = document.getElementById('summary-material');
+      const summaryDial = document.getElementById('summary-dial');
+      const summaryAddon = document.getElementById('summary-addon');
+      const summaryDuration = document.getElementById('summary-duration');
+      const summaryPrice = document.getElementById('summary-price');
+
+      if (summaryMove) summaryMove.textContent = moveName;
+      if (summaryMat) summaryMat.textContent = matName;
+      if (summaryDial) summaryDial.textContent = dialName;
+      if (summaryAddon) summaryAddon.textContent = addonList.join(' • ');
+      if (summaryDuration) summaryDuration.textContent = duration;
+      if (summaryPrice) summaryPrice.textContent = '$' + total.toLocaleString('en-US');
+    }
+
+    function handleBespokeSubmit(e) {
+      e.preventDefault();
+      const successOverlay = document.getElementById('form-success');
+      if (successOverlay) {
+        successOverlay.classList.remove('hidden');
+      }
+    }
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest text-on-surface-variant"><div class="bg-surface-container-low/40 border-t border-b border-outline-variant/20"><div class="max-w-[1360px] mx-auto px-gutter-desktop py-space-xl grid grid-cols-1 md:grid-cols-3 gap-space-lg text-center md:text-left"><div class="flex items-center justify-center md:justify-start gap-space-md"><span class="material-symbols-outlined text-primary text-[28px]">verified_user</span><div><h4 class="font-title-editorial text-body-md text-on-surface uppercase tracking-wider">Chronomètre Certifié COSC</h4><p class="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Strict micro-mechanical tolerances verified in La Chaux-de-Fonds</p></div></div><div class="flex items-center justify-center md:justify-start gap-space-md"><span class="material-symbols-outlined text-primary text-[28px]">shield</span><div><h4 class="font-title-editorial text-body-md text-on-surface uppercase tracking-wider">Bảo Hành Quốc Tế 5 Năm</h4><p class="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Comprehensive atelier warranty and lifetime escapement provenance</p></div></div><div class="flex items-center justify-center md:justify-start gap-space-md"><span class="material-symbols-outlined text-primary text-[28px]">lock</span><div><h4 class="font-title-editorial text-body-md text-on-surface uppercase tracking-wider">Vận Chuyển An Ninh Concierge</h4><p class="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Discreet armored transport delivered in person to your private salon</p></div></div></div></div><div class="max-w-[1360px] mx-auto px-gutter-desktop py-space-3xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-2xl"><div class="flex flex-col"><div class="flex items-center gap-space-sm mb-space-md"><img alt="Aurel &amp; Co. Haute Horlogerie Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_S2rIl_KbGOGT8VdDBfLyYLnCy0VAlOnymuooSC6zF6_fPbOHYPl0pXSbALHCMPbABUA5JbnrmEl110gFq7vbTIKiuaQgdr-2jcHrNA8WNr3QSwiEZ854aHaNhaRbLaM3kIUXT5ZtnWCOa0pkuaqVvZebjHe8kFfLERpiA_xn9ZSDRO_RT7QVHuQaWRE_qdBngXd0twzKhY-1Hsnkj_OBsiDnPQcXFsObwzpmRhfQl8_omfQDuLD-"/><span class="font-title-editorial text-body-lg uppercase tracking-[0.2em] text-on-surface">Aurel &amp; Co.</span></div><p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed mb-space-lg">Đỉnh cao nghệ thuật chế tác đồng hồ Thụy Sĩ. Mỗi tạo tác là một kiệt tác cơ khí độc bản hòa quyện cùng di sản thủ công hơn một thế kỷ từ Genève.</p><div class="flex items-center gap-space-xs text-primary font-label-badge text-label-badge tracking-widest uppercase"><span class="material-symbols-outlined text-[16px]">public</span><span>Genève • Zürich • Tokyo • Saigon</span></div></div><div class="flex flex-col gap-space-sm"><h5 class="font-label-spec text-label-spec text-primary uppercase tracking-[0.2em] mb-space-xs">Kiệt Tác Horlogerie</h5><ul class="space-y-space-xs font-body-sm text-body-sm"><li class="hover:text-primary transition-colors cursor-pointer">Tourbillon Mystérieux</li><li class="hover:text-primary transition-colors cursor-pointer">Chronographe Monopoussoir</li><li class="hover:text-primary transition-colors cursor-pointer">Quantième Perpétuel</li><li class="hover:text-primary transition-colors cursor-pointer">Bespoke Métiers d’Art</li><li class="hover:text-primary transition-colors cursor-pointer">Vật Phẩm Sưu Tầm Độc Bản</li></ul></div><div class="flex flex-col gap-space-sm"><h5 class="font-label-spec text-label-spec text-primary uppercase tracking-[0.2em] mb-space-xs">Dịch Vụ &amp; Concierge</h5><ul class="space-y-space-xs font-body-sm text-body-sm"><li class="hover:text-primary transition-colors cursor-pointer">Đặt Lịch Private Salon</li><li class="hover:text-primary transition-colors cursor-pointer">Bảo Dưỡng Calibre Định Kỳ</li><li class="hover:text-primary transition-colors cursor-pointer">Chứng Thư Xác Thực &amp; Xuất Xứ</li><li class="hover:text-primary transition-colors cursor-pointer">Dịch Vụ Concierge Cá Nhân</li><li class="hover:text-primary transition-colors cursor-pointer">Chính Sách Bảo Mật Khách Hàng VIP</li></ul></div><div class="flex flex-col"><h5 class="font-label-spec text-label-spec text-primary uppercase tracking-[0.2em] mb-space-xs">Bản Tin Thượng Lưu</h5><p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Nhận lời mời tham dự lễ ra mắt bộ sưu tập giới hạn và các ấn phẩm chuyên khảo từ Viện Horlogerie.</p><form class="flex flex-col gap-space-xs" onsubmit="return false;"><div class="relative"><input class="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Địa chỉ email thượng khách..." type="email"/><button class="mt-space-sm w-full py-space-sm px-space-md rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] hover:bg-secondary transition-colors font-semibold flex items-center justify-center gap-space-xs" type="button"><span>Gia Nhập Circle Privé</span><span class="material-symbols-outlined text-[16px]">east</span></button></div></form></div></div><div class="bg-surface-container-lowest px-gutter-desktop py-space-md"><div class="max-w-[1360px] mx-auto flex flex-col sm:flex-row items-center justify-between text-on-surface-variant/60 font-body-sm text-body-sm gap-space-sm"><div class="flex items-center gap-space-md"><span>© 1892-2025 Aurel &amp; Co. Manufacture Horlogère. All rights reserved.</span><span class="font-label-badge text-label-badge text-secondary border border-secondary/30 px-2 py-0.5 rounded">SWISS MADE</span></div><div class="flex items-center gap-space-lg text-xs"><span>Điều Khoản Đặc Quyền</span><span>Chính Sách Bảo Mật Di Sản</span><span>Khảo Sát Atelier</span></div></div></div></footer></body></html>

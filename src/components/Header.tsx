@@ -1,104 +1,198 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
-import { navLinks, site } from "@/data/site";
 import { useCart } from "./CartProvider";
 import { useCurrency } from "./CurrencyProvider";
+import { useWishlist } from "./WishlistProvider";
+import { productBySlug, formatUsd } from "@/data/products";
+
+const links = [
+  { href: "/", label: "Trang Chủ" },
+  { href: "/collections", label: "Bộ Sưu Tập" },
+  { href: "/products/chronos-tourbillon-no-07", label: "Chi Tiết Sản Phẩm" },
+  { href: "/atelier", label: "Atelier & Di Sản" },
+  { href: "/cart", label: "Giỏ Hàng & Concierge" },
+];
 
 export default function Header() {
   const { totalQty } = useCart();
   const { currency, setCurrency } = useCurrency();
+  const { slugs, count, remove } = useWishlist();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [wishOpen, setWishOpen] = useState(false);
+  const wished = slugs
+    .map((s) => productBySlug(s))
+    .filter((p) => p !== undefined);
 
   return (
-    <header className="glass-header fixed inset-x-0 top-0 z-50 border-b border-outline-variant/20">
-      {/* Utility bar */}
-      <div className="hidden border-b border-outline-variant/10 md:block">
-        <div className="mx-auto flex max-w-page items-center justify-between px-8 py-1.5 text-[11px] tracking-[0.25em] text-on-surface-variant/70 uppercase">
-          <span>{site.utilityBar}</span>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setCurrency("VND")}
-              className={`transition-colors ${currency === "VND" ? "text-primary" : "hover:text-primary"}`}
-            >
-              VND
-            </button>
-            <span className="text-outline-variant/40">/</span>
-            <button
-              onClick={() => setCurrency("USD")}
-              className={`transition-colors ${currency === "USD" ? "text-primary" : "hover:text-primary"}`}
-            >
-              USD
-            </button>
-            <span className="ml-2 flex items-center gap-2 border-l border-outline-variant/30 pl-4">
-              <Image
-                src="/images/vip-collector-profile.jpg"
-                alt="Khách hàng VIP"
-                width={22}
-                height={22}
-                className="rounded-full object-cover"
-              />
-              <span>Private Client</span>
-            </span>
-          </div>
+    <header className="fixed top-0 left-0 z-50 w-full bg-surface-container-lowest/90 shadow-[0_1px_8px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+      {/* Utility bar — y hệt Stitch */}
+      <div className="flex h-7 items-center justify-between bg-surface-container-low px-gutter-desktop text-on-surface-variant">
+        <div className="flex items-center gap-space-xs">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></span>
+          <span className="font-label-badge text-label-badge tracking-widest text-secondary uppercase">
+            Manufacture de Haute Horlogerie • Genève
+          </span>
+        </div>
+        <div className="hidden font-label-badge text-label-badge tracking-widest text-on-surface-variant/80 uppercase md:block">
+          SWISS CHRONOMETER CERTIFIED • COMPLIMENTARY SECURED CONCIERGE DELIVERY
+          WORLDWIDE • PRIVATE SALON APPOINTMENTS
+        </div>
+        <div className="flex items-center gap-space-sm font-label-badge text-label-badge text-primary uppercase">
+          <span className="material-symbols-outlined text-[14px]">verified</span>
+          <span>Atelier Direct</span>
         </div>
       </div>
 
-      {/* Main nav */}
-      <div className="mx-auto flex max-w-page items-center justify-between px-4 py-3 md:px-8">
-        <Link href="/" className="flex items-center gap-3">
-          <Image
+      {/* Main bar — y hệt Stitch */}
+      <div className="mx-auto flex h-20 max-w-[1360px] items-center justify-between px-gutter-desktop">
+        <Link href="/" className="flex items-center gap-space-md">
+          <img
+            alt="Aurel & Co. Haute Horlogerie Logo"
+            className="h-8 w-auto object-contain"
             src="/images/logo.png"
-            alt="Logo Aurel & Co."
-            width={38}
-            height={38}
-            className="h-9 w-9 object-contain"
           />
-          <div className="leading-tight">
-            <div className="font-display text-lg font-semibold text-on-surface">
-              {site.brand}
-            </div>
-            <div className="text-[10px] tracking-[0.35em] text-on-surface-variant/70 uppercase">
-              {site.tagline}
-            </div>
+          <div className="flex flex-col">
+            <span className="font-title-editorial text-title-editorial leading-none tracking-[0.25em] text-on-surface uppercase">
+              Aurel &amp; Co.
+            </span>
+            <span className="mt-1 font-label-badge text-[9px] leading-none tracking-[0.35em] text-secondary uppercase">
+              Genève 1892
+            </span>
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-8 lg:flex">
-          {navLinks.map((link) => (
+        <nav className="hidden h-full items-center gap-space-xl lg:flex">
+          {links.map((l) => (
             <Link
-              key={link.href}
-              href={link.href}
-              className="text-[11px] font-medium tracking-[0.2em] text-on-surface-variant uppercase transition-colors hover:text-primary"
+              key={l.label}
+              href={l.href}
+              className="font-body-sm text-body-sm flex h-full items-center tracking-[0.1em] text-on-surface-variant uppercase transition-colors hover:text-primary"
             >
-              {link.label}
+              {l.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-space-md">
+          <div className="font-label-spec hidden cursor-pointer items-center rounded bg-surface-container-high px-space-xs py-1 text-[11px] tracking-wider text-on-surface-variant uppercase transition-colors hover:text-primary sm:flex">
+            <button
+              onClick={() => setCurrency("USD")}
+              className={currency === "USD" ? "text-primary" : ""}
+            >
+              USD
+            </button>
+            <span className="mx-1 text-outline-variant">/</span>
+            <button
+              onClick={() => setCurrency("VND")}
+              className={currency === "VND" ? "text-primary" : ""}
+            >
+              VND
+            </button>
+          </div>
           <button
-            aria-label="Tìm kiếm"
-            className="p-2 text-on-surface-variant transition-colors hover:text-primary"
+            aria-label="Search Archive"
+            className="flex items-center justify-center p-1 text-on-surface-variant transition-colors hover:text-primary"
           >
-            <span className="material-symbols-outlined text-[22px]">search</span>
+            <span className="material-symbols-outlined text-[20px]">search</span>
           </button>
-          <button
-            aria-label="Yêu thích"
-            className="hidden p-2 text-on-surface-variant transition-colors hover:text-primary sm:block"
-          >
-            <span className="material-symbols-outlined text-[22px]">favorite</span>
-          </button>
+          <div className="relative">
+            <button
+              aria-label="Wishlist"
+              onClick={() => setWishOpen((v) => !v)}
+              className="relative flex items-center justify-center p-1 text-on-surface-variant transition-colors hover:text-primary"
+            >
+              <span className="material-symbols-outlined text-[20px]">
+                favorite
+              </span>
+              {count > 0 && (
+                <span className="font-label-badge absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-on-primary">
+                  {count}
+                </span>
+              )}
+            </button>
+            {wishOpen && (
+              <div className="absolute top-10 right-0 z-50 w-80 rounded-xl border border-outline-variant/30 bg-surface-container-lowest/95 p-space-md shadow-2xl backdrop-blur-xl">
+                <div className="mb-space-sm flex items-center justify-between">
+                  <span className="font-label-spec text-label-spec tracking-[0.2em] text-secondary uppercase">
+                    Private Wishlist ({count})
+                  </span>
+                  <button
+                    onClick={() => setWishOpen(false)}
+                    className="p-1 text-on-surface-variant hover:text-primary"
+                    aria-label="Đóng wishlist"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      close
+                    </span>
+                  </button>
+                </div>
+                {wished.length === 0 ? (
+                  <div className="flex flex-col items-center gap-space-xs py-space-lg text-center">
+                    <span className="material-symbols-outlined text-4xl text-outline-variant">
+                      favorite
+                    </span>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant">
+                      Chưa có kiệt tác yêu thích. Bấm tim trên thẻ sản phẩm để
+                      lưu vào đây.
+                    </p>
+                    <Link
+                      href="/collections"
+                      onClick={() => setWishOpen(false)}
+                      className="mt-space-xs font-label-spec text-label-spec tracking-[0.2em] text-primary uppercase hover:text-secondary"
+                    >
+                      Khám Phá Bộ Sưu Tập
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="flex max-h-80 flex-col gap-space-xs overflow-y-auto">
+                    {wished.map((p) => (
+                      <div
+                        key={p.slug}
+                        className="flex items-center gap-space-sm rounded-lg bg-surface-container p-space-xs"
+                      >
+                        <img
+                          src={p.images[0]}
+                          alt={p.name}
+                          className="h-12 w-12 shrink-0 rounded object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/products/${p.slug}`}
+                            onClick={() => setWishOpen(false)}
+                            className="font-body-sm text-body-sm block truncate text-on-surface hover:text-primary"
+                          >
+                            {p.name}
+                          </Link>
+                          <span className="font-label-spec text-[11px] text-primary">
+                            {formatUsd(p.priceUsd)}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => remove(p.slug)}
+                          className="p-1.5 text-on-surface-variant transition-colors hover:text-error"
+                          aria-label={`Xóa ${p.name} khỏi wishlist`}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            delete_outline
+                          </span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <Link
+            aria-label="Vault Cart"
             href="/cart"
-            aria-label="Giỏ hàng"
-            className="relative p-2 text-on-surface-variant transition-colors hover:text-primary"
+            className="relative flex items-center justify-center p-1 text-on-surface-variant transition-colors hover:text-primary"
           >
-            <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
+            <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
             {totalQty > 0 && (
-              <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-surface-lowest">
+              <span className="font-label-badge absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-container text-[9px] font-bold text-on-primary">
                 {totalQty}
               </span>
             )}
@@ -106,42 +200,46 @@ export default function Header() {
           <button
             aria-label="Menu"
             onClick={() => setMenuOpen((v) => !v)}
-            className="p-2 text-on-surface-variant lg:hidden"
+            className="p-1 text-on-surface-variant lg:hidden"
           >
-            <span className="material-symbols-outlined text-[22px]">
+            <span className="material-symbols-outlined text-[20px]">
               {menuOpen ? "close" : "menu"}
             </span>
           </button>
+          <div className="hidden h-6 w-[1px] bg-surface-container-highest sm:block"></div>
+          <div className="group flex cursor-pointer items-center gap-space-xs pl-space-xs">
+            <div className="relative">
+              <img
+                alt="Profile"
+                className="h-8 w-8 rounded-full object-cover ring-1 ring-primary/40"
+                src="/images/vip-collector-profile.jpg"
+              />
+              <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-primary ring-1 ring-surface"></span>
+            </div>
+            <div className="hidden flex-col xl:flex">
+              <span className="font-label-badge text-[10px] tracking-wider text-on-surface uppercase transition-colors group-hover:text-primary">
+                Private Client
+              </span>
+              <span className="font-label-spec text-[9px] tracking-widest text-secondary uppercase">
+                Collector Tier
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Mobile nav */}
       {menuOpen && (
         <nav className="border-t border-outline-variant/20 bg-surface-lowest/95 px-6 py-4 lg:hidden">
-          {navLinks.map((link) => (
+          {links.map((l) => (
             <Link
-              key={link.href}
-              href={link.href}
+              key={l.label}
+              href={l.href}
               onClick={() => setMenuOpen(false)}
               className="block py-3 text-xs font-medium tracking-[0.2em] text-on-surface-variant uppercase transition-colors hover:text-primary"
             >
-              {link.label}
+              {l.label}
             </Link>
           ))}
-          <div className="mt-2 flex gap-4 border-t border-outline-variant/20 pt-3 text-xs">
-            <button
-              onClick={() => setCurrency("VND")}
-              className={currency === "VND" ? "text-primary" : "text-on-surface-variant"}
-            >
-              VND
-            </button>
-            <button
-              onClick={() => setCurrency("USD")}
-              className={currency === "USD" ? "text-primary" : "text-on-surface-variant"}
-            >
-              USD
-            </button>
-          </div>
         </nav>
       )}
     </header>

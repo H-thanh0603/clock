@@ -1,32 +1,156 @@
 @import "tailwindcss";
 
 @theme {
-  /* Obsidian & Champagne Horology — design tokens from Stitch DESIGN.md */
+  /* ==== Obsidian & Champagne Horology — full Stitch tokens ==== */
   --color-surface: #121315;
+  --color-surface-dim: #121315;
+  --color-surface-bright: #38393b;
   --color-surface-lowest: #0d0e10;
-  --color-surface-container: #1f2023;
-  --color-surface-container-high: #2a2b2e;
-  --color-primary: #f2ca50;
-  --color-primary-container: #d4af37;
-  --color-primary-hover: #e5c378;
-  --color-secondary: #e9c176;
+  --color-surface-low: #1b1c1e;
+  --color-surface-container: #1f2022;
+  --color-surface-container-low: #1b1c1e;
+  --color-surface-container-lowest: #0d0e10;
+  --color-surface-container-high: #292a2c;
+  --color-surface-container-highest: #343537;
+  --color-surface-variant: #343537;
+  --color-surface-tint: #e9c349;
   --color-on-surface: #e3e2e5;
   --color-on-surface-variant: #d0c5af;
+  --color-inverse-surface: #e3e2e5;
+  --color-inverse-on-surface: #303033;
   --color-outline: #99907c;
   --color-outline-variant: #4d4635;
+  --color-background: #121315;
+  --color-on-background: #e3e2e5;
+  --color-primary: #f2ca50;
+  --color-on-primary: #3c2f00;
+  --color-primary-container: #d4af37;
+  --color-on-primary-container: #554300;
+  --color-inverse-primary: #735c00;
+  --color-secondary: #e9c176;
+  --color-on-secondary: #412d00;
+  --color-secondary-container: #604403;
+  --color-on-secondary-container: #dab36a;
   --color-tertiary: #cacddb;
+  --color-on-tertiary: #2c303b;
+  --color-tertiary-container: #afb2bf;
+  --color-on-tertiary-container: #41454f;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-primary-fixed: #ffe088;
+  --color-primary-fixed-dim: #e9c349;
+  --color-on-primary-fixed: #241a00;
+  --color-on-primary-fixed-variant: #574500;
+  --color-secondary-fixed: #ffdea5;
+  --color-secondary-fixed-dim: #e9c176;
+  --color-on-secondary-fixed: #261900;
+  --color-on-secondary-fixed-variant: #5d4201;
+  --color-tertiary-fixed: #dfe2f0;
+  --color-tertiary-fixed-dim: #c3c6d3;
+  --color-on-tertiary-fixed: #171b25;
+  --color-on-tertiary-fixed-variant: #434751;
+  --color-primary-hover: #e5c378;
 
-  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
-  --font-body: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display-hero: "Playfair Display", Georgia, serif;
+  --font-display-hero-mobile: "Playfair Display", Georgia, serif;
+  --font-headline-lg: "Playfair Display", Georgia, serif;
+  --font-headline-lg-mobile: "Playfair Display", Georgia, serif;
+  --font-headline-md: "Playfair Display", Georgia, serif;
+  --font-headline-sm: "Playfair Display", Georgia, serif;
+  --font-title-editorial: "Playfair Display", Georgia, serif;
+  --font-body-lg: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body-md: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body-sm: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-label-spec: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-label-badge: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+
+  --text-display-hero: 56px;
+  --text-display-hero--line-height: 64px;
+  --text-display-hero--letter-spacing: -0.02em;
+  --text-display-hero--font-weight: 400;
+  --text-display-hero-mobile: 38px;
+  --text-display-hero-mobile--line-height: 46px;
+  --text-headline-lg: 40px;
+  --text-headline-lg--line-height: 48px;
+  --text-headline-lg--letter-spacing: -0.01em;
+  --text-headline-lg--font-weight: 400;
+  --text-headline-lg-mobile: 28px;
+  --text-headline-lg-mobile--line-height: 36px;
+  --text-headline-md: 28px;
+  --text-headline-md--line-height: 36px;
+  --text-headline-md--font-weight: 500;
+  --text-headline-sm: 22px;
+  --text-headline-sm--line-height: 30px;
+  --text-headline-sm--font-weight: 500;
+  --text-title-editorial: 18px;
+  --text-title-editorial--line-height: 26px;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 26px;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 22px;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 18px;
+  --text-label-spec: 11px;
+  --text-label-spec--line-height: 16px;
+  --text-label-badge: 10px;
+  --text-label-badge--line-height: 14px;
+
+  --spacing-space-2xs: 0.25rem;
+  --spacing-space-xs: 0.5rem;
+  --spacing-space-sm: 0.75rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+  --spacing-space-2xl: 3rem;
+  --spacing-space-3xl: 4rem;
+  --spacing-space-4xl: 6rem;
+  --spacing-gutter-mobile: 1rem;
+  --spacing-gutter-desktop: 2rem;
+  --spacing-container-max: 1360px;
 
   --radius-sm: 0.125rem;
-  --radius-md: 0.25rem;
-  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
 
   --container-page: 1360px;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    overscroll-behavior: none;
+  }
+  main > :first-child {
+    margin-top: 0 !important;
+  }
+  main > :last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+html {
+  scrollbar-width: none;
+}
+
+/* Stitch: bare `rounded` = 0.125rem */
+.rounded {
+  border-radius: 0.125rem;
+}
 
 html {
   scroll-behavior: smooth;

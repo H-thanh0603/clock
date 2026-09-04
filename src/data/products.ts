@@ -20,6 +20,7 @@ export type Product = {
   shortDescription: string;
   badges: string[];
   strapLabel: string;
+  cardImage: string;
   calibre: string;
   diameterMm: number;
   caseMaterial: string;
@@ -47,8 +48,9 @@ export const products: Product[] = [
     caseMaterial: "Platinum 950",
     complications: ["Tourbillon", "Chronomètre"],
     inBoutique: true,
+    cardImage: "/images/stitch/35_AB6AXuDCew.jpg",
     images: [
-      "/images/exquisite-macro-studio-shot-of-aurel-chronos-tourbillon-luxu.jpg",
+      "/images/stitch/02_AB6AXuAiPb.jpg",
       "/images/high-precision-close-up-of-aurel-chronos-watch-bezel-crafted.jpg",
       "/images/macro-view-of-watch-exhibition-sapphire-caseback-revealing-h.jpg",
       "/images/editorial-lifestyle-shot-of-aurel-chronos-tourbillon-watch-w.jpg",
@@ -78,8 +80,9 @@ export const products: Product[] = [
     caseMaterial: "Titanium & Vàng 18k",
     complications: ["Perpetual Calendar", "Moonphase"],
     inBoutique: true,
+    cardImage: "/images/stitch/36_AB6AXuBdGc.jpg",
     images: [
-      "/images/high-luxury-dress-watch-with-authentic-swedish-muonionalusta.jpg",
+      "/images/stitch/04_AB6AXuBFmG.jpg",
       "/images/celestial-moonphase-obsidian-watch-with-black-iridescent-met.jpg",
       "/images/macro-view-of-watch-exhibition-sapphire-caseback-revealing-h.jpg",
     ],
@@ -108,8 +111,9 @@ export const products: Product[] = [
     caseMaterial: "Titanium & Vàng hồng 18k",
     complications: ["Skeleton", "Small Seconds"],
     inBoutique: true,
+    cardImage: "/images/stitch/37_AB6AXuCVZv.jpg",
     images: [
-      "/images/macro-photography-of-ultra-luxury-sovereign-skeleton-watch-f.jpg",
+      "/images/stitch/06_AB6AXuDxn0.jpg",
       "/images/atelier-skeleton-pure-gold-timepiece-showcasing-32-vivid-blu.jpg",
       "/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg",
     ],
@@ -138,8 +142,9 @@ export const products: Product[] = [
     caseMaterial: "Forged Carbon & Ceramic",
     complications: ["Chronograph Flyback", "Date"],
     inBoutique: false,
+    cardImage: "/images/stitch/38_AB6AXuDx9q.jpg",
     images: [
-      "/images/high-tech-luxury-chronograph-watch-crafted-from-black-forged.jpg",
+      "/images/stitch/05_AB6AXuBFXA.jpg",
       "/images/royal-chronograph-flyback-watch-with-black-ceramic-bezel-hig.jpg",
       "/images/macro-view-of-watch-exhibition-sapphire-caseback-revealing-h.jpg",
     ],
@@ -168,8 +173,9 @@ export const products: Product[] = [
     caseMaterial: "Vàng hồng 18k",
     complications: ["Date"],
     inBoutique: true,
+    cardImage: "/images/stitch/39_AB6AXuA2EF.jpg",
     images: [
-      "/images/classic-dress-watch-with-18k-rose-gold-case-opaline-cream-su.jpg",
+      "/images/stitch/31_AB6AXuCawX.jpg",
       "/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg",
       "/images/artisanal-detail-of-deep-black-mississippi-alligator-leather.jpg",
     ],
@@ -198,8 +204,9 @@ export const products: Product[] = [
     caseMaterial: "Titanium Grade 5",
     complications: ["Diver 500M", "Helium Valve"],
     inBoutique: true,
+    cardImage: "/images/stitch/40_AB6AXuBZGd.jpg",
     images: [
-      "/images/brushed-titanium-luxury-dive-watch-with-rotating-ceramic-bez.jpg",
+      "/images/stitch/26_AB6AXuB7UM.jpg",
       "/images/royal-chronograph-flyback-watch-with-black-ceramic-bezel-hig.jpg",
       "/images/macro-view-of-watch-exhibition-sapphire-caseback-revealing-h.jpg",
     ],
