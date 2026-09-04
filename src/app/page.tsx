@@ -252,7 +252,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-page items-start gap-12 px-6 py-20 md:px-8 lg:grid-cols-2">
           <div className="relative aspect-[4/5] overflow-hidden border border-primary-container/30 lg:aspect-[4/3]">
             <Image
-              src="/images/editorial-close-up-luxury-portrait-of-an-elegant-discerning-gentleman-in.jpg"
+              src="/images/editorial-close-up-luxury-portrait-of-an-elegant-discerning-gentleman-in.png"
               alt="Private Salon Aurel & Co."
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
