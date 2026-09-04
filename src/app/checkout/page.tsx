@@ -16,6 +16,7 @@ export default function Page() {
   const [slot, setSlot] = useState("10:00 - 12:00 (Sáng) • Khung giờ kín đáo");
   const [pin, setPin] = useState("********");
   const [placed, setPlaced] = useState<string | null>(null);
+  const [orderError, setOrderError] = useState("");
   const [pay, setPay] = useState("centurion");
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -23,6 +24,7 @@ export default function Page() {
     centurion: "Centurion Black Card / Visa Infinite",
     escrow: "Swiss Escrow Wire",
     deposit: "Đặt cọc 20%",
+    vnpay: "VNPay",
   };
   const chargeNow = pay === "deposit" ? deposit : totalUsd;
 
@@ -30,17 +32,57 @@ export default function Page() {
 
   const placeOrder = async () => {
     if (items.length === 0 || placed || processing) return;
-    setProcessing("Mã hóa PCI-DSS Level 1...");
-    await sleep(850);
-    setProcessing("Xác thực hạn mức với ngân hàng phát hành...");
-    await sleep(950);
-    setProcessing("Kích hoạt Concierge & niêm ấn Vault...");
-    await sleep(900);
-    setPlaced(
-      `AC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`
-    );
-    setProcessing(null);
-    clear();
+    setOrderError("");
+    setProcessing("Tạo đơn & niêm ấn Vault...");
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: name,
+          contact,
+          address,
+          slot,
+          items: items.map((i) => ({
+            slug: i.slug,
+            name: i.name,
+            priceUsd: i.priceUsd,
+            priceVnd: i.priceVnd,
+            image: i.image,
+            strap: i.strap,
+            engraving: i.engraving,
+            qty: i.qty,
+          })),
+          payment: { method: pay },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Lỗi tạo đơn hàng");
+      clear();
+      if (pay === "vnpay") {
+        setProcessing("Chuyển sang cổng thanh toán VNPay...");
+        const pr = await fetch("/api/payments/vnpay/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: data.orderId }),
+        });
+        const pd = await pr.json();
+        if (!pr.ok) throw new Error(pd.error ?? "Lỗi tạo thanh toán VNPay");
+        window.location.href = pd.url as string;
+        return;
+      }
+      setProcessing("Mã hóa PCI-DSS Level 1...");
+      await sleep(850);
+      setProcessing("Xác thực hạn mức với ngân hàng phát hành...");
+      await sleep(950);
+      setProcessing("Kích hoạt Concierge & niêm ấn Vault...");
+      await sleep(900);
+      setPlaced(data.code as string);
+      setProcessing(null);
+    } catch (e) {
+      setProcessing(null);
+      setOrderError(e instanceof Error ? e.message : "Lỗi đặt hàng");
+    }
   };
 
   return (
@@ -398,6 +440,13 @@ export default function Page() {
 <span className="text-xs text-on-surface-variant/70">Quyết toán 80% còn lại khi diện kiến thử đồng hồ</span>
 </div>
 </label>
+<label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input checked={pay === "vnpay"} onChange={() => setPay("vnpay")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="vnpay"/>
+<div className="flex flex-col">
+<span className="font-body-md text-body-md text-on-surface font-medium">VNPay (QR / ATM / Visa qua cổng sandbox)</span>
+<span className="text-xs text-on-surface-variant/70">Thanh toán ngay toàn bộ qua VNPay thử nghiệm</span>
+</div>
+</label>
 </div>
 {/* Security Assurance Badges */}
 <div className="bg-surface-container-high p-space-sm rounded text-xs text-on-surface-variant space-y-1">
@@ -423,6 +472,11 @@ export default function Page() {
           )}
 <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
 </button>
+{orderError && (
+  <p className="rounded border border-error/40 bg-error-container/20 px-space-md py-space-sm font-body-sm text-body-sm text-error">
+    {orderError}
+  </p>
+)}
 {/* Direct Hotline to Private Banker/Concierge */}
 <div className="text-center pt-space-xs">
 <a className="inline-flex items-center gap-space-xs text-xs text-on-surface-variant hover:text-primary transition-colors" href="/collections">
