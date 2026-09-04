@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  /* Obsidian & Champagne Horology — design tokens from Stitch DESIGN.md */
+  --color-surface: #121315;
+  --color-surface-lowest: #0d0e10;
+  --color-surface-container: #1f2023;
+  --color-surface-container-high: #2a2b2e;
+  --color-primary: #f2ca50;
+  --color-primary-container: #d4af37;
+  --color-primary-hover: #e5c378;
+  --color-secondary: #e9c176;
+  --color-on-surface: #e3e2e5;
+  --color-on-surface-variant: #d0c5af;
+  --color-outline: #99907c;
+  --color-outline-variant: #4d4635;
+  --color-tertiary: #cacddb;
+
+  --font-display: var(--font-playfair), "Playfair Display", Georgia, serif;
+  --font-body: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+
+  --container-page: 1360px;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+}
+
+/* Signature gradient-gold headline */
+.text-gold-gradient {
+  background-image: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-secondary),
+    var(--color-primary)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Ambient gold radial glow orb */
+.gold-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  background: radial-gradient(
+    circle,
+    rgba(242, 202, 80, 0.18) 0%,
+    rgba(242, 202, 80, 0) 70%
+  );
+  pointer-events: none;
+}
+
+/* Glass fixed header surface */
+.glass-header {
+  background-color: color-mix(in srgb, var(--color-surface-lowest) 90%, transparent);
+  backdrop-filter: blur(24px);
+}
+
+/* Gradient-gold hairline card border */
+.gold-border-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-surface-container), var(--color-surface-container)) padding-box,
+    linear-gradient(135deg, rgba(212, 175, 55, 0.35), rgba(212, 175, 55, 0.05)) border-box;
+}
+
+/* Spec badge — Swiss Precision style */
+.spec-badge {
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--color-outline-variant);
+  color: var(--color-on-surface-variant);
+}
