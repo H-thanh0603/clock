@@ -1,5 +1,6 @@
 
 import DetailPurchase from "@/components/DetailPurchase";
+import { getProduct } from "@/lib/db";
 import VaultAddButton from "@/components/VaultAddButton";
 
 export default async function Page({
@@ -8,6 +9,7 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const product = await getProduct(slug);
   return (
   <div className="flex flex-col w-full">
   <div className="flex flex-col w-full">
@@ -150,7 +152,7 @@ export default async function Page({
               </span>
 </div>
 </div>
-<DetailPurchase slug={slug} />
+<DetailPurchase product={product} />
 {/* Security & Atelier Assurances */}
 <div className="grid grid-cols-1 gap-space-xs pt-space-xs font-body-sm text-body-sm text-on-surface-variant">
 <div className="flex items-center gap-space-sm p-space-xs rounded bg-surface-container-low">

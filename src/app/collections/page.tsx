@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { products, formatUsd, formatVnd, type Product } from "@/data/products";
+import { useEffect, useMemo, useState } from "react";
+import { formatUsd, formatVnd, type Product } from "@/data/products";
 import { useWishlist } from "@/components/WishlistProvider";
 
 const MOVEMENT_MATCH: Record<string, (p: Product) => boolean> = {
@@ -59,6 +59,33 @@ export default function Page() {
   const [sort, setSort] = useState("featured");
   const [open, setOpen] = useState(false);
   const [cols, setCols] = useState<2 | 3>(3);
+  const [items, setItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/products")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: Product[]) => {
+        if (alive) {
+          setItems(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setLoadError(true);
+          setLoading(false);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const toggleMov = (id: string) =>
     setMov((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -73,7 +100,7 @@ export default function Page() {
   };
 
   const filtered = useMemo(() => {
-    let list = [...products];
+    let list = [...items];
     if (mov.length) list = list.filter((p) => mov.some((m) => MOVEMENT_MATCH[m](p)));
     if (mat) list = list.filter((p) => MATERIAL_MATCH[mat](p));
     if (size) list = list.filter((p) => SIZE_MATCH[size](p.diameterMm));
@@ -91,7 +118,7 @@ export default function Page() {
         break;
     }
     return list;
-  }, [mov, mat, size, comp, sort]);
+  }, [items, mov, mat, size, comp, sort]);
 
   const activeCount = mov.length + (mat ? 1 : 0) + (size ? 1 : 0) + comp.length;
 
@@ -150,7 +177,7 @@ export default function Page() {
 {activeCount > 0 && (<span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[10px] font-bold flex items-center justify-center">{activeCount}</span>)}
 </button>
 <span className="font-label-spec text-label-spec tracking-widest uppercase text-on-surface-variant hidden md:inline">
-          Hiển Thị: <span className="text-primary font-bold">{filtered.length}</span> / {products.length} Kiệt Tác
+          Hiển Thị: <span className="text-primary font-bold">{filtered.length}</span> / {items.length} Kiệt Tác
         </span>
 </div>
 <div className="flex items-center gap-space-lg">
@@ -318,7 +345,26 @@ export default function Page() {
 {/* Main Masterpiece Grid Area */}
 <main className="lg:col-span-9 flex flex-col">
 <div className={`grid grid-cols-1 md:grid-cols-2 ${cols === 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"} gap-space-lg`} id="productGrid">
-{filtered.length === 0 ? (
+{loading ? (
+            <div className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="rounded-xl bg-surface-container-low overflow-hidden animate-pulse">
+                  <div className="aspect-square bg-surface-container-high"></div>
+                  <div className="p-space-lg space-y-space-sm">
+                    <div className="h-4 bg-surface-container-high rounded w-2/3"></div>
+                    <div className="h-6 bg-surface-container-high rounded w-full"></div>
+                    <div className="h-4 bg-surface-container-high rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : loadError ? (
+            <div className="col-span-full flex flex-col items-center gap-space-sm rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-space-lg py-space-3xl text-center">
+              <span className="material-symbols-outlined text-5xl text-error">cloud_off</span>
+              <p className="font-body-md text-body-md text-on-surface-variant">Không kết nối được cơ sở dữ liệu. Kiểm tra Postgres rồi thử lại.</p>
+              <button onClick={() => window.location.reload()} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">Tải Lại Trang</button>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="col-span-full flex flex-col items-center gap-space-sm rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-space-lg py-space-3xl text-center">
               <span className="material-symbols-outlined text-5xl text-outline-variant">hourglass_empty</span>
               <p className="font-body-md text-body-md text-on-surface-variant">Không có kiệt tác nào phù hợp bộ lọc hiện tại.</p>
@@ -375,7 +421,7 @@ export default function Page() {
 {/* Curatorial Pagination */}
 <div className="mt-space-3xl pt-space-xl flex flex-col sm:flex-row items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl">
 <div className="font-body-sm text-body-sm text-on-surface-variant">
-            Đang hiển thị <span className="text-on-surface font-semibold">{filtered.length === 0 ? 0 : 1} — {filtered.length}</span> trong số <span className="text-primary font-semibold">{products.length}</span> kiệt tác tuyển chọn
+            Đang hiển thị <span className="text-on-surface font-semibold">{filtered.length === 0 ? 0 : 1} — {filtered.length}</span> trong số <span className="text-primary font-semibold">{items.length}</span> kiệt tác tuyển chọn
           </div>
 <nav className="flex items-center gap-space-xs">
 <button aria-label="Previous Page" className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors disabled:opacity-40" disabled>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "./CartProvider";
-import { productBySlug, products, formatUsd, formatVnd } from "@/data/products";
+import { products, formatUsd, formatVnd, type Product } from "@/data/products";
 import { site } from "@/data/site";
 
 const STRAPS = [
@@ -32,10 +32,10 @@ const STRAPS = [
  * Cụm mua hàng trang chi tiết — visual y hệt Stitch (thẻ giá,
  * chọn dây, khắc laser, Mua Ngay) nhưng đấu thật vào giỏ hàng.
  */
-export default function DetailPurchase({ slug }: { slug: string }) {
+export default function DetailPurchase({ product: dbProduct }: { product: Product | null }) {
   const router = useRouter();
   const { addItem } = useCart();
-  const product = productBySlug(slug) ?? products[0];
+  const product = dbProduct ?? products[0];
   const [strapIdx, setStrapIdx] = useState(0);
   const [engraving, setEngraving] = useState("");
 
