@@ -71,3 +71,60 @@ export async function getAdminOrders(status?: string): Promise<{
     return null;
   }
 }
+
+export type AdminStats = {
+  ordersByStatus: { status: string; count: number }[];
+  totalOrders: number;
+  revenueUsd: number;
+  revenueVnd: number;
+  totalUsers: number;
+  totalProducts: number;
+  recentOrders: OrderDto[];
+};
+
+export async function getAdminStats(): Promise<AdminStats | null> {
+  try {
+    return await apiJson<AdminStats>("/admin/stats", {
+      forwardCookies: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export type AdminUserRow = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  createdAt: string;
+  orderCount: number;
+  totalVnd: number;
+};
+
+export async function getAdminUsers(): Promise<AdminUserRow[] | null> {
+  try {
+    return await apiJson<AdminUserRow[]>("/admin/users", {
+      forwardCookies: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export type AdminUserDetail = Omit<AdminUserRow, "orderCount" | "totalVnd"> & {
+  orders: OrderDto[];
+};
+
+export async function getAdminUserDetail(
+  id: string
+): Promise<AdminUserDetail | null> {
+  try {
+    return await apiJson<AdminUserDetail>(
+      `/admin/users/${encodeURIComponent(id)}`,
+      { forwardCookies: true }
+    );
+  } catch {
+    return null;
+  }
+}

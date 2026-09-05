@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
@@ -27,9 +28,12 @@ export const metadata: Metadata = {
   icons: { icon: "/images/logo.png" },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Khu /admin dùng shell riêng (sidebar) — bỏ header/footer + padding của shop.
+  const isAdmin =
+    (await headers()).get("x-pathname")?.startsWith("/admin") ?? false;
   return (
     <html lang="vi" className={`dark ${playfair.variable} ${jakarta.variable}`}>
       <head>
@@ -43,9 +47,17 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               <WishlistProvider>
-                <Header />
-                <main className="min-h-[calc(100vh-200px)] w-full bg-surface pt-20">{children}</main>
-                <Footer />
+                {isAdmin ? (
+                  <main className="min-h-screen w-full bg-surface">{children}</main>
+                ) : (
+                  <>
+                    <Header />
+                    <main className="min-h-[calc(100vh-200px)] w-full bg-surface pt-20">
+                      {children}
+                    </main>
+                    <Footer />
+                  </>
+                )}
               </WishlistProvider>
             </CartProvider>
           </AuthProvider>
