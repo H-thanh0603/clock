@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersService } from './orders.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { NotifyService } from '../notify/notify.service';
+
+const notifyStub = { orderCreated: () => Promise.resolve(), orderPaid: () => Promise.resolve() } as unknown as NotifyService;
 
 /** Fake Prisma tối thiểu cho create(): giá DB, trừ kho, tạo đơn. */
 function makePrisma(over: Record<string, unknown> = {}) {
@@ -70,7 +73,7 @@ const BASE_ORDER = {
 describe('OrdersService.create', () => {
   it('chốt giá DB, bỏ qua priceVnd client', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma);
+    const svc = new OrdersService(prisma, notifyStub);
     const r = await svc.create(
       {
         ...BASE_ORDER,
@@ -85,7 +88,7 @@ describe('OrdersService.create', () => {
 
   it('SP ẩn → 400', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma);
+    const svc = new OrdersService(prisma, notifyStub);
     await expect(
       svc.create(
         { ...BASE_ORDER, items: [{ ...BASE_ITEM, slug: 'hidden-1' }] },
@@ -96,7 +99,7 @@ describe('OrdersService.create', () => {
 
   it('hết hàng → 400', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma);
+    const svc = new OrdersService(prisma, notifyStub);
     await expect(
       svc.create(
         { ...BASE_ORDER, items: [{ ...BASE_ITEM, qty: 99 }] },
@@ -107,7 +110,7 @@ describe('OrdersService.create', () => {
 
   it('slug lạ → PENDING review, không SUCCESS', async () => {
     const { prisma, created } = makePrisma();
-    const svc = new OrdersService(prisma);
+    const svc = new OrdersService(prisma, notifyStub);
     const r = await svc.create(
       {
         ...BASE_ORDER,
@@ -124,7 +127,7 @@ describe('OrdersService.create', () => {
 
   it('deposit chỉ thu 20%, trả remaining', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma);
+    const svc = new OrdersService(prisma, notifyStub);
     const r = await svc.create(
       { ...BASE_ORDER, payment: { method: 'deposit' } },
       null,
@@ -136,7 +139,7 @@ describe('OrdersService.create', () => {
 
   it('vnpay → PENDING, paid = 0', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma);
+    const svc = new OrdersService(prisma, notifyStub);
     const r = await svc.create(
       { ...BASE_ORDER, payment: { method: 'vnpay' } },
       null,
@@ -169,7 +172,7 @@ describe('OrdersService.create', () => {
       orderEvent: { create: (a: unknown) => { events.push(a); return Promise.resolve({}); } },
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     };
-    const svc = new OrdersService(prisma as unknown as PrismaService);
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
     const r = await svc.cancel('ord-9', { userId: 'u-1' });
     expect(r.status).toBe('CANCELLED');
     expect(stock.get('vip-1')).toBe(1);
@@ -190,7 +193,7 @@ describe('OrdersService.create', () => {
           }),
       },
     };
-    const svc = new OrdersService(prisma as unknown as PrismaService);
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
     await expect(svc.cancel('ord-9', { userId: 'u-1' })).rejects.toThrow(
       /chờ xác nhận/,
     );

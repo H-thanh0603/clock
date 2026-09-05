@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { GuardsModule } from './common/guards.module';
 import { CsrfMiddleware } from './common/csrf.middleware';
 import { HealthController } from './health.controller';
+import { NotifyModule } from './notify/notify.module';
 import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { CartModule } from './cart/cart.module';
@@ -18,6 +19,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 200 }]),
     PrismaModule,
     GuardsModule,
+    NotifyModule,
     AuthModule,
     ProductsModule,
     CartModule,

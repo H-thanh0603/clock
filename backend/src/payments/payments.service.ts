@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'crypto';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotifyService } from '../notify/notify.service';
 import {
   buildPayUrl,
   settlePayment,
@@ -26,7 +27,10 @@ function frontendBaseUrl(): string {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotifyService,
+  ) {}
 
   private settleDeps(): SettleDeps {
     return {
@@ -136,6 +140,9 @@ export class PaymentsService {
     try {
       const result = await settlePayment(query, this.settleDeps());
       const code = 'code' in result ? result.code : '';
+      if (result.outcome === 'success' && code) {
+        await this.notifyPaid(code);
+      }
       switch (result.outcome) {
         case 'success':
           return this.toOrderUrl(code, true);
@@ -158,10 +165,25 @@ export class PaymentsService {
     }
   }
 
+  private async notifyPaid(code: string): Promise<void> {
+    try {
+      const order = await this.prisma.order.findUnique({ where: { code } });
+      if (order) {
+        await this.notify.orderPaid(code, Number(order.totalVnd));
+      }
+    } catch {
+      // Thông báo không được làm hỏng callback thanh toán.
+    }
+  }
+
   /** IPN server-to-server của VNPay (xác nhận thụ động). */
   async handleIpn(query: Record<string, string>) {
     try {
       const result = await settlePayment(query, this.settleDeps());
+      const code = 'code' in result ? result.code : '';
+      if (result.outcome === 'success' && code) {
+        await this.notifyPaid(code);
+      }
       const byRspCode: Record<string, { RspCode: string; Message: string }> = {
         checksum_fail: { RspCode: '97', Message: 'Invalid checksum' },
         payment_not_found: { RspCode: '01', Message: 'Order not found' },

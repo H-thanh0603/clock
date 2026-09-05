@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotifyService } from '../notify/notify.service';
 import { linePrice } from '../common/pricing';
 
 const METHODS = ['centurion', 'escrow', 'deposit', 'vnpay', 'cod'] as const;
@@ -51,7 +52,10 @@ export function serializeOrder(o: {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notify: NotifyService,
+  ) {}
 
   /** Tạo đơn từ giỏ. Khách vãng lai vẫn đặt được (userId null). */
   async create(input: CreateOrderInput, userId: string | null) {
@@ -208,6 +212,19 @@ export class OrdersService {
       }
     }
     if (!order) throw new BadRequestException('Không tạo được mã đơn, thử lại');
+
+    // Thông báo không chặn luồng chính (fire-and-forget, có try/catch trong).
+    void this.notify.orderCreated({
+      code: order.code,
+      status: order.status,
+      customerName,
+      contact,
+      totalUsd: order.totalUsd,
+      totalVnd: Number(order.totalVnd),
+      paidUsd: order.paidUsd,
+      method,
+      itemCount: lines.reduce((s, l) => s + l.qty, 0),
+    });
 
     return {
       orderId: order.id,
