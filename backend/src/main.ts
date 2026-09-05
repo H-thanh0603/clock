@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import 'reflect-metadata';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
@@ -19,9 +21,13 @@ function parseOrigins(): string[] {
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Prod: chỉ log warn/error để nhẹ disk; dev giữ đầy đủ.
     logger: isProd ? ['warn', 'error'] : undefined,
+  });
+  // Phục vụ ảnh upload (volume). Prod sau Caddy: /backend/uploads/*.
+  app.useStaticAssets(process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
   });
   app.use(helmet());
   app.use(cookieParser());

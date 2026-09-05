@@ -29,6 +29,8 @@ services:
   backend:
     build: ./backend
     restart: unless-stopped
+    volumes:
+      - uploads:/app/uploads
     logging:
       driver: json-file
       options:
@@ -48,6 +50,7 @@ services:
       COOKIE_SECURE: "true"
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      UPLOADS_DIR: /app/uploads
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 15s
@@ -93,5 +96,6 @@ services:
 
 volumes:
   pgdata:
+  uploads:
   caddy_data:
   caddy_config:

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { csrfFetch } from "@/lib/api-client";
+import { apiUrl, csrfFetch } from "@/lib/api-client";
 import type { Product } from "@/data/products";
 import { formatUsd } from "@/data/products";
 
@@ -87,6 +87,7 @@ export function ProductManager({ products }: { products: Product[] }) {
   const [editing, setEditing] = useState<Draft | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   const openNew = () => {
@@ -101,8 +102,40 @@ export function ProductManager({ products }: { products: Product[] }) {
     setError("");
   };
 
-  const toggleBoutique = async (p: Product) => {
+  const uploadImage = async (file: File, target: "card" | "gallery") => {
+    setUploading(true);
+    setError("");
     try {
+      const form = new FormData();
+      form.append("file", file);
+      // csrfFetch + FormData: không set Content-Type tay (browser tự boundary).
+      const token = document.cookie.match(/(?:^|; )aurel_csrf=([^;]*)/)?.[1];
+      const res = await fetch(apiUrl("/admin/uploads"), {
+        method: "POST",
+        credentials: "include",
+        headers: token ? { "x-csrf-token": decodeURIComponent(token) } : {},
+        body: form,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(
+          (data && (Array.isArray(data.message) ? data.message.join(", ") : data.message)) ??
+            "Upload thất bại"
+        );
+      const url = data.url as string;
+      setEditing((prev) => {
+        if (!prev) return prev;
+        if (target === "card") return { ...prev, cardImage: url };
+        return { ...prev, images: prev.images ? `${prev.images}\n${url}` : url };
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload thất bại");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleBoutique = async (p: Product) => {    try {
       const res = await csrfFetch(`/admin/products/${p.slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -385,15 +418,31 @@ export function ProductManager({ products }: { products: Product[] }) {
               </label>
               <label className="block md:col-span-2">
                 <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
-                  Ảnh bìa (URL)
+                  Ảnh bìa (URL hoặc upload)
                 </span>
-                <input
-                  className={inputCls}
-                  value={editing.cardImage}
-                  onChange={(e) =>
-                    setEditing({ ...editing, cardImage: e.target.value })
-                  }
-                />
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls}
+                    value={editing.cardImage}
+                    onChange={(e) =>
+                      setEditing({ ...editing, cardImage: e.target.value })
+                    }
+                  />
+                  <label className="shrink-0 cursor-pointer rounded bg-surface-container-high px-4 py-2 font-label-spec text-label-spec tracking-[0.15em] text-on-surface uppercase hover:text-primary">
+                    {uploading ? "..." : "Upload"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadImage(f, "card");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
               </label>
               <label className="block md:col-span-2">
                 <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
@@ -412,6 +461,22 @@ export function ProductManager({ products }: { products: Product[] }) {
                 <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
                   Ảnh chi tiết (mỗi dòng 1 URL)
                 </span>
+                <div className="mb-2">
+                  <label className="inline-block cursor-pointer rounded bg-surface-container-high px-4 py-2 font-label-spec text-label-spec tracking-[0.15em] text-on-surface uppercase hover:text-primary">
+                    {uploading ? "Đang upload..." : "+ Thêm ảnh từ máy"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadImage(f, "gallery");
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
                 <textarea
                   className={inputCls}
                   rows={3}
