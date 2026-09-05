@@ -1,0 +1,38 @@
+name: Deploy production
+
+# Chạy tay sau khi CI xanh: Actions → Deploy production → Run workflow.
+# Cần khai báo Secrets trên repo (Settings → Secrets → Actions):
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY, VPS_DIR (vd /opt/clock)
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy code lên VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "."
+          target: ${{ secrets.VPS_DIR }}
+          rm: false
+
+      - name: Build + migrate + restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.VPS_DIR }}
+            # backup phòng rollback trước mỗi deploy
+            ./scripts/backup-db.sh "-f docker-compose.prod.yml --env-file .env.prod" 14 || true
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+            docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+            docker compose -f docker-compose.prod.yml ps
