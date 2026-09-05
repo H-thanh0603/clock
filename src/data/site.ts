@@ -1,9 +1,11 @@
+import { USD_TO_VND } from "@/lib/pricing";
+
 export const site = {
   brand: "Aurel & Co.",
   tagline: "Haute Horlogerie",
   founded: "Genève 1892",
   utilityBar: "Manufacture de Haute Horlogerie • Genève",
-  usdToVnd: 25200,
+  usdToVnd: USD_TO_VND,
 };
 
 export const navLinks = [

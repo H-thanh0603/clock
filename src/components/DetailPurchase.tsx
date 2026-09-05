@@ -4,33 +4,27 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "./CartProvider";
-import { products, formatUsd, formatVnd, type Product } from "@/data/products";
-import { site } from "@/data/site";
+import {
+  products,
+  strapOptions,
+  formatUsd,
+  formatVnd,
+  type Product,
+} from "@/data/products";
+import { linePrice } from "@/lib/pricing";
 
-const STRAPS = [
-  {
-    short: "Alligator Đen",
-    full: "Cá sấu Mississippi Đen Mờ",
-    dot: "bg-[#18181b]",
-    deltaUsd: 0,
-  },
-  {
-    short: "Cognac Vintage",
-    full: "Cognac Vintage Nâu",
-    dot: "bg-[#5c3a21]",
-    deltaUsd: 0,
-  },
-  {
-    short: "Vàng Đúc 18K",
-    full: "Vàng Đúc 18K Nguyên Khối",
-    dot: "bg-gradient-to-tr from-secondary-container via-primary-container to-secondary",
-    deltaUsd: 4500,
-  },
-];
+const STRAP_DOT: Record<string, string> = {
+  "Dây da cá sấu đen": "bg-[#18181b]",
+  "Dây da cá sấu nâu Cognac": "bg-[#5c3a21]",
+  "Dây kim loại tích hợp":
+    "bg-gradient-to-tr from-secondary-container via-primary-container to-secondary",
+  "Dây cao su kỹ thuật cao cấp": "bg-[#2d3748]",
+};
 
 /**
  * Cụm mua hàng trang chi tiết — visual y hệt Stitch (thẻ giá,
  * chọn dây, khắc laser, Mua Ngay) nhưng đấu thật vào giỏ hàng.
+ * Strap + giá dùng chung catalog strapOptions và lib/pricing.
  */
 export default function DetailPurchase({ product: dbProduct }: { product: Product | null }) {
   const router = useRouter();
@@ -39,9 +33,8 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
   const [strapIdx, setStrapIdx] = useState(0);
   const [engraving, setEngraving] = useState("");
 
-  const strap = STRAPS[strapIdx];
-  const priceUsd = product.priceUsd + strap.deltaUsd;
-  const priceVnd = product.priceVnd + strap.deltaUsd * site.usdToVnd;
+  const strap = strapOptions[strapIdx];
+  const { priceUsd, priceVnd } = linePrice(product.priceUsd, strap.label);
 
   const buyNow = () => {
     addItem({
@@ -50,7 +43,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
       priceUsd,
       priceVnd,
       image: product.images[0],
-      strap: strap.full,
+      strap: strap.label,
       engraving: engraving.trim() || undefined,
     });
     router.push("/cart");
@@ -94,27 +87,27 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
               className="font-body-sm text-body-sm text-primary"
               id="strap-label"
             >
-              {strap.full}
-              {strap.deltaUsd > 0 && (
+              {strap.label}
+              {strap.priceDeltaUsd > 0 && (
                 <span className="text-on-surface-variant">
                   {" "}
-                  (+{formatUsd(strap.deltaUsd)})
+                  (+{formatUsd(strap.priceDeltaUsd)})
                 </span>
               )}
             </span>
           </div>
-          <div className="grid grid-cols-3 gap-space-xs mt-1">
-            {STRAPS.map((s, i) => {
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-space-xs mt-1">
+            {strapOptions.map((s, i) => {
               const active = i === strapIdx;
               return (
                 <button
-                  key={s.short}
+                  key={s.label}
                   onClick={() => setStrapIdx(i)}
                   className={`strap-choice p-space-xs rounded transition-all flex flex-col items-center text-center gap-1 shadow-sm ${active ? "bg-surface-container-high text-on-surface" : "bg-surface-container-low hover:bg-surface-container-highest text-on-surface-variant"}`}
                   type="button"
                 >
                   <span
-                    className={`w-6 h-6 rounded-full ${s.dot} shadow-inner flex items-center justify-center`}
+                    className={`w-6 h-6 rounded-full ${STRAP_DOT[s.label] ?? "bg-[#18181b]"} shadow-inner flex items-center justify-center`}
                   >
                     <span
                       className={`material-symbols-outlined text-[14px] ${active ? "text-primary" : "text-transparent"}`}
@@ -123,7 +116,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
                     </span>
                   </span>
                   <span className="font-label-badge text-[10px] uppercase tracking-wider">
-                    {s.short}
+                    {s.label.replace("Dây ", "")}
                   </span>
                 </button>
               );

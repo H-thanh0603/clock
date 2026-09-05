@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readSession } from "@/lib/auth";
 import { toClientItem } from "@/lib/cart";
+import { linePrice } from "@/lib/pricing";
 
 export async function GET() {
   const session = await readSession();
@@ -32,13 +33,14 @@ export async function POST(req: Request) {
     const b = (await req.json()) as AddBody;
     const slug = String(b.productSlug ?? b.slug ?? "").trim();
     const name = String(b.name ?? "").trim();
-    const priceUsd = Math.max(0, Math.floor(Number(b.priceUsd)));
-    const priceVnd = Math.max(0, Math.floor(Number(b.priceVnd)));
     const image = String(b.image ?? "");
     const strap = String(b.strap ?? "Tiêu chuẩn Atelier");
     const engraving = b.engraving ? String(b.engraving).slice(0, 120) : null;
     const qty = Math.min(99, Math.max(1, Math.floor(Number(b.qty ?? 1))));
-    if (!slug || !name || !Number.isFinite(priceUsd) || !Number.isFinite(priceVnd)) {
+    const baseUsd = Math.max(0, Math.floor(Number(b.priceUsd)));
+    // Giá chốt server-side: USD gốc + delta strap, VND suy ra — bỏ qua priceVnd client.
+    const { priceUsd, priceVnd } = linePrice(baseUsd, strap);
+    if (!slug || !name || !Number.isFinite(priceUsd)) {
       return NextResponse.json({ error: "Thiếu thông tin vật phẩm" }, { status: 400 });
     }
     await prisma.cartItem.upsert({

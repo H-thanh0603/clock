@@ -6,6 +6,7 @@ import GoldButton from "@/components/GoldButton";
 import SpecBadge from "@/components/SpecBadge";
 import type { Product } from "@/data/products";
 import { strapOptions } from "@/data/products";
+import { linePrice, USD_TO_VND } from "@/lib/pricing";
 import { useCurrency } from "./CurrencyProvider";
 import { useCart } from "./CartProvider";
 
@@ -17,12 +18,15 @@ export default function ProductDetail({ product }: { product: Product }) {
   const [engraving, setEngraving] = useState("");
   const [added, setAdded] = useState(false);
 
+  // Giá thống nhất từ lib/pricing — USD gốc, VND suy ra theo USD_TO_VND.
+  const line = linePrice(product.priceUsd, strap.label);
+
   const handleAdd = () => {
     addItem({
       slug: product.slug,
       name: product.name,
-      priceUsd: product.priceUsd + strap.priceDeltaUsd,
-      priceVnd: product.priceVnd + strap.priceDeltaUsd * 25200,
+      priceUsd: line.priceUsd,
+      priceVnd: line.priceVnd,
       image: product.images[0],
       strap: strap.label,
       engraving: engraving.trim() || undefined,
@@ -131,7 +135,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                   Giá Atelier (Bao gồm thuế)
                 </div>
                 <div className="font-display mt-1 text-3xl font-semibold text-primary">
-                  {price(product.priceUsd + strap.priceDeltaUsd, product.priceVnd + strap.priceDeltaUsd * 25200)}
+                  {price(line.priceUsd, line.priceVnd)}
                 </div>
               </div>
               {product.inBoutique ? (
@@ -161,7 +165,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                   {opt.label}
                   {opt.priceDeltaUsd > 0 && (
                     <span className="mt-0.5 block text-[10px] text-secondary">
-                      +{price(opt.priceDeltaUsd, opt.priceDeltaUsd * 25200)}
+                      +{price(opt.priceDeltaUsd, Math.round(opt.priceDeltaUsd * USD_TO_VND))}
                     </span>
                   )}
                 </button>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import GoldButton from "@/components/GoldButton";
 import { useCurrency } from "@/components/CurrencyProvider";
+import { USD_TO_VND } from "@/lib/pricing";
 
 type Option = {
   id: string;
@@ -122,7 +123,7 @@ export default function BespokeConfigurator() {
 
   const totalUsd =
     movement.priceUsd + caseOpt.priceUsd + dial.priceUsd + personal.priceUsd;
-  const totalVnd = totalUsd * 25200;
+  const totalVnd = totalUsd * USD_TO_VND;
 
   const steps = [
     { title: "Bộ Máy", icon: "settings", options: movements, value: movement, set: setMovement },

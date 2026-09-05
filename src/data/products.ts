@@ -38,7 +38,7 @@ export const products: Product[] = [
     reference: "AUR-CT07-PL",
     collection: "tourbillon",
     priceUsd: 145000,
-    priceVnd: 3650000000,
+    priceVnd: 3654000000,
     shortDescription:
       "Bộ máy Tourbillon bay siêu mỏng, lộ cơ hoàn toàn được vát mép cạnh thủ công Anglage 45 độ bằng gỗ tần bì.",
     badges: ["FLYING TOURBILLON", "ANGLAGE 45°"],
@@ -70,7 +70,7 @@ export const products: Product[] = [
     reference: "AUR-CPM-TI",
     collection: "grand-complication",
     priceUsd: 98000,
-    priceVnd: 2470000000,
+    priceVnd: 2469600000,
     shortDescription:
       "Mặt đá thiên thạch Muonionalusta tự nhiên, lịch vạn niên thiên văn chính xác tuyệt đối không cần chỉnh sửa tới năm 2100.",
     badges: ["METEORITE DIAL", "PERPETUAL CALENDAR"],
@@ -101,7 +101,7 @@ export const products: Product[] = [
     reference: "AUR-SS88-RG",
     collection: "skeleton",
     priceUsd: 82000,
-    priceVnd: 2060000000,
+    priceVnd: 2066400000,
     shortDescription:
       "Mặt số Sapphire nguyên khối trong suốt cho phép chiêm ngưỡng trọn vẹn nhịp đập 28,800 vph và 38 chân kính ruby nhân tạo.",
     badges: ["SAPPHIRE DIAL", "HISTORIC REVIVAL"],
@@ -132,7 +132,7 @@ export const products: Product[] = [
     reference: "AUR-VCF-FC",
     collection: "sport",
     priceUsd: 46000,
-    priceVnd: 1160000000,
+    priceVnd: 1159200000,
     shortDescription:
       "Viền Bezel gốm Ceramic đen bóng chống trầy xước vĩnh viễn, bấm giờ flyback bánh sắc trên nền vỏ Forged Carbon độc bản.",
     badges: ["FORGED CARBON", "FLYBACK COLUMN WHEEL"],
@@ -163,7 +163,7 @@ export const products: Product[] = [
     reference: "AUR-EC40-RG",
     collection: "classic",
     priceUsd: 34000,
-    priceVnd: 855000000,
+    priceVnd: 856800000,
     shortDescription:
       "Cọc số kim cương tự nhiên giác cắt Baguette, mặt số chải tia Sunburst và dây da cá sấu Mississippi tuyển chọn thủ công.",
     badges: ["BAGUETTE DIAMONDS", "ALLIGATOR MISSISSIPPI"],
@@ -194,7 +194,7 @@ export const products: Product[] = [
     reference: "AUR-AD500-TI",
     collection: "sport",
     priceUsd: 28500,
-    priceVnd: 718000000,
+    priceVnd: 718200000,
     shortDescription:
       "Kháng nước 500m với van thoát khí Heli tự động, trọng lượng siêu nhẹ từ hợp kim Titanium hàng không vũ trụ.",
     badges: ["500M DIVER", "GRADE 5 TITANIUM"],

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { readSession } from "@/lib/auth";
+import { linePrice } from "@/lib/pricing";
 
 const METHODS = ["centurion", "escrow", "deposit", "vnpay", "cod"] as const;
 
@@ -63,19 +64,24 @@ export async function POST(req: Request) {
     const lines = items.map((i) => {
       const qty = Math.min(99, Math.max(1, Math.floor(Number(i.qty ?? 1))));
       const db = priceOf.get(String(i.slug ?? ""));
-      const priceUsd = db ? db.priceUsd : Math.max(0, Math.floor(Number(i.priceUsd) || 0));
-      const priceVnd = db
-        ? Number(db.priceVnd)
-        : Math.max(0, Math.floor(Number(i.priceVnd) || 0));
+      const strap = String(i.strap ?? "Tiêu chuẩn Atelier");
+      // Giá gốc USD: DB nếu có, bespoke/phụ kiện thì dùng giá client gửi.
+      // VND LUÔN suy ra từ USD × USD_TO_VND — không tin priceVnd client.
+      const { priceUsd, priceVnd } = linePrice(
+        db ? db.priceUsd : Math.max(0, Math.floor(Number(i.priceUsd) || 0)),
+        strap
+      );
       totalUsd += priceUsd * qty;
       totalVnd += priceVnd * qty;
       return {
-        productSlug: String(i.slug ?? "") || null,
+        // Slug chỉ được ghi khi tồn tại trong DB (FK Product.slug);
+        // hàng bespoke/phụ kiện custom không có product tương ứng → null.
+        productSlug: db ? String(i.slug ?? "") : null,
         name: String(i.name ?? "").slice(0, 200),
         priceUsd,
         priceVnd,
         image: String(i.image ?? ""),
-        strap: String(i.strap ?? "Tiêu chuẩn Atelier"),
+        strap,
         engraving: i.engraving ? String(i.engraving).slice(0, 120) : null,
         qty,
       };

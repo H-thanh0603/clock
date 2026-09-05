@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import type { Product } from "@/data/products";
 import { strapOptions } from "@/data/products";
+import { linePrice } from "@/lib/pricing";
 import { useCurrency } from "./CurrencyProvider";
 import { useCart } from "./CartProvider";
 import SpecBadge from "./SpecBadge";
@@ -16,11 +17,12 @@ export default function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
+    const { priceUsd, priceVnd } = linePrice(product.priceUsd, strap);
     addItem({
       slug: product.slug,
       name: product.name,
-      priceUsd: product.priceUsd,
-      priceVnd: product.priceVnd,
+      priceUsd,
+      priceVnd,
       image: product.images[0],
       strap,
     });
