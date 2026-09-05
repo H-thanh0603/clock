@@ -1,27 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { verifySessionToken } from "@/lib/session";
 
-const SESSION_COOKIE = "aurel_session";
-
+/**
+ * Middleware chạy edge runtime → dùng lõi session edge-safe
+ * (lib/session) thay vì lib/auth (kéo next/headers + bcrypt).
+ */
 export async function middleware(req: NextRequest) {
   if (!req.nextUrl.pathname.startsWith("/admin")) return NextResponse.next();
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const secret = process.env.JWT_SECRET;
-  if (!token || !secret) {
+  const session = await verifySessionToken(
+    req.cookies.get("aurel_session")?.value
+  );
+  if (!session) {
     return NextResponse.redirect(new URL("/login?next=/admin/orders", req.url));
   }
-  try {
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(secret)
-    );
-    if (payload.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-    return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL("/login?next=/admin/orders", req.url));
+  if (session.role !== "ADMIN") {
+    return NextResponse.redirect(new URL("/", req.url));
   }
+  return NextResponse.next();
 }
 
 export const config = { matcher: ["/admin/:path*"] };
