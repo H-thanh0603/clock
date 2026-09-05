@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { apiUrl } from "@/lib/api-client";
+import { apiUrl, csrfFetch } from "@/lib/api-client";
 
 export type AuthUser = {
   id: string;
@@ -23,6 +23,8 @@ type AuthContextValue = {
   register: (name: string, email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  updateProfile: (name: string) => Promise<void>;
+  changePassword: (current: string, next: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch(apiUrl("/auth/login"), {
+    const res = await csrfFetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -74,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      const res = await fetch(apiUrl("/auth/register"), {
+      const res = await csrfFetch("/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -102,16 +104,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await fetch(apiUrl("/auth/logout"), {
+    await csrfFetch(apiUrl("/auth/logout"), {
       method: "POST",
       credentials: "include",
     });
     setUser(null);
   }, []);
 
+  const updateProfile = useCallback(async (name: string) => {
+    const res = await csrfFetch("/auth/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok)
+      throw new Error(
+        (Array.isArray(data.message) ? data.message.join(", ") : data.message) ??
+          "Cập nhật thất bại"
+      );
+    setUser((data.user as AuthUser | null) ?? null);
+  }, []);
+
+  const changePassword = useCallback(
+    async (current: string, next: string) => {
+      const res = await csrfFetch("/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current, next }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(
+          (data && (Array.isArray(data.message)
+            ? data.message.join(", ")
+            : data.message)) ??
+            "Đổi mật khẩu thất bại"
+        );
+      // Token đã bị thu hồi server-side → đăng xuất client.
+      setUser(null);
+      window.location.href = "/login";
+    },
+    []
+  );
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, refresh }}
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        refresh,
+        updateProfile,
+        changePassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

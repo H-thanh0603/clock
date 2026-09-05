@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getOrderByCode } from "@/lib/orders";
 import { formatUsd, formatVnd } from "@/data/products";
+import { ClearCartOnPaid } from "./ClearCartOnPaid";
+import { CancelGuestButton } from "./CancelGuestButton";
 
 const STATUS_VN: Record<string, string> = {
   PENDING: "Chờ xác nhận",
@@ -28,6 +30,7 @@ export default async function OrderSuccessPage({
 
   return (
     <div className="mx-auto max-w-page px-6 py-16 md:px-8">
+      <ClearCartOnPaid paid={paid} />
       <div className="mx-auto max-w-2xl">
         <div className="gold-border-card flex flex-col items-center gap-space-sm p-10 text-center">
           <span
@@ -91,6 +94,9 @@ export default async function OrderSuccessPage({
             >
               Theo Dõi Đơn
             </Link>
+            {order.status === "PENDING" && (
+              <CancelGuestButton code={order.code} />
+            )}
           </div>
         </div>
       </div>

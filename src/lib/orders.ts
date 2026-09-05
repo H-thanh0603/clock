@@ -20,6 +20,14 @@ export type PaymentDto = {
   createdAt: string;
 };
 
+export type OrderEventDto = {
+  id: string;
+  from: string | null;
+  to: string;
+  note: string | null;
+  createdAt: string;
+};
+
 export type OrderDto = {
   id: string;
   code: string;
@@ -31,13 +39,16 @@ export type OrderDto = {
   status: string;
   totalUsd: number;
   totalVnd: number;
+  paidUsd: number;
+  paidVnd: number;
   createdAt: string;
   updatedAt: string;
   items: OrderItemDto[];
   payments?: PaymentDto[];
+  events?: OrderEventDto[];
 };
 
-/** Chi tiết đơn theo mã (public — mã đơn đủ khó đoán). null = không thấy. */
+/** Chi tiết đơn theo mã (public, trường tối thiểu). null = không thấy. */
 export async function getOrderByCode(code: string): Promise<OrderDto | null> {
   try {
     return await apiJson<OrderDto>(

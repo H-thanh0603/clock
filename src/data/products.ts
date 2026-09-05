@@ -24,6 +24,7 @@ export type Product = {
   caseMaterial: string;
   complications: string[];
   inBoutique: boolean;
+  stock: number;
   images: string[];
   specs: { label: string; value: string }[];
   narrative: string;
@@ -46,6 +47,7 @@ export const products: Product[] = [
     caseMaterial: "Platinum 950",
     complications: ["Tourbillon", "Chronomètre"],
     inBoutique: true,
+    stock: 1,
     cardImage: "/images/stitch/35_AB6AXuDCew.jpg",
     images: [
       "/images/stitch/02_AB6AXuAiPb.jpg",
@@ -78,6 +80,7 @@ export const products: Product[] = [
     caseMaterial: "Titanium & Vàng 18k",
     complications: ["Perpetual Calendar", "Moonphase"],
     inBoutique: true,
+    stock: 1,
     cardImage: "/images/stitch/36_AB6AXuBdGc.jpg",
     images: [
       "/images/stitch/04_AB6AXuBFmG.jpg",
@@ -109,6 +112,7 @@ export const products: Product[] = [
     caseMaterial: "Titanium & Vàng hồng 18k",
     complications: ["Skeleton", "Small Seconds"],
     inBoutique: true,
+    stock: 1,
     cardImage: "/images/stitch/37_AB6AXuCVZv.jpg",
     images: [
       "/images/stitch/06_AB6AXuDxn0.jpg",
@@ -140,6 +144,7 @@ export const products: Product[] = [
     caseMaterial: "Forged Carbon & Ceramic",
     complications: ["Chronograph Flyback", "Date"],
     inBoutique: false,
+    stock: 1,
     cardImage: "/images/stitch/38_AB6AXuDx9q.jpg",
     images: [
       "/images/stitch/05_AB6AXuBFXA.jpg",
@@ -171,6 +176,7 @@ export const products: Product[] = [
     caseMaterial: "Vàng hồng 18k",
     complications: ["Date"],
     inBoutique: true,
+    stock: 1,
     cardImage: "/images/stitch/39_AB6AXuA2EF.jpg",
     images: [
       "/images/stitch/31_AB6AXuCawX.jpg",
@@ -202,6 +208,7 @@ export const products: Product[] = [
     caseMaterial: "Titanium Grade 5",
     complications: ["Diver 500M", "Helium Valve"],
     inBoutique: true,
+    stock: 1,
     cardImage: "/images/stitch/40_AB6AXuBZGd.jpg",
     images: [
       "/images/stitch/26_AB6AXuB7UM.jpg",
@@ -233,6 +240,7 @@ export const products: Product[] = [
     caseMaterial: "Da bê ép vân navy",
     complications: [],
     inBoutique: true,
+    stock: 1,
     cardImage: "/images/stitch/34_AB6AXuDJte.jpg",
     images: ["/images/stitch/34_AB6AXuDJte.jpg"],
     specs: [],

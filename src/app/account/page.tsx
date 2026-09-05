@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyOrders } from "@/lib/orders";
 import { formatUsd, formatVnd } from "@/data/products";
+import { CancelOrderButton } from "./OrderActions";
+import { ProfileForms } from "./ProfileForms";
 
 const STATUS_VN: Record<string, string> = {
   PENDING: "Chờ xác nhận",
@@ -24,6 +26,8 @@ export default async function AccountPage() {
       <h1 className="font-display mt-3 text-4xl font-medium">
         Lịch Sử <span className="text-gold-gradient">Ủy Thác</span>
       </h1>
+
+      <ProfileForms />
 
       {orders.length === 0 ? (
         <div className="gold-border-card mt-10 flex flex-col items-center gap-space-sm p-12 text-center">
@@ -64,6 +68,17 @@ export default async function AccountPage() {
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
                     ~{formatVnd(Number(o.totalVnd))}
                   </p>
+                  {o.paidVnd > 0 && Number(o.paidVnd) < Number(o.totalVnd) && (
+                    <p className="font-body-sm text-body-sm text-secondary">
+                      Đã cọc {formatUsd(o.paidUsd)} • còn lại{" "}
+                      {formatUsd(o.totalUsd - o.paidUsd)}
+                    </p>
+                  )}
+                  {o.status === "PENDING" && (
+                    <p className="mt-1">
+                      <CancelOrderButton id={o.id} />
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="mt-space-sm space-y-space-xs border-t border-outline-variant/20 pt-space-sm">

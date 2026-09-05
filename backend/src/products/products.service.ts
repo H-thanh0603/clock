@@ -19,6 +19,7 @@ export type ProductDto = {
   caseMaterial: string;
   complications: string[];
   inBoutique: boolean;
+  stock: number;
   specs: { label: string; value: string }[];
   narrative: string;
 };
@@ -40,6 +41,7 @@ function toDto(row: {
   caseMaterial: string;
   complications: string[];
   inBoutique: boolean;
+  stock: number;
   specs: unknown;
   narrative: string;
 }): ProductDto {
@@ -60,6 +62,7 @@ function toDto(row: {
     caseMaterial: row.caseMaterial,
     complications: row.complications,
     inBoutique: row.inBoutique,
+    stock: row.stock,
     specs: (row.specs as { label: string; value: string }[]) ?? [],
     narrative: row.narrative,
   };

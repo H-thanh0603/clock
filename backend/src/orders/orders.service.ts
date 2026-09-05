@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { linePrice } from '../common/pricing';
@@ -34,6 +36,7 @@ export type CreateOrderInput = {
 /** Serialize order (BigInt/Date → JSON-safe). */
 export function serializeOrder(o: {
   totalVnd: bigint;
+  paidVnd?: bigint;
   items: { priceVnd: bigint }[];
   payments?: { amountUsd?: number }[];
   [k: string]: unknown;
@@ -41,6 +44,7 @@ export function serializeOrder(o: {
   return {
     ...o,
     totalVnd: Number(o.totalVnd),
+    paidVnd: o.paidVnd !== undefined ? Number(o.paidVnd) : undefined,
     items: o.items.map((i) => ({ ...i, priceVnd: Number(i.priceVnd) })),
   };
 }
@@ -89,6 +93,10 @@ export class OrdersService {
         throw new BadRequestException(
           `Sản phẩm ${db.name} hiện ngừng trưng bày`,
         );
+      if (db && db.stock < qty)
+        throw new BadRequestException(
+          `Sản phẩm ${db.name} chỉ còn ${db.stock} chiếc`,
+        );
       const strap = String(i.strap ?? 'Tiêu chuẩn Atelier');
       // Giá gốc USD: DB nếu có, bespoke thì dùng giá client gửi (đơn PENDING).
       // VND LUÔN suy ra từ USD × USD_TO_VND — không tin priceVnd client.
@@ -116,20 +124,42 @@ export class OrdersService {
 
     // Hàng custom phải qua concierge duyệt giá → không auto-confirm.
     const simulated = method !== 'vnpay' && !hasCustom;
+    // Deposit 20%: chỉ thu trước 20%, còn lại thanh toán khi bàn giao.
+    const isDeposit = simulated && method === 'deposit';
+    const paidUsd = simulated ? (isDeposit ? Math.round(totalUsd * 0.2) : totalUsd) : 0;
+    const paidVnd = simulated
+      ? isDeposit
+        ? Math.round(totalVnd * 0.2)
+        : totalVnd
+      : 0;
 
-    // Tạo đơn + xóa giỏ trong 1 transaction (tránh đơn nửa vời khi crash).
+    // Tạo đơn + trừ kho + xóa giỏ trong 1 transaction.
     // Mã đơn random có thể đụng → bắt unique-constraint và thử lại.
     let order = null as null | {
       id: string;
       code: string;
       totalUsd: number;
       totalVnd: bigint;
+      paidUsd: number;
+      paidVnd: bigint;
       status: string;
     };
     for (let attempt = 0; attempt < 6; attempt++) {
       const code = orderCode();
       try {
         order = await this.prisma.$transaction(async (tx) => {
+          // Trừ kho có điều kiện (chống oversell khi chốt song song).
+          for (const l of lines) {
+            if (!l.productSlug) continue;
+            const r = await tx.product.updateMany({
+              where: { slug: l.productSlug, stock: { gte: l.qty } },
+              data: { stock: { decrement: l.qty } },
+            });
+            if (r.count === 0)
+              throw new BadRequestException(
+                `Sản phẩm ${l.name} vừa hết hàng, vui lòng thử lại`,
+              );
+          }
           const created = await tx.order.create({
             data: {
               code,
@@ -141,19 +171,23 @@ export class OrdersService {
               status: simulated ? 'CONFIRMED' : 'PENDING',
               totalUsd,
               totalVnd,
+              paidUsd,
+              paidVnd,
               items: { create: lines },
               payments: {
                 create: {
                   method,
-                  amountUsd: totalUsd,
+                  amountUsd: paidUsd,
                   status: simulated ? 'SUCCESS' : 'PENDING',
                   txnRef: simulated ? `SIM-${code}` : null,
                 },
               },
+              events: { create: { from: null, to: simulated ? 'CONFIRMED' : 'PENDING' } },
             },
           });
-          // Xóa giỏ DB sau khi chốt đơn (giỏ local do client tự clear)
-          if (userId) {
+          // Xóa giỏ DB sau khi chốt đơn KHÔNG qua VNPay.
+          // Đơn VNPay chỉ clear khi settle success (bỏ giữa chừng vẫn giữ giỏ).
+          if (userId && simulated) {
             await tx.cartItem.deleteMany({ where: { userId } });
           }
           return created;
@@ -180,6 +214,10 @@ export class OrdersService {
       code: order.code,
       totalUsd: order.totalUsd,
       totalVnd: Number(order.totalVnd),
+      paidUsd: order.paidUsd,
+      paidVnd: Number(order.paidVnd),
+      remainingUsd: order.totalUsd - order.paidUsd,
+      remainingVnd: Number(order.totalVnd) - Number(order.paidVnd),
       status: order.status,
       pendingReview: hasCustom,
     };
@@ -219,5 +257,56 @@ export class OrdersService {
       include: { items: true },
     });
     return orders.map(serializeOrder);
+  }
+
+  /** Hủy đơn PENDING (chính chủ hoặc contact khớp cho khách vãng lai). */
+  async cancel(
+    orderId: string,
+    opts: { userId?: string | null; contact?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
+    if (!order) throw new NotFoundException('Không thấy đơn hàng');
+    if (order.status !== 'PENDING')
+      throw new BadRequestException('Chỉ hủy được đơn đang chờ xác nhận');
+    const owned =
+      (opts.userId && order.userId === opts.userId) ||
+      (opts.contact &&
+        order.contact.trim().toLowerCase() ===
+          opts.contact.trim().toLowerCase());
+    if (!owned) throw new ForbiddenException('Không có quyền hủy đơn này');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'CANCELLED' },
+      });
+      // Hoàn kho các dòng có product thật.
+      for (const l of order.items) {
+        if (!l.productSlug) continue;
+        await tx.product.updateMany({
+          where: { slug: l.productSlug },
+          data: { stock: { increment: l.qty } },
+        });
+      }
+      await tx.orderEvent.create({
+        data: {
+          orderId,
+          from: 'PENDING',
+          to: 'CANCELLED',
+          byUserId: opts.userId ?? null,
+          note: 'Khách hủy',
+        },
+      });
+    });
+    return { id: orderId, status: 'CANCELLED' as const };
+  }
+
+  async cancelByCode(code: string, contact: string) {
+    const order = await this.prisma.order.findUnique({ where: { code } });
+    if (!order) throw new NotFoundException('Không thấy đơn hàng');
+    return this.cancel(order.id, { contact });
   }
 }

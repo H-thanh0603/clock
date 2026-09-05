@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "./AuthProvider";
-import { apiUrl } from "@/lib/api-client";
+import { apiUrl, csrfFetch } from "@/lib/api-client";
 
 export type CartItem = {
   slug: string;
@@ -96,7 +96,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         try {
           const guest = loadGuest();
           if (guest.length > 0) {
-            const r = await fetch(apiUrl("/cart/merge"), {
+            const r = await csrfFetch("/cart/merge", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
@@ -129,7 +129,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (item: Omit<CartItem, "qty">, qty = 1) => {
     if (userId) {
       runServer(
-        fetch(apiUrl("/cart"), {
+        csrfFetch("/cart", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -155,11 +155,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const removeItem = (slug: string, strap: string) => {
     if (userId) {
       runServer(
-        fetch(
-          apiUrl(
-            `/cart?slug=${encodeURIComponent(slug)}&strap=${encodeURIComponent(strap)}`
-          ),
-          { method: "DELETE", credentials: "include" }
+        csrfFetch(
+          `/cart?slug=${encodeURIComponent(slug)}&strap=${encodeURIComponent(strap)}`,
+          { method: "DELETE" }
         ).then(readList),
         "Không xoá được vật phẩm (lỗi server)"
       );
@@ -173,7 +171,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const updateQty = (slug: string, strap: string, qty: number) => {
     if (userId) {
       runServer(
-        fetch(apiUrl("/cart"), {
+        csrfFetch("/cart", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -193,9 +191,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clear = () => {
     if (userId) {
       runServer(
-        fetch(apiUrl("/cart?clear=1"), {
+        csrfFetch("/cart?clear=1", {
           method: "DELETE",
-          credentials: "include",
         }).then(readList),
         "Không xoá được giỏ hàng (lỗi server)"
       );

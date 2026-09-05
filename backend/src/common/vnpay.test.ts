@@ -128,16 +128,20 @@ describe("settlePayment", () => {
   }
 
   function makeDeps(over: Partial<SettleDeps> = {}) {
-    const calls = { updatedPayment: [] as string[][], updatedOrder: [] as string[][] };
+    const calls = { updatedPayment: [] as string[][], updatedOrder: [] as string[][], clearedCart: [] as (string | null)[] };
     const deps: SettleDeps & { calls: typeof calls } = {
       findPayment: () => Promise.resolve({ id: "pay-1", orderId: "ord-1", status: "PENDING" }),
-      getOrder: () => Promise.resolve({ code: "AC-2026-1", totalVnd: 100000 }),
+      getOrder: () => Promise.resolve({ code: "AC-2026-1", totalVnd: 100000, userId: "user-1" }),
       updatePayment: (id, status) => {
         calls.updatedPayment.push([id, status]);
         return Promise.resolve(true);
       },
       updateOrder: (orderId, status) => {
         calls.updatedOrder.push([orderId, status]);
+        return Promise.resolve();
+      },
+      clearCart: (userId) => {
+        calls.clearedCart.push(userId);
         return Promise.resolve();
       },
       ...over,
@@ -182,7 +186,7 @@ describe("settlePayment", () => {
     expect(deps.calls.updatedPayment).toEqual([]);
   });
 
-  it("success: payment → SUCCESS, order → PAID", async () => {
+  it("success: payment → SUCCESS, order → PAID, clear giỏ", async () => {
     const deps = makeDeps();
     const r = await settlePayment(
       signedParams({ vnp_TxnRef: "T1", vnp_ResponseCode: "00", vnp_Amount: "10000000" }),
@@ -191,6 +195,7 @@ describe("settlePayment", () => {
     expect(r).toEqual({ outcome: "success", code: "AC-2026-1" });
     expect(deps.calls.updatedPayment).toEqual([["pay-1", "SUCCESS"]]);
     expect(deps.calls.updatedOrder).toEqual([["ord-1", "PAID"]]);
+    expect(deps.calls.clearedCart).toEqual(["user-1"]);
   });
 
   it("unpaid: response code ≠ 00 → payment FAILED, order không đổi", async () => {

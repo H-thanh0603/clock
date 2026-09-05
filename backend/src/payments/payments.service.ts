@@ -31,12 +31,30 @@ export class PaymentsService {
   private settleDeps(): SettleDeps {
     return {
       findPayment: (txnRef) =>
-        this.prisma.payment.findFirst({ where: { txnRef } }),
+        this.prisma.payment.findFirst({ where: { txnRef } }).then((p) =>
+          p
+            ? {
+                id: p.id,
+                orderId: p.orderId,
+                status: p.status,
+                expectedVnd:
+                  p.expectedVnd !== null && p.expectedVnd !== undefined
+                    ? Number(p.expectedVnd)
+                    : null,
+              }
+            : null,
+        ),
       getOrder: (orderId) =>
         this.prisma.order
           .findUnique({ where: { id: orderId } })
           .then((o) =>
-            o ? { code: o.code, totalVnd: Number(o.totalVnd) } : null,
+            o
+              ? {
+                  code: o.code,
+                  totalVnd: Number(o.totalVnd),
+                  userId: o.userId,
+                }
+              : null,
           ),
       // Update ĐIỀU KIỆN: chỉ chuyển khi còn PENDING (chống double-settle
       // khi IPN và return chạy song song). Trả về false nếu đã settle trước.
@@ -51,6 +69,11 @@ export class PaymentsService {
         this.prisma.order
           .update({ where: { id: orderId }, data: { status } })
           .then(() => undefined),
+      clearCart: async (userId) => {
+        if (userId) {
+          await this.prisma.cartItem.deleteMany({ where: { userId } });
+        }
+      },
     };
   }
 
@@ -76,6 +99,7 @@ export class PaymentsService {
 
     // txnRef ngẫu nhiên, khó đoán (tránh liệt kê + trùng khi tạo cùng ms).
     const txnRef = `${order.code}-${Date.now().toString(36)}${randomBytes(3).toString('hex')}`;
+    const expectedVnd = Number(order.totalVnd);
     await this.prisma.payment.create({
       data: {
         orderId: order.id,
@@ -83,11 +107,12 @@ export class PaymentsService {
         amountUsd: order.totalUsd,
         status: 'PENDING',
         txnRef,
+        expectedVnd,
       },
     });
     const url = buildPayUrl({
       txnRef,
-      amountVnd: Number(order.totalVnd),
+      amountVnd: expectedVnd,
       orderInfo: `Thanh toan don ${order.code} Aurel Co`,
       returnUrl: `${backendBaseUrl()}/payments/vnpay/return`,
       ipAddr:

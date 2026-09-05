@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
-import { apiUrl } from "@/lib/api-client";
+import { csrfFetch } from "@/lib/api-client";
 import VaultItemCard from "@/components/VaultItemCard";
 import { formatUsd, formatVnd } from "@/data/products";
 
@@ -18,6 +18,10 @@ export default function Page() {
   const [pin, setPin] = useState("********");
   const [placed, setPlaced] = useState<string | null>(null);
   const [placedReview, setPlacedReview] = useState(false);
+  const [placedPaid, setPlacedPaid] = useState<{
+    paidUsd: number;
+    remainingUsd: number;
+  } | null>(null);
   const [orderError, setOrderError] = useState("");
   const [pay, setPay] = useState("centurion");
   const [processing, setProcessing] = useState<string | null>(null);
@@ -37,7 +41,7 @@ export default function Page() {
     setOrderError("");
     setProcessing("Tạo đơn & niêm ấn Vault...");
     try {
-      const res = await fetch(apiUrl("/orders"), {
+      const res = await csrfFetch("/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -68,10 +72,16 @@ export default function Page() {
             data.error ??
             "Lỗi tạo đơn hàng"
         );
-      clear();
+      // Đơn VNPay: KHÔNG clear giỏ lúc này — giỏ chỉ clear khi settle
+      // success (bỏ thanh toán giữa chừng vẫn giữ giỏ).
+      if (pay !== "vnpay") clear();
+      setPlacedPaid({
+        paidUsd: Number(data.paidUsd ?? 0),
+        remainingUsd: Number(data.remainingUsd ?? 0),
+      });
       if (pay === "vnpay") {
         setProcessing("Chuyển sang cổng thanh toán VNPay...");
-        const pr = await fetch(apiUrl("/payments/vnpay/create"), {
+        const pr = await csrfFetch("/payments/vnpay/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -381,6 +391,8 @@ export default function Page() {
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Concierge sẽ liên hệ {contact || "kênh bảo mật"} trong 2 giờ làm việc để xác nhận khung giờ {slot}.</p>
                 {placedReview ? (
                   <p className="font-body-sm text-body-sm text-secondary mt-1">Đơn có hàng bespoke/custom nên đang chờ concierge duyệt giá — chưa ghi nợ.</p>
+                ) : placedPaid && placedPaid.remainingUsd > 0 ? (
+                  <p className="font-body-sm text-body-sm text-secondary mt-1">Đã đặt cọc {formatUsd(placedPaid.paidUsd)} qua {PAY_LABELS[pay]} — còn lại {formatUsd(placedPaid.remainingUsd)} thanh toán khi bàn giao (mô phỏng).</p>
                 ) : (
                   <p className="font-body-sm text-body-sm text-secondary mt-1">Đã ghi nợ {formatUsd(chargeNow)} qua {PAY_LABELS[pay]} (mô phỏng — không phát sinh giao dịch thật).</p>
                 )}

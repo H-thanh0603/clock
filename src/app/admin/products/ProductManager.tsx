@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiUrl } from "@/lib/api-client";
+import { csrfFetch } from "@/lib/api-client";
 import type { Product } from "@/data/products";
 import { formatUsd } from "@/data/products";
 
@@ -17,6 +17,7 @@ type Draft = {
   cardImage: string;
   calibre: string;
   diameterMm: string;
+  stock: string;
   caseMaterial: string;
   narrative: string;
   images: string;
@@ -36,6 +37,7 @@ const EMPTY: Draft = {
   cardImage: "",
   calibre: "",
   diameterMm: "",
+  stock: "1",
   caseMaterial: "",
   narrative: "",
   images: "",
@@ -56,6 +58,7 @@ function toDraft(p: Product): Draft {
     cardImage: p.cardImage,
     calibre: p.calibre,
     diameterMm: String(p.diameterMm),
+    stock: String(p.stock ?? 1),
     caseMaterial: p.caseMaterial,
     narrative: p.narrative,
     images: p.images.join("\n"),
@@ -100,7 +103,7 @@ export function ProductManager({ products }: { products: Product[] }) {
 
   const toggleBoutique = async (p: Product) => {
     try {
-      const res = await fetch(apiUrl(`/admin/products/${p.slug}`), {
+      const res = await csrfFetch(`/admin/products/${p.slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -128,6 +131,7 @@ export function ProductManager({ products }: { products: Product[] }) {
         cardImage: editing.cardImage,
         calibre: editing.calibre,
         diameterMm: Number(editing.diameterMm),
+        stock: Math.max(0, Math.floor(Number(editing.stock) || 0)),
         caseMaterial: editing.caseMaterial,
         narrative: editing.narrative,
         images: splitLines(editing.images),
@@ -136,10 +140,8 @@ export function ProductManager({ products }: { products: Product[] }) {
         inBoutique: editing.inBoutique,
         ...(isNew ? { slug: editing.slug } : {}),
       };
-      const res = await fetch(
-        isNew
-          ? apiUrl("/admin/products")
-          : apiUrl(`/admin/products/${editing.slug}`),
+      const res = await csrfFetch(
+        isNew ? "/admin/products" : `/admin/products/${editing.slug}`,
         {
           method: isNew ? "POST" : "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -340,6 +342,20 @@ export function ProductManager({ products }: { products: Product[] }) {
                   value={editing.diameterMm}
                   onChange={(e) =>
                     setEditing({ ...editing, diameterMm: e.target.value })
+                  }
+                />
+              </label>
+              <label className="block">
+                <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                  Tồn kho
+                </span>
+                <input
+                  className={inputCls}
+                  type="number"
+                  min={0}
+                  value={editing.stock}
+                  onChange={(e) =>
+                    setEditing({ ...editing, stock: e.target.value })
                   }
                 />
               </label>

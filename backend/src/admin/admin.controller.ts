@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminGuard } from '../common/guards';
+import { CurrentUser } from '../common/current-user.decorator';
+import type { SessionUser } from '../common/session';
 
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -29,8 +31,12 @@ export class AdminController {
 
   @Patch('orders/:id')
   @HttpCode(200)
-  updateStatus(@Param('id') id: string, @Body() body: { status?: string }) {
-    return this.admin.updateStatus(id, String(body.status ?? ''));
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: string },
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.admin.updateStatus(id, String(body.status ?? ''), user.id);
   }
 
   @Get('users')

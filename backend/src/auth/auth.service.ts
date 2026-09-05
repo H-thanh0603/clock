@@ -99,6 +99,44 @@ export class AuthService {
       data: { tokenVersion: { increment: 1 } },
     });
   }
+
+  async updateProfile(
+    userId: string,
+    name?: string,
+  ): Promise<PublicUser | null> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name: String(name ?? '').trim().slice(0, 200) || null },
+    });
+    return this.toPublic(user);
+  }
+
+  async changePassword(
+    userId: string,
+    current: string,
+    next: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user?.passwordHash)
+      throw new UnauthorizedException('Tài khoản không dùng mật khẩu');
+    const ok = await bcrypt.compare(
+      String(current ?? '').slice(0, MAX_PASSWORD_LEN),
+      user.passwordHash,
+    );
+    if (!ok) throw new UnauthorizedException('Mật khẩu hiện tại không đúng');
+    const nw = String(next ?? '');
+    if (nw.length < 6 || nw.length > MAX_PASSWORD_LEN)
+      throw new BadRequestException('Mật khẩu mới từ 6 đến 72 ký tự');
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: await bcrypt.hash(nw, 10),
+        tokenVersion: { increment: 1 },
+      },
+    });
+  }
   async me(userId: string): Promise<PublicUser | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

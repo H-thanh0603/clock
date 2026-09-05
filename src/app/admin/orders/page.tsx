@@ -101,6 +101,17 @@ export default async function AdminOrdersPage({
                   </span>
                 </div>
               ))}
+              {(o.events ?? []).length > 0 && (
+                <p className="font-body-sm text-body-sm pt-space-2xs text-on-surface-variant/70">
+                  Lịch sử:{" "}
+                  {(o.events ?? [])
+                    .map(
+                      (e) =>
+                        `${e.from ? `${STATUS_VN[e.from] ?? e.from}→` : ""}${STATUS_VN[e.to] ?? e.to}`
+                    )
+                    .join(" • ")}
+                </p>
+              )}
             </div>
           </div>
         ))}

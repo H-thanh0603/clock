@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiUrl } from "@/lib/api-client";
+import { csrfFetch } from "@/lib/api-client";
 
 const STATUSES = [
   "PENDING",
@@ -37,7 +37,7 @@ export function StatusSelect({
     setValue(next);
     setBusy(true);
     try {
-      const res = await fetch(apiUrl(`/admin/orders/${id}`), {
+      const res = await csrfFetch(`/admin/orders/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -84,10 +84,15 @@ export function verifyReturn(params: Record<string, string>) {
 export type SettleDeps = {
   findPayment: (
     txnRef: string
-  ) => Promise<{ id: string; orderId: string; status: string } | null>;
+  ) => Promise<{
+    id: string;
+    orderId: string;
+    status: string;
+    expectedVnd?: number | null;
+  } | null>;
   getOrder: (
     orderId: string
-  ) => Promise<{ code: string; totalVnd: number } | null>;
+  ) => Promise<{ code: string; totalVnd: number; userId: string | null } | null>;
   /**
    * Chuyển payment sang SUCCESS/FAILED — PHẢI là update điều kiện
    * (chỉ khi còn PENDING), trả về false nếu payment đã settle trước đó
@@ -95,6 +100,8 @@ export type SettleDeps = {
    */
   updatePayment: (id: string, status: "SUCCESS" | "FAILED") => Promise<boolean>;
   updateOrder: (orderId: string, status: "PAID") => Promise<void>;
+  /** Xóa giỏ DB của user sau khi VNPay success (giỏ local do client tự clear). */
+  clearCart: (userId: string | null) => Promise<void>;
 };
 
 export type SettleOutcome =
@@ -125,8 +132,10 @@ export async function settlePayment(
   const order = await deps.getOrder(payment.orderId);
   if (!order) return { outcome: "payment-not-found" };
 
+  // So với số tiền ĐÓNG BĂNG lúc tạo URL (không đọc lại total hiện tại).
+  const expected = payment.expectedVnd ?? order.totalVnd;
   const amountOk =
-    Number(params.vnp_Amount ?? 0) / 100 === Number(order.totalVnd);
+    Math.round(Number(params.vnp_Amount ?? 0) / 100) === Math.round(expected);
   if (!amountOk) return { outcome: "amount-mismatch" };
 
   if (payment.status !== "PENDING") {
@@ -151,7 +160,11 @@ export async function settlePayment(
       settled: current?.status === "SUCCESS",
     };
   }
-  if (success) await deps.updateOrder(payment.orderId, "PAID");
+  if (success) {
+    await deps.updateOrder(payment.orderId, "PAID");
+    // Thu tiền xong mới clear giỏ (bỏ thanh toán giữa chừng vẫn giữ giỏ).
+    await deps.clearCart(order.userId);
+  }
 
   return success
     ? { outcome: "success", code: order.code }

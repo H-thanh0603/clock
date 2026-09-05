@@ -30,7 +30,11 @@ export class AdminService {
     const orders = await this.prisma.order.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { items: true, payments: { orderBy: { createdAt: 'desc' } } },
+      include: {
+        items: true,
+        payments: { orderBy: { createdAt: 'desc' } },
+        events: { orderBy: { createdAt: 'asc' } },
+      },
       take: 100,
     });
     const counts = await this.prisma.order.groupBy({
@@ -40,13 +44,44 @@ export class AdminService {
     return { orders: orders.map(serializeOrder), counts };
   }
 
-  async updateStatus(id: string, status: string) {
+  async updateStatus(id: string, status: string, byUserId?: string) {
     if (!(STATUSES as readonly string[]).includes(status))
       throw new BadRequestException('Trạng thái không hợp lệ');
-    const order = await this.prisma.order.update({
+    // Chỉ cho chuyển trạng thái hợp lệ (không nhảy cóc/ngược).
+    const allowed: Record<string, string[]> = {
+      PENDING: ['CONFIRMED', 'PAID', 'CANCELLED'],
+      CONFIRMED: ['PAID', 'SHIPPED', 'CANCELLED'],
+      PAID: ['SHIPPED', 'CANCELLED'],
+      SHIPPED: ['COMPLETED'],
+      COMPLETED: [],
+      CANCELLED: [],
+    };
+    const current = await this.prisma.order.findUnique({
       where: { id },
-      data: { status: status as (typeof STATUSES)[number] },
+      select: { status: true },
     });
+    if (!current) throw new NotFoundException('Không thấy đơn hàng');
+    if (!allowed[current.status].includes(status))
+      throw new BadRequestException(
+        `Không thể chuyển từ ${current.status} sang ${status}`,
+      );
+    const [order] = await this.prisma.$transaction([
+      this.prisma.order.update({
+        where: { id },
+        data: { status: status as (typeof STATUSES)[number] },
+      }),
+      this.prisma.orderEvent.create({
+        data: {
+          orderId: id,
+          from: current.status,
+          to: status as (typeof STATUSES)[number],
+          byUserId: byUserId ?? null,
+          note: 'Admin cập nhật',
+        },
+      }),
+    ]);
+    // Vô hiệu cache dashboard vì số liệu đã đổi.
+    statsCache = null;
     return { id: order.id, status: order.status };
   }
 
@@ -159,6 +194,7 @@ export class AdminService {
     const strArr = (v: unknown): string[] =>
       Array.isArray(v) ? v.map((x) => String(x)) : [];
     const { priceVnd } = linePrice(priceUsd, null);
+    const stock = Math.max(0, Math.floor(Number(body.stock ?? 1)));
     const row = await this.prisma.product.create({
       data: {
         slug,
@@ -167,6 +203,7 @@ export class AdminService {
         collection: str(body.collection, 100) || 'classic',
         priceUsd,
         priceVnd,
+        stock,
         shortDescription: str(body.shortDescription, 2000),
         badges: strArr(body.badges),
         strapLabel: str(body.strapLabel, 200),
@@ -219,6 +256,8 @@ export class AdminService {
     if (body.specs !== undefined) data.specs = body.specs;
     if (body.diameterMm !== undefined)
       data.diameterMm = Number(body.diameterMm) || 0;
+    if (body.stock !== undefined)
+      data.stock = Math.max(0, Math.floor(Number(body.stock) || 0));
     if (body.inBoutique !== undefined)
       data.inBoutique = body.inBoutique !== false;
     const row = await this.prisma.product.update({ where: { slug }, data });

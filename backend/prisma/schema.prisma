@@ -37,6 +37,7 @@ model User {
   tokenVersion Int        @default(0)
   orders       Order[]
   cartItems    CartItem[]
+  wishlist     WishlistItem[]
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -58,6 +59,7 @@ model Product {
   caseMaterial     String
   complications    String[]
   inBoutique       Boolean  @default(true)
+  stock            Int      @default(1)
   specs            Json
   narrative        String   @db.Text
   orderItems       OrderItem[]
@@ -77,8 +79,12 @@ model Order {
   status       OrderStatus @default(PENDING)
   totalUsd     Int
   totalVnd     BigInt
+  // Đã thu (deposit 20% hoặc full). Còn lại = total - paid.
+  paidUsd      Int         @default(0)
+  paidVnd      BigInt      @default(0)
   items        OrderItem[]
   payments     Payment[]
+  events       OrderEvent[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -111,6 +117,9 @@ model Payment {
   amountUsd Int
   status    PaymentStatus @default(PENDING)
   txnRef    String?
+  // Số VND kỳ vọng lúc tạo URL — settle so với giá trị đóng băng này,
+  // không đọc lại total (tránh mismatch khi giá đổi giữa chừng).
+  expectedVnd BigInt?
   createdAt DateTime      @default(now())
 
   @@index([orderId])
@@ -132,5 +141,29 @@ model CartItem {
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, productSlug, strap])
+  @@index([userId])
+}
+
+model OrderEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  from      OrderStatus?
+  to        OrderStatus
+  byUserId  String?
+  note      String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model WishlistItem {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productSlug String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, productSlug])
   @@index([userId])
 }

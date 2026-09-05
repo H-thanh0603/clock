@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Res,
   UseGuards,
@@ -15,7 +16,8 @@ import {
   cookieOptions,
   clearCookieOptions,
 } from '../common/session';
-import { OptionalSessionGuard } from '../common/guards';
+import { OptionalSessionGuard, RequiredAuthGuard } from '../common/guards';
+import { CSRF_COOKIE, newCsrfToken } from '../common/csrf.middleware';
 import { CurrentUser } from '../common/current-user.decorator';
 import type { SessionUser } from '../common/session';
 
@@ -75,5 +77,47 @@ export class AuthController {
   async me(@CurrentUser() session: SessionUser | null) {
     if (!session) return { user: null };
     return { user: await this.auth.me(session.id) };
+  }
+
+  /** Cấp CSRF token (cookie readable + body) cho double-submit. */
+  @Get('csrf')
+  csrf(@Res({ passthrough: true }) res: Response) {
+    const token = newCsrfToken();
+    res.cookie(CSRF_COOKIE, token, {
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.COOKIE_SECURE === 'true',
+      maxAge: 7 * 24 * 3600 * 1000,
+    });
+    return { csrfToken: token };
+  }
+
+  @Patch('me')
+  @HttpCode(200)
+  @UseGuards(RequiredAuthGuard)
+  async updateProfile(
+    @CurrentUser() session: SessionUser,
+    @Body() body: { name?: string },
+  ) {
+    return { user: await this.auth.updateProfile(session.id, body.name) };
+  }
+
+  @Post('password')
+  @HttpCode(200)
+  @UseGuards(RequiredAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async changePassword(
+    @CurrentUser() session: SessionUser,
+    @Body() body: { current?: string; next?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.auth.changePassword(
+      session.id,
+      body.current ?? '',
+      body.next ?? '',
+    );
+    // Đổi pass thu hồi mọi token (kể cả hiện tại) → client đăng nhập lại.
+    res.cookie(SESSION_COOKIE, '', clearCookieOptions);
+    return { ok: true };
   }
 }

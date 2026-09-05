@@ -41,4 +41,24 @@ export class OrdersController {
     if (!order) throw new NotFoundException('Không thấy đơn hàng');
     return order;
   }
+
+  @Post(':id/cancel')
+  @HttpCode(200)
+  @UseGuards(OptionalSessionGuard)
+  cancelMine(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser | null,
+  ) {
+    return this.orders.cancel(id, { userId: user?.id ?? null });
+  }
+
+  @Post('by-code/:code/cancel')
+  @HttpCode(200)
+  cancelByCode(
+    @Param('code') code: string,
+    @Body() body: { contact?: string },
+  ) {
+    if (!body.contact) throw new NotFoundException('Thiếu thông tin liên lạc');
+    return this.orders.cancelByCode(code, String(body.contact));
+  }
 }
