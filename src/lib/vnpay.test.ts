@@ -1,9 +1,11 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPayUrl,
+  settlePayment,
   signParams,
   verifyReturn,
   vnpayEnv,
+  type SettleDeps,
 } from "@/lib/vnpay";
 
 const HASH_SECRET = "TEST_HASH_SECRET_ABC123";
@@ -114,5 +116,114 @@ describe("buildPayUrl", () => {
         ipAddr: "127.0.0.1",
       })
     ).toThrow(/VNPAY_TMN_CODE/);
+  });
+});
+
+describe("settlePayment", () => {
+  const prevSecret = process.env.VNPAY_HASH_SECRET;
+
+  function signedParams(over: Record<string, string>) {
+    const { hash } = signParams(over, HASH_SECRET);
+    return { ...over, vnp_SecureHash: hash };
+  }
+
+  function makeDeps(over: Partial<SettleDeps> = {}) {
+    const calls = { updatedPayment: [] as string[][], updatedOrder: [] as string[][] };
+    const deps: SettleDeps & { calls: typeof calls } = {
+      findPayment: () => Promise.resolve({ id: "pay-1", orderId: "ord-1", status: "PENDING" }),
+      getOrder: () => Promise.resolve({ code: "AC-2026-1", totalVnd: 100000 }),
+      updatePayment: (id, status) => {
+        calls.updatedPayment.push([id, status]);
+        return Promise.resolve();
+      },
+      updateOrder: (orderId, status) => {
+        calls.updatedOrder.push([orderId, status]);
+        return Promise.resolve();
+      },
+      ...over,
+      calls,
+    };
+    return deps;
+  }
+
+  beforeAll(() => {
+    process.env.VNPAY_HASH_SECRET = HASH_SECRET;
+  });
+
+  afterAll(() => {
+    process.env.VNPAY_HASH_SECRET = prevSecret;
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("guards: checksum sai → không đụng DB", async () => {
+    const deps = makeDeps();
+    const result = await settlePayment({ vnp_TxnRef: "T1" }, deps);
+    expect(result).toEqual({ outcome: "checksum-fail" });
+    expect(deps.calls.updatedPayment).toEqual([]);
+    expect(deps.calls.updatedOrder).toEqual([]);
+  });
+
+  it("guards: payment không tồn tại", async () => {
+    const deps = makeDeps({ findPayment: () => Promise.resolve(null) });
+    const r = await settlePayment(signedParams({ vnp_TxnRef: "none" }), deps);
+    expect(r.outcome).toBe("payment-not-found");
+  });
+
+  it("guards: amount lệch → amount-mismatch, không PAID", async () => {
+    const deps = makeDeps();
+    const r = await settlePayment(
+      signedParams({ vnp_TxnRef: "T1", vnp_Amount: "999999" }),
+      deps
+    );
+    expect(r.outcome).toBe("amount-mismatch");
+    expect(deps.calls.updatedPayment).toEqual([]);
+  });
+
+  it("success: payment → SUCCESS, order → PAID", async () => {
+    const deps = makeDeps();
+    const r = await settlePayment(
+      signedParams({ vnp_TxnRef: "T1", vnp_ResponseCode: "00", vnp_Amount: "10000000" }),
+      deps
+    );
+    expect(r).toEqual({ outcome: "success", code: "AC-2026-1" });
+    expect(deps.calls.updatedPayment).toEqual([["pay-1", "SUCCESS"]]);
+    expect(deps.calls.updatedOrder).toEqual([["ord-1", "PAID"]]);
+  });
+
+  it("unpaid: response code ≠ 00 → payment FAILED, order không đổi", async () => {
+    const deps = makeDeps();
+    const r = await settlePayment(
+      signedParams({ vnp_TxnRef: "T1", vnp_ResponseCode: "24", vnp_Amount: "10000000" }),
+      deps
+    );
+    expect(r.outcome).toBe("unpaid");
+    expect(deps.calls.updatedPayment).toEqual([["pay-1", "FAILED"]]);
+    expect(deps.calls.updatedOrder).toEqual([]);
+  });
+
+  it("idempotent: payment đã SUCCESS → already-set, không ghi lại", async () => {
+    const deps = makeDeps({
+      findPayment: () => Promise.resolve({ id: "pay-1", orderId: "ord-1", status: "SUCCESS" }),
+    });
+    const r = await settlePayment(
+      signedParams({ vnp_TxnRef: "T1", vnp_ResponseCode: "00", vnp_Amount: "10000000" }),
+      deps
+    );
+    expect(r).toEqual({ outcome: "already-set", code: "AC-2026-1", settled: true });
+    expect(deps.calls.updatedPayment).toEqual([]);
+  });
+
+  it("idempotent: payment đã FAILED → already-set settled=false", async () => {
+    const deps = makeDeps({
+      findPayment: () => Promise.resolve({ id: "pay-1", orderId: "ord-1", status: "FAILED" }),
+    });
+    const r = await settlePayment(
+      signedParams({ vnp_TxnRef: "T1", vnp_ResponseCode: "00", vnp_Amount: "10000000" }),
+      deps
+    );
+    expect(r).toEqual({ outcome: "already-set", code: "AC-2026-1", settled: false });
   });
 });

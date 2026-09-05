@@ -79,3 +79,64 @@ export function verifyReturn(params: Record<string, string>) {
   const { hash } = signParams(rest, hashSecret);
   return received.toLowerCase() === hash.toLowerCase();
 }
+
+/** Các phụ thuộc DB cần để settle — inject để test được. */
+export type SettleDeps = {
+  findPayment: (
+    txnRef: string
+  ) => Promise<{ id: string; orderId: string; status: string } | null>;
+  getOrder: (
+    orderId: string
+  ) => Promise<{ code: string; totalVnd: number } | null>;
+  updatePayment: (id: string, status: "SUCCESS" | "FAILED") => Promise<void>;
+  updateOrder: (orderId: string, status: "PAID") => Promise<void>;
+};
+
+export type SettleOutcome =
+  /** Thanh toán OK: payment → SUCCESS, order → PAID. */
+  | { outcome: "success"; code: string }
+  /** Checksum + amount ok nhưng vnp_ResponseCode khác 00: payment → FAILED. */
+  | { outcome: "unpaid"; code: string }
+  /** Payment không còn PENDING (IPN/return đã xử lý trước) — idempotent. */
+  | { outcome: "already-set"; code: string; settled: boolean }
+  | { outcome: "checksum-fail" }
+  | { outcome: "payment-not-found" }
+  | { outcome: "amount-mismatch" };
+
+/**
+ * Xử lý một callback VNPay (return hoặc IPN) theo bộ guard thống nhất:
+ * checksum → payment tồn tại → amount khớp → còn PENDING → chuyển trạng thái.
+ */
+export async function settlePayment(
+  params: Record<string, string>,
+  deps: SettleDeps
+): Promise<SettleOutcome> {
+  if (!verifyReturn(params)) return { outcome: "checksum-fail" };
+
+  const txnRef = params.vnp_TxnRef ?? "";
+  const payment = await deps.findPayment(txnRef);
+  if (!payment) return { outcome: "payment-not-found" };
+
+  const order = await deps.getOrder(payment.orderId);
+  if (!order) return { outcome: "payment-not-found" };
+
+  const amountOk =
+    Number(params.vnp_Amount ?? 0) / 100 === Number(order.totalVnd);
+  if (!amountOk) return { outcome: "amount-mismatch" };
+
+  if (payment.status !== "PENDING") {
+    return {
+      outcome: "already-set",
+      code: order.code,
+      settled: payment.status === "SUCCESS",
+    };
+  }
+
+  const success = params.vnp_ResponseCode === "00";
+  await deps.updatePayment(payment.id, success ? "SUCCESS" : "FAILED");
+  if (success) await deps.updateOrder(payment.orderId, "PAID");
+
+  return success
+    ? { outcome: "success", code: order.code }
+    : { outcome: "unpaid", code: order.code };
+}

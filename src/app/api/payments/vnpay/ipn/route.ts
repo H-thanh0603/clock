@@ -1,47 +1,43 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyReturn } from "@/lib/vnpay";
+import { settlePayment } from "@/lib/vnpay";
+
+/** Adapter biến URLSearchParams thành Record (VNPay gửi params qua query). */
+function toParams(searchParams: URLSearchParams) {
+  const params: Record<string, string> = {};
+  searchParams.forEach((v, k) => {
+    params[k] = v;
+  });
+  return params;
+}
 
 /** IPN server-to-server của VNPay (xác nhận thụ động). */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   try {
-    const params: Record<string, string> = {};
-    searchParams.forEach((v, k) => {
-      params[k] = v;
+    const result = await settlePayment(toParams(searchParams), {
+      findPayment: (txnRef) =>
+        prisma.payment.findFirst({ where: { txnRef } }),
+      getOrder: (orderId) =>
+        prisma.order
+          .findUnique({ where: { id: orderId } })
+          .then((o) => (o ? { code: o.code, totalVnd: Number(o.totalVnd) } : null)),
+      updatePayment: (id, status) =>
+        prisma.payment.update({ where: { id }, data: { status } }).then(() => undefined),
+      updateOrder: (orderId, status) =>
+        prisma.order.update({ where: { id: orderId }, data: { status } }).then(() => undefined),
     });
-    if (!verifyReturn(params)) {
-      return NextResponse.json({ RspCode: "97", Message: "Invalid checksum" });
-    }
-    const payment = await prisma.payment.findFirst({
-      where: { txnRef: params.vnp_TxnRef ?? "" },
-    });
-    if (!payment) {
-      return NextResponse.json({ RspCode: "01", Message: "Order not found" });
-    }
-    const amountOk =
-      Number(params.vnp_Amount ?? 0) / 100 ===
-      Number(
-        (await prisma.order.findUnique({ where: { id: payment.orderId } }))?.totalVnd ?? -1
-      );
-    if (!amountOk) {
-      return NextResponse.json({ RspCode: "04", Message: "Invalid amount" });
-    }
-    if (payment.status !== "PENDING") {
-      return NextResponse.json({ RspCode: "02", Message: "Already confirmed" });
-    }
-    const success = params.vnp_ResponseCode === "00";
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: success ? "SUCCESS" : "FAILED" },
-    });
-    if (success) {
-      await prisma.order.update({
-        where: { id: payment.orderId },
-        data: { status: "PAID" },
-      });
-    }
-    return NextResponse.json({ RspCode: "00", Message: "Confirm Success" });
+
+    const byRspCode: Record<string, { RspCode: string; Message: string }> = {
+      checksum_fail: { RspCode: "97", Message: "Invalid checksum" },
+      payment_not_found: { RspCode: "01", Message: "Order not found" },
+      amount_mismatch: { RspCode: "04", Message: "Invalid amount" },
+      already_set: { RspCode: "02", Message: "Already confirmed" },
+      success: { RspCode: "00", Message: "Confirm Success" },
+      unpaid: { RspCode: "00", Message: "Confirm Success" },
+    };
+    const key = result.outcome.replaceAll("-", "_");
+    return NextResponse.json(byRspCode[key]);
   } catch (e) {
     console.error("VNPay IPN failed:", e);
     return NextResponse.json({ RspCode: "99", Message: "Unknown error" });
