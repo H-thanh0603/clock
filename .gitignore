@@ -31,3 +31,6 @@ next-env.d.ts
 /backend/generated
 /backend/dist
 /backend/node_modules
+
+# backups (chứa dữ liệu thật, không commit)
+/backups/
