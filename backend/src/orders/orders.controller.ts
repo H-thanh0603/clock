@@ -8,6 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { OrdersService, type CreateOrderInput } from './orders.service';
 import { OptionalSessionGuard, RequiredAuthGuard } from '../common/guards';
 import { CurrentUser } from '../common/current-user.decorator';
@@ -34,6 +35,7 @@ export class OrdersController {
   }
 
   @Get('by-code/:code')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async byCode(@Param('code') code: string) {
     const order = await this.orders.byCode(code);
     if (!order) throw new NotFoundException('Không thấy đơn hàng');

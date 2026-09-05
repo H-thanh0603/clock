@@ -23,12 +23,30 @@ async function readSession(req: Request): Promise<SessionUser | null> {
   return verifySessionToken(req.cookies?.[SESSION_COOKIE]);
 }
 
+/**
+ * Kiểm tra tokenVersion: logout/đổi pass tăng version → token cũ vô hiệu.
+ * Trả về user DB (đã gồm role mới nhất) hoặc null.
+ */
+async function verifiedUser(
+  prisma: PrismaService,
+  session: SessionUser | null,
+) {
+  if (!session) return null;
+  const user = await prisma.user.findUnique({ where: { id: session.id } });
+  if (!user || user.tokenVersion !== session.v) return null;
+  return user;
+}
+
 /** Gắn session (hoặc null) vào request, không chặn. */
 @Injectable()
 export class OptionalSessionGuard implements CanActivate {
+  constructor(private readonly prisma: PrismaService) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
-    req.sessionUser = await readSession(req);
+    const session = await readSession(req);
+    req.sessionUser =
+      session && (await verifiedUser(this.prisma, session)) ? session : null;
     return true;
   }
 }
@@ -36,10 +54,13 @@ export class OptionalSessionGuard implements CanActivate {
 /** Bắt buộc đăng nhập (401 nếu không có session). */
 @Injectable()
 export class RequiredAuthGuard implements CanActivate {
+  constructor(private readonly prisma: PrismaService) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const session = await readSession(req);
-    if (!session) throw new UnauthorizedException('Chưa đăng nhập');
+    const user = await verifiedUser(this.prisma, session);
+    if (!user) throw new UnauthorizedException('Chưa đăng nhập');
     req.sessionUser = session;
     return true;
   }
@@ -53,12 +74,9 @@ export class AdminGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const session = await readSession(req);
-    if (!session) throw new UnauthorizedException('Chưa đăng nhập');
-    const user = await this.prisma.user.findUnique({
-      where: { id: session.id },
-    });
-    if (user?.role !== 'ADMIN')
-      throw new ForbiddenException('Không có quyền');
+    const user = await verifiedUser(this.prisma, session);
+    if (!user) throw new UnauthorizedException('Chưa đăng nhập');
+    if (user.role !== 'ADMIN') throw new ForbiddenException('Không có quyền');
     req.sessionUser = session;
     return true;
   }

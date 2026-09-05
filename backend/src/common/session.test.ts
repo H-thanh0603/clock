@@ -14,6 +14,7 @@ const USER: SessionUser = {
   id: "user-123",
   email: "khach@aurel.local",
   role: "CUSTOMER",
+  v: 0,
 };
 
 beforeAll(() => {

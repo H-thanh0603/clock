@@ -134,7 +134,7 @@ describe("settlePayment", () => {
       getOrder: () => Promise.resolve({ code: "AC-2026-1", totalVnd: 100000 }),
       updatePayment: (id, status) => {
         calls.updatedPayment.push([id, status]);
-        return Promise.resolve();
+        return Promise.resolve(true);
       },
       updateOrder: (orderId, status) => {
         calls.updatedOrder.push([orderId, status]);
@@ -225,5 +225,19 @@ describe("settlePayment", () => {
       deps
     );
     expect(r).toEqual({ outcome: "already-set", code: "AC-2026-1", settled: false });
+  });
+
+  it("race: thua conditional update (IPN/return song song) → already-set", async () => {
+    const deps = makeDeps({
+      updatePayment: () => Promise.resolve(false),
+      findPayment: () =>
+        Promise.resolve({ id: "pay-1", orderId: "ord-1", status: "SUCCESS" }),
+    });
+    const r = await settlePayment(
+      signedParams({ vnp_TxnRef: "T1", vnp_ResponseCode: "00", vnp_Amount: "10000000" }),
+      deps
+    );
+    expect(r).toEqual({ outcome: "already-set", code: "AC-2026-1", settled: true });
+    expect(deps.calls.updatedOrder).toEqual([]);
   });
 });

@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   SESSION_COOKIE,
@@ -24,6 +25,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async login(
     @Body() body: { email?: string; password?: string },
     @Res({ passthrough: true }) res: Response,
@@ -35,6 +37,7 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async register(
     @Body() body: { email?: string; password?: string; name?: string },
     @Res({ passthrough: true }) res: Response,
@@ -44,13 +47,25 @@ export class AuthController {
       body.password ?? '',
       body.name,
     );
-    res.cookie(SESSION_COOKIE, token, cookieOptions);
-    return { user };
+    if (user && token) {
+      res.cookie(SESSION_COOKIE, token, cookieOptions);
+      return { user };
+    }
+    return {
+      user: null,
+      message: 'Email này có thể đã được đăng ký. Hãy thử đăng nhập.',
+    };
   }
 
   @Post('logout')
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) res: Response) {
+  @UseGuards(OptionalSessionGuard)
+  async logout(
+    @CurrentUser() session: SessionUser | null,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Thu hồi token server-side + xóa cookie client.
+    if (session) await this.auth.revokeSessions(session.id);
     res.cookie(SESSION_COOKIE, '', clearCookieOptions);
     return { ok: true };
   }

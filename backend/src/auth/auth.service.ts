@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Injectable,
   UnauthorizedException,
   BadRequestException,
@@ -16,6 +15,10 @@ export type PublicUser = {
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// bcryptjs cắt input ở 72 byte — chặn input quá dài để chống CPU-DoS.
+const MAX_PASSWORD_LEN = 72;
+// Hash giả để so sánh khi user không tồn tại (chống timing enumeration).
+const DUMMY_HASH = '$2b$10$C6UzMDM.H6dfI/f/IKcEe.8rSBp0R8uN9xQwErTYuIoPpAqS1a2b3c';
 
 @Injectable()
 export class AuthService {
@@ -35,17 +38,22 @@ export class AuthService {
     password: string,
   ): Promise<{ user: PublicUser; token: string }> {
     const normalized = String(email ?? '').trim().toLowerCase();
+    const pw = String(password ?? '');
     const user = await this.prisma.user.findUnique({
       where: { email: normalized },
     });
-    if (!user?.passwordHash)
+    // Luôn chạy bcrypt.compare (kể cả user không tồn tại) để chống timing attack.
+    const ok = await bcrypt.compare(
+      pw.slice(0, MAX_PASSWORD_LEN),
+      user?.passwordHash ?? DUMMY_HASH,
+    );
+    if (!user?.passwordHash || !ok)
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
-    const ok = await bcrypt.compare(String(password ?? ''), user.passwordHash);
-    if (!ok) throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     const token = await signSession({
       id: user.id,
       email: user.email,
       role: user.role,
+      v: user.tokenVersion,
     });
     return { user: this.toPublic(user), token };
   }
@@ -54,31 +62,43 @@ export class AuthService {
     email: string,
     password: string,
     name?: string,
-  ): Promise<{ user: PublicUser; token: string }> {
+  ): Promise<{ user: PublicUser | null; token: string | null }> {
     const normalized = String(email ?? '').trim().toLowerCase();
+    const pw = String(password ?? '');
     if (!EMAIL_RE.test(normalized))
       throw new BadRequestException('Email không hợp lệ');
-    if (String(password ?? '').length < 6)
-      throw new BadRequestException('Mật khẩu tối thiểu 6 ký tự');
+    if (pw.length < 6 || pw.length > MAX_PASSWORD_LEN)
+      throw new BadRequestException('Mật khẩu từ 6 đến 72 ký tự');
     const exists = await this.prisma.user.findUnique({
       where: { email: normalized },
     });
-    if (exists) throw new ConflictException('Email đã được đăng ký');
+    // Chống enumeration email: email đã tồn tại → trả 200 nhưng không
+    // auto-login; client hiển thị thông điệp chung "kiểm tra email/đăng nhập".
+    if (exists) return { user: null, token: null };
+
     const user = await this.prisma.user.create({
       data: {
         email: normalized,
         name: String(name ?? '').trim() || null,
-        passwordHash: await bcrypt.hash(String(password), 10),
+        passwordHash: await bcrypt.hash(pw, 10),
       },
     });
     const token = await signSession({
       id: user.id,
       email: user.email,
       role: user.role,
+      v: user.tokenVersion,
     });
     return { user: this.toPublic(user), token };
   }
 
+  /** Tăng tokenVersion → vô hiệu mọi token cũ (logout/đổi pass). */
+  async revokeSessions(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+  }
   async me(userId: string): Promise<PublicUser | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

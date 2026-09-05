@@ -65,8 +65,10 @@ export class OrdersService {
     if (items.length === 0)
       throw new BadRequestException('Giỏ hàng trống');
 
-    // Chốt giá phía server: sản phẩm có trong DB thì lấy giá DB,
-    // hàng bespoke/phụ kiện custom thì giữ giá client gửi.
+    // Chốt giá phía server: sản phẩm có trong DB thì lấy giá DB.
+    // - Slug lạ (không trong DB) → chỉ chấp nhận làm hàng bespoke/custom,
+    //   cả đơn chuyển PENDING để concierge duyệt giá thủ công.
+    // - SP bị ẩn khỏi boutique (inBoutique=false) → từ chối outright.
     const slugs = [...new Set(items.map((i) => String(i.slug ?? '')).filter(Boolean))];
     const rows = await this.prisma.product.findMany({
       where: { slug: { in: slugs } },
@@ -75,11 +77,20 @@ export class OrdersService {
 
     let totalUsd = 0;
     let totalVnd = 0;
+    let hasCustom = false;
     const lines = items.map((i) => {
       const qty = Math.min(99, Math.max(1, Math.floor(Number(i.qty ?? 1))));
-      const db = priceOf.get(String(i.slug ?? ''));
+      const slug = String(i.slug ?? '');
+      const db = priceOf.get(slug);
+      if (slug && !db)
+        // Slug bịa nhưng không tồn tại → hàng custom, chờ duyệt.
+        hasCustom = true;
+      if (db && !db.inBoutique)
+        throw new BadRequestException(
+          `Sản phẩm ${db.name} hiện ngừng trưng bày`,
+        );
       const strap = String(i.strap ?? 'Tiêu chuẩn Atelier');
-      // Giá gốc USD: DB nếu có, bespoke/phụ kiện thì dùng giá client gửi.
+      // Giá gốc USD: DB nếu có, bespoke thì dùng giá client gửi (đơn PENDING).
       // VND LUÔN suy ra từ USD × USD_TO_VND — không tin priceVnd client.
       const { priceUsd, priceVnd } = linePrice(
         db ? db.priceUsd : Math.max(0, Math.floor(Number(i.priceUsd) || 0)),
@@ -103,43 +114,66 @@ export class OrdersService {
     if (totalUsd <= 0)
       throw new BadRequestException('Tổng đơn không hợp lệ');
 
-    // Mã đơn duy nhất (thử lại nếu đụng)
-    let code = orderCode();
-    for (let k = 0; k < 5; k++) {
-      const dup = await this.prisma.order.findUnique({ where: { code } });
-      if (!dup) break;
-      code = orderCode();
-    }
+    // Hàng custom phải qua concierge duyệt giá → không auto-confirm.
+    const simulated = method !== 'vnpay' && !hasCustom;
 
-    const simulated = method !== 'vnpay';
-    const order = await this.prisma.order.create({
-      data: {
-        code,
-        userId,
-        customerName: customerName.slice(0, 200),
-        contact: contact.slice(0, 200),
-        address: address.slice(0, 500),
-        slot: slot?.slice(0, 200) ?? null,
-        status: simulated ? 'CONFIRMED' : 'PENDING',
-        totalUsd,
-        totalVnd,
-        items: { create: lines },
-        payments: {
-          create: {
-            method,
-            amountUsd: totalUsd,
-            status: simulated ? 'SUCCESS' : 'PENDING',
-            txnRef: simulated ? `SIM-${code}` : null,
-          },
-        },
-      },
-      include: { items: true },
-    });
-
-    // Xóa giỏ DB sau khi chốt đơn (giỏ local do client tự clear)
-    if (userId) {
-      await this.prisma.cartItem.deleteMany({ where: { userId } });
+    // Tạo đơn + xóa giỏ trong 1 transaction (tránh đơn nửa vời khi crash).
+    // Mã đơn random có thể đụng → bắt unique-constraint và thử lại.
+    let order = null as null | {
+      id: string;
+      code: string;
+      totalUsd: number;
+      totalVnd: bigint;
+      status: string;
+    };
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const code = orderCode();
+      try {
+        order = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.order.create({
+            data: {
+              code,
+              userId,
+              customerName: customerName.slice(0, 200),
+              contact: contact.slice(0, 200),
+              address: address.slice(0, 500),
+              slot: slot?.slice(0, 200) ?? null,
+              status: simulated ? 'CONFIRMED' : 'PENDING',
+              totalUsd,
+              totalVnd,
+              items: { create: lines },
+              payments: {
+                create: {
+                  method,
+                  amountUsd: totalUsd,
+                  status: simulated ? 'SUCCESS' : 'PENDING',
+                  txnRef: simulated ? `SIM-${code}` : null,
+                },
+              },
+            },
+          });
+          // Xóa giỏ DB sau khi chốt đơn (giỏ local do client tự clear)
+          if (userId) {
+            await tx.cartItem.deleteMany({ where: { userId } });
+          }
+          return created;
+        });
+        break;
+      } catch (e) {
+        // P2002 = đụng mã đơn (hiếm) → thử mã khác; lỗi khác throw luôn.
+        if (
+          attempt < 5 &&
+          typeof e === 'object' &&
+          e !== null &&
+          'code' in e &&
+          (e as { code?: string }).code === 'P2002'
+        ) {
+          continue;
+        }
+        throw e;
+      }
     }
+    if (!order) throw new BadRequestException('Không tạo được mã đơn, thử lại');
 
     return {
       orderId: order.id,
@@ -147,16 +181,35 @@ export class OrdersService {
       totalUsd: order.totalUsd,
       totalVnd: Number(order.totalVnd),
       status: order.status,
+      pendingReview: hasCustom,
     };
   }
 
+  /**
+   * Tra cứu công khai theo mã — chỉ trả trường tối thiểu để hiển thị
+   * (không lộ tên/SĐT/địa chỉ/userId), vì mã đơn dễ đoán.
+   */
   async byCode(code: string) {
     const order = await this.prisma.order.findUnique({
       where: { code },
-      include: { items: true, payments: { orderBy: { createdAt: 'desc' } } },
+      include: { items: true },
     });
     if (!order) return null;
-    return serializeOrder(order);
+    return {
+      code: order.code,
+      status: order.status,
+      totalUsd: order.totalUsd,
+      totalVnd: Number(order.totalVnd),
+      items: order.items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        priceUsd: i.priceUsd,
+        priceVnd: Number(i.priceVnd),
+        image: i.image,
+        strap: i.strap,
+        qty: i.qty,
+      })),
+    };
   }
 
   async mine(userId: string) {

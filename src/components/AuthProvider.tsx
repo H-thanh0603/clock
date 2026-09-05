@@ -80,7 +80,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: "include",
         body: JSON.stringify({ name, email, password }),
       });
-      const u = await parseUser(res);
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(
+          (Array.isArray(data.message)
+            ? data.message.join(", ")
+            : data.message) ??
+            data.error ??
+            "Lỗi đăng ký"
+        );
+      // Email đã tồn tại → backend không auto-login (chống enumeration).
+      if (!data.user)
+        throw new Error(
+          data.message ?? "Email này có thể đã được đăng ký. Hãy thử đăng nhập."
+        );
+      const u = data.user as AuthUser;
       setUser(u);
       return u;
     },

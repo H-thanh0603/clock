@@ -34,6 +34,7 @@ model User {
   phone        String?
   passwordHash String?
   role         Role       @default(CUSTOMER)
+  tokenVersion Int        @default(0)
   orders       Order[]
   cartItems    CartItem[]
   createdAt    DateTime   @default(now())
@@ -78,8 +79,11 @@ model Order {
   totalVnd     BigInt
   items        OrderItem[]
   payments     Payment[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
@@ -95,6 +99,8 @@ model OrderItem {
   strap       String
   engraving   String?
   qty         Int      @default(1)
+
+  @@index([orderId])
 }
 
 model Payment {
@@ -106,6 +112,9 @@ model Payment {
   status    PaymentStatus @default(PENDING)
   txnRef    String?
   createdAt DateTime      @default(now())
+
+  @@index([orderId])
+  @@index([txnRef])
 }
 
 model CartItem {
@@ -123,4 +132,5 @@ model CartItem {
   updatedAt   DateTime @updatedAt
 
   @@unique([userId, productSlug, strap])
+  @@index([userId])
 }

@@ -17,6 +17,7 @@ export default function Page() {
   const [slot, setSlot] = useState("10:00 - 12:00 (Sáng) • Khung giờ kín đáo");
   const [pin, setPin] = useState("********");
   const [placed, setPlaced] = useState<string | null>(null);
+  const [placedReview, setPlacedReview] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [pay, setPay] = useState("centurion");
   const [processing, setProcessing] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export default function Page() {
       setProcessing("Kích hoạt Concierge & niêm ấn Vault...");
       await sleep(900);
       setPlaced(data.code as string);
+      setPlacedReview(Boolean(data.pendingReview));
       setProcessing(null);
     } catch (e) {
       setProcessing(null);
@@ -377,7 +379,11 @@ export default function Page() {
               <div>
                 <p className="font-title-editorial text-title-editorial text-on-surface">Đặt hàng thành công • Mã Vault {placed}</p>
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Concierge sẽ liên hệ {contact || "kênh bảo mật"} trong 2 giờ làm việc để xác nhận khung giờ {slot}.</p>
-                <p className="font-body-sm text-body-sm text-secondary mt-1">Đã ghi nợ {formatUsd(chargeNow)} qua {PAY_LABELS[pay]} (mô phỏng — không phát sinh giao dịch thật).</p>
+                {placedReview ? (
+                  <p className="font-body-sm text-body-sm text-secondary mt-1">Đơn có hàng bespoke/custom nên đang chờ concierge duyệt giá — chưa ghi nợ.</p>
+                ) : (
+                  <p className="font-body-sm text-body-sm text-secondary mt-1">Đã ghi nợ {formatUsd(chargeNow)} qua {PAY_LABELS[pay]} (mô phỏng — không phát sinh giao dịch thật).</p>
+                )}
               </div>
             </div>
           )}

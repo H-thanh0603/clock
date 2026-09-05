@@ -8,7 +8,10 @@ import { useAuth } from "@/components/AuthProvider";
 function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+  // Chống open-redirect: chỉ cho path nội bộ (không scheme, không //).
+  const rawNext = searchParams.get("next") || "/";
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
   const { user, login, register, logout } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");

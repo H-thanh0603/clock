@@ -88,7 +88,12 @@ export type SettleDeps = {
   getOrder: (
     orderId: string
   ) => Promise<{ code: string; totalVnd: number } | null>;
-  updatePayment: (id: string, status: "SUCCESS" | "FAILED") => Promise<void>;
+  /**
+   * Chuyển payment sang SUCCESS/FAILED — PHẢI là update điều kiện
+   * (chỉ khi còn PENDING), trả về false nếu payment đã settle trước đó
+   * (trường hợp IPN và return chạy song song).
+   */
+  updatePayment: (id: string, status: "SUCCESS" | "FAILED") => Promise<boolean>;
   updateOrder: (orderId: string, status: "PAID") => Promise<void>;
 };
 
@@ -133,7 +138,19 @@ export async function settlePayment(
   }
 
   const success = params.vnp_ResponseCode === "00";
-  await deps.updatePayment(payment.id, success ? "SUCCESS" : "FAILED");
+  const updated = await deps.updatePayment(
+    payment.id,
+    success ? "SUCCESS" : "FAILED"
+  );
+  if (!updated) {
+    // Thua race với IPN/return kia — đọc lại trạng thái cuối để trả về.
+    const current = await deps.findPayment(txnRef);
+    return {
+      outcome: "already-set",
+      code: order.code,
+      settled: current?.status === "SUCCESS",
+    };
+  }
   if (success) await deps.updateOrder(payment.orderId, "PAID");
 
   return success

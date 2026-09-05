@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -37,10 +38,15 @@ export class PaymentsService {
           .then((o) =>
             o ? { code: o.code, totalVnd: Number(o.totalVnd) } : null,
           ),
-      updatePayment: (id, status) =>
-        this.prisma.payment
-          .update({ where: { id }, data: { status } })
-          .then(() => undefined),
+      // Update ĐIỀU KIỆN: chỉ chuyển khi còn PENDING (chống double-settle
+      // khi IPN và return chạy song song). Trả về false nếu đã settle trước.
+      updatePayment: async (id, status) => {
+        const r = await this.prisma.payment.updateMany({
+          where: { id, status: 'PENDING' },
+          data: { status },
+        });
+        return r.count > 0;
+      },
       updateOrder: (orderId, status) =>
         this.prisma.order
           .update({ where: { id: orderId }, data: { status } })
@@ -58,10 +64,18 @@ export class PaymentsService {
     if (!order) throw new NotFoundException('Không thấy đơn');
     if (order.userId && order.userId !== userId)
       throw new ForbiddenException('Không có quyền');
-    if (order.status === 'CANCELLED')
-      throw new BadRequestException('Đơn đã hủy');
+    // Chỉ tạo thanh toán cho đơn đang PENDING (chặn re-pay đơn đã xong).
+    if (order.status !== 'PENDING')
+      throw new BadRequestException('Đơn không ở trạng thái chờ thanh toán');
+    // Giới hạn số payment PENDING tồn đọng (chống spam rows).
+    const pendingCount = await this.prisma.payment.count({
+      where: { orderId: order.id, status: 'PENDING' },
+    });
+    if (pendingCount >= 3)
+      throw new BadRequestException('Đơn đã có quá nhiều yêu cầu chờ xử lý');
 
-    const txnRef = `${order.code}-${Date.now().toString().slice(-6)}`;
+    // txnRef ngẫu nhiên, khó đoán (tránh liệt kê + trùng khi tạo cùng ms).
+    const txnRef = `${order.code}-${Date.now().toString(36)}${randomBytes(3).toString('hex')}`;
     await this.prisma.payment.create({
       data: {
         orderId: order.id,

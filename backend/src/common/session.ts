@@ -8,7 +8,13 @@ import { SignJWT, jwtVerify } from 'jose';
 export const SESSION_COOKIE = 'aurel_session';
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 ngày
 
-export type SessionUser = { id: string; email: string; role: string };
+export type SessionUser = {
+  id: string;
+  email: string;
+  role: string;
+  /** Phiên bản token — logout/đổi pass tăng version để vô hiệu token cũ. */
+  v: number;
+};
 
 export function sessionSecret(): Uint8Array {
   const s = process.env.JWT_SECRET;
@@ -17,10 +23,11 @@ export function sessionSecret(): Uint8Array {
 }
 
 export async function signSession(user: SessionUser): Promise<string> {
-  return new SignJWT({ email: user.email, role: user.role })
+  return new SignJWT({ email: user.email, role: user.role, v: user.v ?? 0 })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(user.id)
     .setIssuedAt()
+    .setIssuer('aurel-backend')
     .setExpirationTime(`${SESSION_MAX_AGE}s`)
     .sign(sessionSecret());
 }
@@ -31,13 +38,17 @@ export async function verifySessionToken(
 ): Promise<SessionUser | null> {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, sessionSecret());
+    const { payload } = await jwtVerify(token, sessionSecret(), {
+      algorithms: ['HS256'],
+      issuer: 'aurel-backend',
+    });
     if (typeof payload.sub !== 'string' || typeof payload.email !== 'string')
       return null;
     return {
       id: payload.sub,
       email: payload.email,
       role: (payload.role as string) ?? 'CUSTOMER',
+      v: typeof payload.v === 'number' ? payload.v : 0,
     };
   } catch {
     return null;
