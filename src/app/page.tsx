@@ -313,6 +313,22 @@ export default function Home() {
 </div>
 </div>
 </section>
+{/* BRAND FILM — BÊN TRONG XƯỞNG GENÈVE */}
+<section id="brand-film" className="relative w-full overflow-hidden bg-surface-container-lowest">
+<video className="h-[70vh] min-h-[480px] w-full object-cover" src="/swiss-luxury-watches-and-chronographs/video.mp4" autoPlay muted loop playsInline></video>
+<div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/25 to-surface-container-lowest/60"></div>
+<div className="absolute inset-0 flex flex-col items-center justify-center px-gutter-desktop text-center">
+<span className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.35em]">Manufacture de Haute Horlogerie</span>
+<h2 className="font-headline-lg text-headline-lg text-on-surface mt-space-xs max-w-3xl">Bên Trong Xưởng <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-fixed">Genève</span></h2>
+<p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl mt-space-sm leading-relaxed">
+            Nhịp đập của từng calibre được ghi lại ở tốc độ thật — nơi bộ máy tourbillon lấy sinh khí dưới bàn tay nghệ nhân.
+          </p>
+<a className="mt-space-xl inline-flex items-center gap-space-sm px-space-xl py-4 rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-semibold hover:bg-secondary transition-all shadow-xl shadow-primary/10" href="/atelier">
+<span>Khám Phá Atelier</span>
+<span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+</a>
+</div>
+</section>
 {/* THE AUREL PRIVILEGES */}
 <section className="w-full py-space-4xl bg-surface">
 <div className="max-w-[1360px] mx-auto px-gutter-desktop">
