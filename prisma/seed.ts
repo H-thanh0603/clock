@@ -1,8 +1,12 @@
-import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { products } from "../src/data/products";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@aurel.local";

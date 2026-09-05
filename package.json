@@ -7,32 +7,32 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "next lint",
     "test": "vitest run",
     "vercel-build": "prisma generate && prisma migrate deploy && next build"
   },
   "dependencies": {
     "@iconify/react": "^6.0.2",
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
-    "jose": "^6.2.11",
-    "next": "^15.5.4",
-    "prisma": "^6.19.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "dotenv": "^17.4.2",
+    "jose": "^6.2.12",
+    "next": "^16.3.4",
+    "pg": "^8.23.0",
+    "prisma": "^7.10.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.0",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.10.0",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
+    "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
     "tailwindcss": "^4.1.0",
     "tsx": "^4.23.13",
     "typescript": "^5.7.0",
     "vitest": "^5.0.0"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   }
 }

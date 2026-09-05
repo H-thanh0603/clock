@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/session";
 
 /**
- * Middleware chạy edge runtime → dùng lõi session edge-safe
- * (lib/session) thay vì lib/auth (kéo next/headers + bcrypt).
+ * Proxy chạy Node.js runtime (Next.js 16) → chặn route /admin*,
+ * kiểm tra session cookie, chỉ cho role ADMIN đi tiếp.
  */
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (!req.nextUrl.pathname.startsWith("/admin")) return NextResponse.next();
   const session = await verifySessionToken(
     req.cookies.get("aurel_session")?.value
