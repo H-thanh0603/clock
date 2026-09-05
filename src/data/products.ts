@@ -3,12 +3,10 @@ export type Collection =
   | "grand-complication"
   | "skeleton"
   | "sport"
-  | "classic";
+  | "classic"
+  | "accessory";
 
-export type StrapOption = {
-  label: string;
-  priceDeltaUsd: number;
-};
+export type { StrapOption } from "./straps";
 
 export type Product = {
   slug: string;
@@ -219,6 +217,28 @@ export const products: Product[] = [
     narrative:
       "Được thử nghiệm cùng đoàn thợ lặn chuyên nghiệp ở Biển Đỏ — Aquanaut là chiếc đồng hồ Aurel duy nhất sinh ra để chạm giới hạn 50 atm.",
   },
+  {
+    slug: "travel-roll-calfskin-18k",
+    name: "Bộ Túi Cuộn Du Lịch Da Bê Ép Vân Cùng Khóa 18K",
+    reference: "AC-ACC-TRAVEL-01",
+    collection: "accessory",
+    priceUsd: 1900,
+    priceVnd: 1900 * 25200,
+    shortDescription:
+      "Bao gồm dụng cụ thay dây vi cơ học và ngăn chứa 02 bộ dây da sơ cua bọc nhung Alcantara chống từ tính.",
+    badges: ["TRAVEL ACCESSORY"],
+    strapLabel: "Da bê ép vân • Khóa 18K",
+    calibre: "—",
+    diameterMm: 0,
+    caseMaterial: "Da bê ép vân navy",
+    complications: [],
+    inBoutique: true,
+    cardImage: "/images/stitch/34_AB6AXuDJte.jpg",
+    images: ["/images/stitch/34_AB6AXuDJte.jpg"],
+    specs: [],
+    narrative:
+      "Ngăn chứa 02 bộ dây sơ cua bọc nhung Alcantara chống từ tính, dụng cụ thay dây vi cơ học và khóa 18K đồng điệu.",
+  },
 ];
 
 export const productBySlug = (slug: string) =>
@@ -230,21 +250,8 @@ export const collectionLabels: Record<Collection, string> = {
   skeleton: "Skeleton",
   sport: "Thể thao",
   classic: "Cổ điển",
+  accessory: "Phụ Kiện",
 };
 
-export const strapOptions: StrapOption[] = [
-  { label: "Dây da cá sấu đen", priceDeltaUsd: 0 },
-  { label: "Dây da cá sấu nâu Cognac", priceDeltaUsd: 0 },
-  { label: "Dây kim loại tích hợp", priceDeltaUsd: 4500 },
-  { label: "Dây cao su kỹ thuật cao cấp", priceDeltaUsd: 1200 },
-];
-
-export const formatUsd = (usd: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(usd);
-
-export const formatVnd = (vnd: number) =>
-  `${new Intl.NumberFormat("vi-VN").format(vnd)} ₫`;
+export { strapOptions } from "./straps";
+export { formatUsd, formatVnd } from "./format";

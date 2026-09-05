@@ -6,7 +6,8 @@ import { useCart } from "./CartProvider";
 import { useCurrency } from "./CurrencyProvider";
 import { useAuth } from "./AuthProvider";
 import { useWishlist } from "./WishlistProvider";
-import { productBySlug, formatUsd } from "@/data/products";
+import { formatUsd } from "@/data/format";
+import { productBySlug } from "@/data/wishMeta";
 
 const links = [
   { href: "/", label: "Trang Chủ" },
@@ -155,7 +156,7 @@ export default function Header() {
                         className="flex items-center gap-space-sm rounded-lg bg-surface-container p-space-xs"
                       >
                         <img
-                          src={p.images[0]}
+                          src={p.image}
                           alt={p.name}
                           className="h-12 w-12 shrink-0 rounded object-cover"
                         />

@@ -2,6 +2,12 @@
 import DetailPurchase from "@/components/DetailPurchase";
 import { getProduct } from "@/lib/db";
 import VaultAddButton from "@/components/VaultAddButton";
+import { notFound } from "next/navigation";
+import { collectionLabels, formatUsd } from "@/data/products";
+import { linePrice } from "@/lib/pricing";
+
+// Phụ kiện đi kèm hiển thị cuối trang — lấy từ DB (trước đây hardcode).
+const ACCESSORY_SLUG = "travel-roll-calfskin-18k";
 
 export default async function Page({
   params,
@@ -10,6 +16,20 @@ export default async function Page({
 }) {
   const { slug } = await params;
   const product = await getProduct(slug);
+  // Slug lạ → 404 thay vì render trang cứng mặc định.
+  if (!product) notFound();
+
+  // Phụ kiện đi kèm từ DB; thiếu thì ẩn block (không crash).
+  const accessory = await getProduct(ACCESSORY_SLUG).catch(() => null);
+  const accLine = accessory ? linePrice(accessory.priceUsd) : null;
+
+  const collectionLabel =
+    collectionLabels[product.collection] ?? "Bộ Sưu Tập";
+  const heroImage = product.images[0] ?? product.cardImage;
+  const detailImages =
+    product.images.length > 1
+      ? product.images.slice(1, 4)
+      : [product.cardImage];
   return (
   <div className="flex flex-col w-full">
   <div className="flex flex-col w-full">
@@ -25,14 +45,14 @@ export default async function Page({
 <span className="text-surface-container-highest">/</span>
 <a className="hover:text-primary transition-colors" href="/collections">Bộ Sưu Tập</a>
 <span className="text-surface-container-highest">/</span>
-<a className="hover:text-primary transition-colors" href="/collections">Tourbillon</a>
+<a className="hover:text-primary transition-colors" href="/collections">{collectionLabel}</a>
 <span className="text-surface-container-highest">/</span>
-<span className="text-primary font-semibold">Aurel Chronos Tourbillon N°07</span>
+<span className="text-primary font-semibold">{product.name}</span>
 </div>
 <div className="flex items-center gap-space-sm">
 <span className="inline-flex items-center gap-1.5 px-space-xs py-0.5 rounded bg-surface-container-high text-secondary text-[10px] font-label-badge tracking-widest uppercase">
 <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>
-            Kho bảo mật Genève: 01 Độc bản khả dụng
+            {product.inBoutique ? "Kho bảo mật Genève: Sẵn hàng độc bản" : "Đặt trước tại Atelier"}
           </span>
 </div>
 </div>
@@ -46,7 +66,7 @@ export default async function Page({
 <div className="relative w-full aspect-[4/5] bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl flex items-center justify-center group">
 {/* Ambient Vignette Gradient */}
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-surface-container-lowest/30 pointer-events-none z-10"></div>
-<img className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105" data-alt="Ultra high-end luxury macro product photography of Aurel Chronos Flying Tourbillon watch in solid 18K 5N rose gold. Floating tourbillon cage with ruby jewels, blued screws, double anti-reflective sapphire crystal catching faint liquid champagne reflections on black obsidian background." id="main-watch-img" src="/images/stitch/26_AB6AXuB7UM.jpg"/>
+<img className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105" data-alt={product.shortDescription} id="main-watch-img" src={heroImage}/>
 {/* Live Complication HUD Overlay */}
 <div className="absolute top-space-md left-space-md z-20 flex flex-col gap-space-2xs">
 <span className="px-space-xs py-1 rounded bg-surface-container-low/90 backdrop-blur-md text-primary font-label-badge text-label-badge uppercase tracking-widest shadow-md">
@@ -80,26 +100,12 @@ export default async function Page({
 </div>
 {/* Thumbnail Gallery & Perspectives Strip */}
 <div className="grid grid-cols-4 gap-space-sm">
-<button className="gallery-thumb active-thumb relative aspect-square rounded-lg overflow-hidden bg-surface-container-low shadow-md group transition-all transform hover:-translate-y-0.5" >
-<img className="w-full h-full object-cover" data-alt="High precision close-up of Aurel Chronos watch bezel crafted in 18K rose gold showing hand-polished beveled edges and sapphire reflection in studio dark light." src="/images/stitch/27_AB6AXuDDu5.jpg"/>
-<span className="absolute inset-0 bg-primary/20 transition-opacity opacity-100 thumb-overlay"></span>
-<span className="absolute bottom-1 left-1.5 font-label-badge text-[9px] uppercase tracking-widest text-on-surface bg-surface-container-lowest/80 px-1 py-0.5 rounded">Vành Bezel</span>
-</button>
-<button className="gallery-thumb relative aspect-square rounded-lg overflow-hidden bg-surface-container-low shadow-md group transition-all transform hover:-translate-y-0.5" >
-<img className="w-full h-full object-cover" data-alt="Macro view of watch exhibition sapphire caseback revealing hand-engraved Geneva stripes, solid gold rotor with Aurel crest, ruby bearings, and balance wheel." src="/images/stitch/28_AB6AXuA0oR.jpg"/>
+{detailImages.map((src, i) => (
+<button key={src + i} className={`gallery-thumb${i === 0 ? " active-thumb" : ""} relative aspect-square rounded-lg overflow-hidden bg-surface-container-low shadow-md group transition-all transform hover:-translate-y-0.5`} >
+<img className="w-full h-full object-cover" data-alt={product.shortDescription} src={src}/>
 <span className="absolute inset-0 bg-primary/20 transition-opacity opacity-0 thumb-overlay"></span>
-<span className="absolute bottom-1 left-1.5 font-label-badge text-[9px] uppercase tracking-widest text-on-surface bg-surface-container-lowest/80 px-1 py-0.5 rounded">Mặt Đáy Lộ Cơ</span>
 </button>
-<button className="gallery-thumb relative aspect-square rounded-lg overflow-hidden bg-surface-container-low shadow-md group transition-all transform hover:-translate-y-0.5" >
-<img className="w-full h-full object-cover" data-alt="Artisanal detail of deep black Mississippi alligator leather strap with hand-sewn solid 18k gold thread stitching and curved spring bars." src="/images/stitch/29_AB6AXuAAln.jpg"/>
-<span className="absolute inset-0 bg-primary/20 transition-opacity opacity-0 thumb-overlay"></span>
-<span className="absolute bottom-1 left-1.5 font-label-badge text-[9px] uppercase tracking-widest text-on-surface bg-surface-container-lowest/80 px-1 py-0.5 rounded">Dây Da Thủ Công</span>
-</button>
-<button className="gallery-thumb relative aspect-square rounded-lg overflow-hidden bg-surface-container-low shadow-md group transition-all transform hover:-translate-y-0.5" >
-<img className="w-full h-full object-cover" data-alt="Editorial lifestyle shot of Aurel Chronos Tourbillon watch worn on wrist under a tailored charcoal bespoke Italian cashmere suit cuff in luxury private salon." src="/images/stitch/30_AB6AXuBEVh.jpg"/>
-<span className="absolute inset-0 bg-primary/20 transition-opacity opacity-0 thumb-overlay"></span>
-<span className="absolute bottom-1 left-1.5 font-label-badge text-[9px] uppercase tracking-widest text-on-surface bg-surface-container-lowest/80 px-1 py-0.5 rounded">Trên Cổ Tay</span>
-</button>
+))}
 </div>
 {/* Chronometric Live Telemetry Card */}
 <div className="p-space-lg rounded-xl bg-surface-container-low shadow-lg flex flex-col md:flex-row items-center justify-between gap-space-md">
@@ -108,8 +114,8 @@ export default async function Page({
 <span className="material-symbols-outlined text-[24px]">precision_manufacturing</span>
 </div>
 <div className="flex flex-col">
-<span className="font-label-badge text-label-badge text-secondary uppercase tracking-[0.2em]">Cân Bằng Quán Tính Bi-Metallic</span>
-<span className="font-title-editorial text-body-md text-on-surface">Độ Chuẩn Xác -1/+2 Giây / 24 Giờ</span>
+<span className="font-label-badge text-label-badge text-secondary uppercase tracking-[0.2em]">{product.calibre}</span>
+<span className="font-title-editorial text-body-md text-on-surface">{product.caseMaterial} • {product.diameterMm}mm</span>
 </div>
 </div>
 <div className="flex items-center gap-space-lg w-full md:w-auto justify-between md:justify-end">
@@ -130,7 +136,7 @@ export default async function Page({
 {/* Identity Badges */}
 <div className="flex flex-wrap items-center gap-space-xs">
 <span className="px-space-xs py-1 rounded bg-secondary-container text-secondary font-label-badge text-label-badge tracking-[0.16em] uppercase font-bold shadow-sm">
-              Limited Edition • N° 07 / 25 Toàn Cầu
+              {product.badges[0] ?? "Limited Edition"} • {product.strapLabel}
             </span>
 <span className="px-space-xs py-1 rounded bg-surface-container-high text-on-surface-variant font-label-badge text-label-badge tracking-widest uppercase flex items-center gap-1">
 <span className="material-symbols-outlined text-primary text-[14px]">stars</span>
@@ -141,10 +147,10 @@ export default async function Page({
 <div className="flex flex-col gap-1">
 <span className="font-label-spec text-label-spec uppercase tracking-[0.25em] text-secondary">Haute Complication Series</span>
 <h1 className="font-display-hero text-headline-lg text-on-surface tracking-tight leading-tight">
-              Aurel &amp; Co. Chronos Flying Tourbillon N°07
+              Aurel &amp; Co. {product.name}
             </h1>
 <div className="flex items-center gap-space-md mt-1 font-label-spec text-body-sm text-on-surface-variant">
-<span>REF: <strong className="text-on-surface font-semibold tracking-widest">AC-7001-RG-2024</strong></span>
+<span>REF: <strong className="text-on-surface font-semibold tracking-widest">{product.reference}</strong></span>
 <span className="text-surface-container-highest">•</span>
 <span className="text-primary flex items-center gap-1">
 <span className="material-symbols-outlined text-[14px]">workspace_premium</span>
@@ -182,111 +188,53 @@ export default async function Page({
           Bảng Thông Số Kỹ Thuật Vi Cơ Học
         </h2>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-          Mỗi chi tiết của cỗ máy Chronos Tourbillon N°07 được chế tạo với dung sai nhỏ hơn 1/1000 milimet tại xưởng chế tác Plan-les-Ouates, Genève.
+          {product.narrative}
         </p>
 </div>
 {/* Specs Bento Grid */}
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
-{/* Spec Card 1: Movement Engine */}
-<div className="p-space-lg rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-colors">
+{[
+  {
+    icon: "settings_suggest",
+    tag: "Calibre",
+    title: product.calibre,
+    rows: product.specs,
+  },
+  {
+    icon: "crop_square",
+    tag: "Vỏ Khối",
+    title: product.caseMaterial,
+    rows: [
+      { label: "Đường kính", value: `${product.diameterMm}mm` },
+      { label: "Dây chuẩn", value: product.strapLabel },
+      { label: "Tình trạng", value: product.inBoutique ? "Sẵn tại boutique" : "Đặt trước tại Atelier" },
+    ],
+  },
+  {
+    icon: "visibility",
+    tag: "Kính & Mặt Số",
+    title: product.complications[0] ?? "Sapphire Box",
+    rows: product.specs.slice(1).map((s) => ({ label: s.label, value: s.value })),
+  },
+].map((c) => (
+<div key={c.tag} className="p-space-lg rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-colors">
 <div className="flex flex-col gap-space-sm">
 <div className="flex items-center justify-between text-secondary">
-<span className="material-symbols-outlined text-[28px]">settings_suggest</span>
-<span className="font-label-badge text-label-badge uppercase tracking-widest px-2 py-0.5 rounded bg-surface-container-high">Calibre</span>
+<span className="material-symbols-outlined text-[28px]">{c.icon}</span>
+<span className="font-label-badge text-label-badge uppercase tracking-widest px-2 py-0.5 rounded bg-surface-container-high">{c.tag}</span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Manufacture AC-901</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Bộ chuyển động cơ khí lên cót thủ công tích hợp lồng xoay Tourbillon 60 giây không trụ đỡ (Flying Tourbillon).</p>
-</div>
-<div className="pt-space-md flex flex-col gap-space-2xs text-body-sm">
-<div className="flex justify-between text-on-surface-variant">
-<span>Tần số dao động</span>
-<strong className="text-on-surface">28.800 vph (4 Hz)</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Số lượng chân kính</span>
-<strong className="text-on-surface">33 Hồng Ngọc Thuần Khiết</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Trữ năng lượng</span>
-<strong className="text-primary font-semibold">72 Giờ Liên Tục</strong>
-</div>
-</div>
-</div>
-{/* Spec Card 2: Architecture & Case */}
-<div className="p-space-lg rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-colors">
-<div className="flex flex-col gap-space-sm">
-<div className="flex items-center justify-between text-secondary">
-<span className="material-symbols-outlined text-[28px]">crop_square</span>
-<span className="font-label-badge text-label-badge uppercase tracking-widest px-2 py-0.5 rounded bg-surface-container-high">Vỏ Khối</span>
-</div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Vàng Hồng 18K 5N</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Đúc nguyên khối từ hợp kim vàng hồng chuẩn hoàng gia Thụy Sĩ, mang lại sắc thái ấm áp vĩnh cửu không phai mờ.</p>
+<h3 className="font-headline-sm text-headline-sm text-on-surface">{c.title}</h3>
 </div>
 <div className="pt-space-md flex flex-col gap-space-2xs text-body-sm">
-<div className="flex justify-between text-on-surface-variant">
-<span>Đường kính vỏ</span>
-<strong className="text-on-surface">41.5 mm</strong>
+{c.rows.map((r) => (
+<div key={r.label} className="flex justify-between text-on-surface-variant">
+<span>{r.label}</span>
+<strong className="text-on-surface">{r.value}</strong>
 </div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Độ dày hoàn hảo</span>
-<strong className="text-on-surface">11.2 mm</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Chỉ số chống nước</span>
-<strong className="text-on-surface">50m / 5 ATM (Áp Suất Tĩnh)</strong>
+))}
 </div>
 </div>
-</div>
-{/* Spec Card 3: Optical & Dial */}
-<div className="p-space-lg rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-colors">
-<div className="flex flex-col gap-space-sm">
-<div className="flex items-center justify-between text-secondary">
-<span className="material-symbols-outlined text-[28px]">visibility</span>
-<span className="font-label-badge text-label-badge uppercase tracking-widest px-2 py-0.5 rounded bg-surface-container-high">Kính &amp; Mặt Số</span>
-</div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Sapphire Box Cong</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Tinh thể Sapphire nguyên khối phủ 7 lớp chống chói kép, cho cảm giác như không có lớp ngăn cách với chuyển động cơ học.</p>
-</div>
-<div className="pt-space-md flex flex-col gap-space-2xs text-body-sm">
-<div className="flex justify-between text-on-surface-variant">
-<span>Độ cứng bề mặt</span>
-<strong className="text-on-surface">Mohs 9 (Chống Trầy Tuyệt Đối)</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Mặt đáy (Caseback)</span>
-<strong className="text-on-surface">Sapphire Exhibition Lộ Toàn Phần</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Kim &amp; Cọc Số</span>
-<strong className="text-primary font-semibold">Vàng 18K Đánh Bóng Thủ Công</strong>
-</div>
-</div>
-</div>
-{/* Spec Card 4: Métiers d'Art & Finishing */}
-<div className="p-space-lg rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-colors">
-<div className="flex flex-col gap-space-sm">
-<div className="flex items-center justify-between text-secondary">
-<span className="material-symbols-outlined text-[28px]">brush</span>
-<span className="font-label-badge text-label-badge uppercase tracking-widest px-2 py-0.5 rounded bg-surface-container-high">Nghệ Thuật</span>
-</div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Hoàn Thiện Bậc Thầy</h3>
-<p className="font-body-sm text-body-sm text-on-surface-variant">Các chi tiết cơ khí cầu nối được vát mép Anglage và đánh bóng thủ công bằng gỗ gentian theo truyền thống Haute Horlogerie.</p>
-</div>
-<div className="pt-space-md flex flex-col gap-space-2xs text-body-sm">
-<div className="flex justify-between text-on-surface-variant">
-<span>Họa tiết vân máy</span>
-<strong className="text-on-surface">Côtes de Genève 1.5mm</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Lồng xoay Tourbillon</span>
-<strong className="text-on-surface">Titanium Cấp 5 Nhẹ 0.28g</strong>
-</div>
-<div className="flex justify-between text-on-surface-variant">
-<span>Giấy chứng nhận</span>
-<strong className="text-primary font-semibold">Vết Khắc Con Dấu Genève</strong>
-</div>
-</div>
-</div>
+))}
 </div>
 </div>
 {/* MASTER WATCHMAKER NARRATIVE & ATELIER HERITAGE */}
@@ -310,11 +258,8 @@ export default async function Page({
 <span className="font-label-badge text-label-badge text-primary uppercase tracking-[0.25em]">Lời Tựa Từ Bàn Chế Tác</span>
 </div>
 <h3 className="font-display-hero text-headline-lg text-on-surface tracking-tight leading-tight">
-              "Thời gian không chỉ được đo bằng giây, mà bằng xúc cảm cơ khí trường tồn."
+              "{product.narrative}"
             </h3>
-<p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
-              Mẫu Chronos Flying Tourbillon N°07 đại diện cho 480 giờ lao động thủ công liên tục của các nghệ nhân vi cơ khí. Lồng xoay Tourbillon được chế tạo hoàn toàn không có cầu đỡ bên trên, mang lại ảo ảnh thị giác như một vũ điệu cơ học bay lượn tự do giữa bầu trời vô tận.
-            </p>
 <p className="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
               Mỗi chiếc trong số 25 tác phẩm giới hạn này mang chữ ký độc bản được khắc chìm vào cầu chuyển động trung tâm, kèm theo nhật ký kiểm chuẩn 1.000 giờ trong điều kiện khắc nghiệt nhất của Đài thiên văn Thụy Sĩ.
             </p>
@@ -345,7 +290,7 @@ export default async function Page({
             Vật Phẩm Phối Hợp Tuyệt Tác
           </h2>
 <p className="font-body-md text-body-md text-on-surface-variant">
-            Được chế tác đồng điệu để tôn vinh sự hoàn mỹ của chiếc Aurel Chronos Tourbillon N°07.
+            Được chế tác đồng điệu để tôn vinh sự hoàn mỹ của chiếc {product.name}.
           </p>
 </div>
 <a className="font-label-spec text-label-spec text-primary hover:text-secondary transition-colors uppercase tracking-[0.14em] flex items-center gap-1 shrink-0" href="/collections">
@@ -398,28 +343,29 @@ export default async function Page({
 <VaultAddButton slug="tourbillon-cufflinks-18k" name="Khuy Măng Sét Tourbillon Vàng Hồng 18K" priceUsd={5200} priceVnd={131040000} image="/images/stitch/33_AB6AXuD10T.jpg" />
 </div>
 </div>
-{/* Pairing 3: Extra Exotic Strap Case */}
+{accessory && accLine && (
 <div className="p-space-md rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-all">
 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest mb-space-md">
-<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Travel roll pouch made of navy blue pebbled calfskin with custom slots containing bespoke alligator watch straps and rose gold buckle tool." src="/images/stitch/34_AB6AXuDJte.jpg"/>
+<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt={accessory.shortDescription} src={accessory.cardImage}/>
 <span className="absolute top-2 right-2 px-space-xs py-0.5 rounded bg-surface-container-low/90 backdrop-blur-md text-primary font-label-badge text-[9px] uppercase tracking-wider">
-              Travel Accessory
+              {accessory.badges[0] ?? "Accessory"}
             </span>
 </div>
 <div className="flex flex-col gap-1">
-<span className="font-label-spec text-[11px] text-secondary uppercase tracking-widest">Phụ Kiện Du Ngoạn</span>
+<span className="font-label-spec text-[11px] text-secondary uppercase tracking-widest">Phụ Kiện Chuẩn Aurél</span>
 <h4 className="font-title-editorial text-body-lg text-on-surface group-hover:text-primary transition-colors">
-              Bộ Túi Cuộn Du Lịch Da Bê Ép Vân Cùng Khóa 18K
+              {accessory.name}
             </h4>
 <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-1">
-              Bao gồm dụng cụ thay dây vi cơ học và ngăn chứa 02 bộ dây da sơ cua bọc nhung Alcantara chống từ tính.
+              {accessory.shortDescription}
             </p>
 </div>
 <div className="mt-space-md pt-space-sm flex items-center justify-between">
-<span className="font-headline-sm text-body-lg text-on-surface font-semibold">$1,900 <span className="font-body-sm text-on-surface-variant text-xs">USD</span></span>
-<VaultAddButton slug="travel-roll-calfskin-18k" name="Bộ Túi Cuộn Du Lịch Da Bê & Khóa 18K" priceUsd={1900} priceVnd={47880000} image="/images/stitch/34_AB6AXuDJte.jpg" />
+<span className="font-headline-sm text-body-lg text-on-surface font-semibold">{formatUsd(accLine.priceUsd)} <span className="font-body-sm text-on-surface-variant text-xs">USD</span></span>
+<VaultAddButton slug={accessory.slug} name={accessory.name} priceUsd={accLine.priceUsd} priceVnd={accLine.priceVnd} image={accessory.cardImage} />
 </div>
 </div>
+)}
 </div>
 </div>
 {/* PRIVATE VIP SALON APPOINTMENT BANNER */}

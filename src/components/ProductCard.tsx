@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import type { Product } from "@/data/products";
-import { strapOptions } from "@/data/products";
+import { strapOptions } from "@/data/straps";
 import { linePrice } from "@/lib/pricing";
 import { useCurrency } from "./CurrencyProvider";
 import { useCart } from "./CartProvider";

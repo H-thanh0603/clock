@@ -5,7 +5,7 @@ import { useState } from "react";
 import GoldButton from "@/components/GoldButton";
 import SpecBadge from "@/components/SpecBadge";
 import type { Product } from "@/data/products";
-import { strapOptions } from "@/data/products";
+import { strapOptions } from "@/data/straps";
 import { linePrice, USD_TO_VND } from "@/lib/pricing";
 import { useCurrency } from "./CurrencyProvider";
 import { useCart } from "./CartProvider";

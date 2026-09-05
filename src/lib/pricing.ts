@@ -1,4 +1,4 @@
-import { strapOptions } from "@/data/products";
+import { strapOptions } from "@/data/straps";
 
 /**
  * Tỉ giá USD → VND dùng cho toàn bộ định giá.
