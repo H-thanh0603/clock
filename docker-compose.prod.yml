@@ -1,0 +1,82 @@
+# Production stack: Caddy (TLS) + frontend + backend + Postgres.
+# Chuẩn bị:
+#   1. Trỏ DNS A của $DOMAIN về IP VPS.
+#   2. cp .env.prod.example .env.prod && điền secret thật.
+#   3. docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   4. Chạy migrate lần đầu: docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
+#      (các lần sau CI lo; xem .github/workflows).
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD chưa đặt trong .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:-aurel}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      FRONTEND_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
+      BACKEND_PUBLIC_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/backend"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD chưa đặt}@db:5432/${POSTGRES_DB:-aurel}"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET chưa đặt trong .env.prod}
+      COOKIE_SAMESITE: lax
+      COOKIE_SECURE: "true"
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/backend"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_URL: "http://backend:4000"
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN chưa đặt trong .env.prod}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

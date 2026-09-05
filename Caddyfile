@@ -1,0 +1,24 @@
+# Caddy reverse proxy + TLS tự động (Let's Encrypt).
+# Thay example.com bằng domain thật, trỏ DNS A về IP VPS trước khi up.
+{
+	admin off
+}
+
+{$DOMAIN:example.com} {
+	# Frontend (Next.js)
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	# Backend API giữ cùng domain để cookie first-party:
+	# FE gọi /backend/* → proxy sang backend:4000 (xem next.config rewrites).
+	handle_path /backend/* {
+		reverse_proxy backend:4000
+	}
+
+	encode gzip
+	log {
+		output stdout
+		format json
+	}
+}
