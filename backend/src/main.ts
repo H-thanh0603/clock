@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
@@ -17,7 +18,11 @@ function parseOrigins(): string[] {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const isProd = process.env.NODE_ENV === 'production';
+  const app = await NestFactory.create(AppModule, {
+    // Prod: chỉ log warn/error để nhẹ disk; dev giữ đầy đủ.
+    logger: isProd ? ['warn', 'error'] : undefined,
+  });
   app.use(helmet());
   app.use(cookieParser());
   app.useGlobalPipes(
@@ -34,7 +39,6 @@ async function bootstrap() {
   app.enableShutdownHooks();
   const port = Number(process.env.PORT ?? 4000);
   await app.listen(port);
-  // eslint-disable-next-line no-console
-  console.log(`Aurel backend listening on http://localhost:${port}`);
+  new Logger('Bootstrap').log(`Aurel backend listening on :${port}`);
 }
 bootstrap();
