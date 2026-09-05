@@ -158,7 +158,7 @@ function AuthForm() {
         </button>
       </form>
       <p className="font-body-sm text-body-sm mt-space-md text-center text-on-surface-variant/70">
-        Tài khoản admin thử nghiệm: <span className="text-secondary">admin@aurel.local / Admin123!</span>
+        Thượng khách mới? Chọn “Đăng Ký” để mở Vault cá nhân.
       </p>
     </div>
   );
