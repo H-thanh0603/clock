@@ -28,3 +28,6 @@ next-env.d.ts
 
 # prisma 7 generated client
 /generated
+/backend/generated
+/backend/dist
+/backend/node_modules

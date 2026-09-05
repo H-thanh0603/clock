@@ -13,5 +13,22 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  backend:
+    build: ./backend
+    container_name: aurel-backend
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PORT: 4000
+      FRONTEND_URL: "http://localhost:3000"
+      BACKEND_PUBLIC_URL: "http://localhost:4000"
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/aurel"
+      JWT_SECRET: "thay-bang-chuoi-ngau-nhien-64-ky-tu"
+      VNPAY_TMN_CODE: ""
+      VNPAY_HASH_SECRET: ""
+    ports:
+      - "4000:4000"
+
 volumes:
   pgdata:

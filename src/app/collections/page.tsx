@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatUsd, formatVnd, type Product } from "@/data/products";
+import { apiUrl } from "@/lib/api-client";
 import { useWishlist } from "@/components/WishlistProvider";
 
 const MOVEMENT_MATCH: Record<string, (p: Product) => boolean> = {
@@ -65,7 +66,7 @@ export default function Page() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/products")
+    fetch(apiUrl("/products"))
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();

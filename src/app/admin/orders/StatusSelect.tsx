@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiUrl } from "@/lib/api-client";
 
 const STATUSES = [
   "PENDING",
@@ -36,9 +37,10 @@ export function StatusSelect({
     setValue(next);
     setBusy(true);
     try {
-      const res = await fetch(`/api/admin/orders/${id}`, {
+      const res = await fetch(apiUrl(`/admin/orders/${id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ status: next }),
       });
       if (!res.ok) {

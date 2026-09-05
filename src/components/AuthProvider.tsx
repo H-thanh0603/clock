@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { apiUrl } from "@/lib/api-client";
 
 export type AuthUser = {
   id: string;
@@ -28,7 +29,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function parseUser(res: Response): Promise<AuthUser> {
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Lỗi xác thực");
+  if (!res.ok)
+    throw new Error(
+      (Array.isArray(data.message) ? data.message.join(", ") : data.message) ??
+        data.error ??
+        "Lỗi xác thực"
+    );
   return data.user as AuthUser;
 }
 
@@ -38,7 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch(apiUrl("/auth/me"), {
+        credentials: "include",
+      });
       const data = await res.json();
       setUser((data.user as AuthUser | null) ?? null);
     } catch {
@@ -53,9 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch(apiUrl("/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ email, password }),
     });
     const u = await parseUser(res);
@@ -65,9 +74,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name, email, password }),
       });
       const u = await parseUser(res);
@@ -78,7 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch(apiUrl("/auth/logout"), {
+      method: "POST",
+      credentials: "include",
+    });
     setUser(null);
   }, []);
 

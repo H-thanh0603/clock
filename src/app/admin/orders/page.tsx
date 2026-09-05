@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/db";
+import { redirect } from "next/navigation";
+import { getAdminOrders } from "@/lib/orders";
 import { formatUsd, formatVnd } from "@/data/products";
 import { StatusSelect } from "./StatusSelect";
 
@@ -17,17 +18,9 @@ export default async function AdminOrdersPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const sp = await searchParams;
-  const where = sp.status ? { status: sp.status as never } : {};
-  const orders = await prisma.order.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: { items: true, payments: { orderBy: { createdAt: "desc" } } },
-    take: 100,
-  });
-  const counts = await prisma.order.groupBy({
-    by: ["status"],
-    _count: { status: true },
-  });
+  const data = await getAdminOrders(sp.status);
+  if (!data) redirect("/login?next=/admin/orders");
+  const { orders, counts } = data;
 
   return (
     <div className="mx-auto max-w-page px-6 py-14 md:px-8">
@@ -79,8 +72,8 @@ export default async function AdminOrdersPage({
                 <p className="font-body-sm text-body-sm mt-1 text-on-surface-variant/70">
                   {new Date(o.createdAt).toLocaleString("vi-VN")} •{" "}
                   {o.items.reduce((s, i) => s + i.qty, 0)} món • Thanh toán:{" "}
-                  {o.payments[0]?.method ?? "—"} (
-                  {o.payments[0]?.status ?? "—"})
+                  {(o.payments ?? [])[0]?.method ?? "—"} (
+                  {(o.payments ?? [])[0]?.status ?? "—"})
                 </p>
               </div>
               <div className="flex flex-col items-end gap-space-xs">

@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useAuth } from "./AuthProvider";
+import { apiUrl } from "@/lib/api-client";
 
 export type CartItem = {
   slug: string;
@@ -95,15 +96,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         try {
           const guest = loadGuest();
           if (guest.length > 0) {
-            const r = await fetch("/api/cart/merge", {
+            const r = await fetch(apiUrl("/cart/merge"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify({ items: guest }),
             });
             setItems(await readList(r));
             saveGuest([]);
           } else {
-            const r = await fetch("/api/cart");
+            const r = await fetch(apiUrl("/cart"), {
+              credentials: "include",
+            });
             setItems(await readList(r));
           }
         } catch {
@@ -125,9 +129,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (item: Omit<CartItem, "qty">, qty = 1) => {
     if (userId) {
       runServer(
-        fetch("/api/cart", {
+        fetch(apiUrl("/cart"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ ...item, qty }),
         }).then(readList),
         "Không thêm được vào giỏ (lỗi server)"
@@ -151,8 +156,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (userId) {
       runServer(
         fetch(
-          `/api/cart?slug=${encodeURIComponent(slug)}&strap=${encodeURIComponent(strap)}`,
-          { method: "DELETE" }
+          apiUrl(
+            `/cart?slug=${encodeURIComponent(slug)}&strap=${encodeURIComponent(strap)}`
+          ),
+          { method: "DELETE", credentials: "include" }
         ).then(readList),
         "Không xoá được vật phẩm (lỗi server)"
       );
@@ -166,9 +173,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const updateQty = (slug: string, strap: string, qty: number) => {
     if (userId) {
       runServer(
-        fetch("/api/cart", {
+        fetch(apiUrl("/cart"), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ slug, strap, qty }),
         }).then(readList),
         "Không cập nhật được số lượng (lỗi server)"
@@ -185,7 +193,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clear = () => {
     if (userId) {
       runServer(
-        fetch("/api/cart?clear=1", { method: "DELETE" }).then(readList),
+        fetch(apiUrl("/cart?clear=1"), {
+          method: "DELETE",
+          credentials: "include",
+        }).then(readList),
         "Không xoá được giỏ hàng (lỗi server)"
       );
       return;

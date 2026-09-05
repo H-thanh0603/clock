@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/components/CartProvider";
+import { apiUrl } from "@/lib/api-client";
 import VaultItemCard from "@/components/VaultItemCard";
 import { formatUsd, formatVnd } from "@/data/products";
 
@@ -35,9 +36,10 @@ export default function Page() {
     setOrderError("");
     setProcessing("Tạo đơn & niêm ấn Vault...");
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch(apiUrl("/orders"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           customerName: name,
           contact,
@@ -57,17 +59,30 @@ export default function Page() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Lỗi tạo đơn hàng");
+      if (!res.ok)
+        throw new Error(
+          (Array.isArray(data.message)
+            ? data.message.join(", ")
+            : data.message) ??
+            data.error ??
+            "Lỗi tạo đơn hàng"
+        );
       clear();
       if (pay === "vnpay") {
         setProcessing("Chuyển sang cổng thanh toán VNPay...");
-        const pr = await fetch("/api/payments/vnpay/create", {
+        const pr = await fetch(apiUrl("/payments/vnpay/create"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ orderId: data.orderId }),
         });
         const pd = await pr.json();
-        if (!pr.ok) throw new Error(pd.error ?? "Lỗi tạo thanh toán VNPay");
+        if (!pr.ok)
+          throw new Error(
+            (Array.isArray(pd.message) ? pd.message.join(", ") : pd.message) ??
+              pd.error ??
+              "Lỗi tạo thanh toán VNPay"
+          );
         window.location.href = pd.url as string;
         return;
       }

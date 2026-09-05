@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { readSession } from "@/lib/auth";
+import { getMyOrders } from "@/lib/orders";
 import { formatUsd, formatVnd } from "@/data/products";
 
 const STATUS_VN: Record<string, string> = {
@@ -14,14 +13,8 @@ const STATUS_VN: Record<string, string> = {
 };
 
 export default async function AccountPage() {
-  const session = await readSession();
-  if (!session) redirect("/login?next=/account");
-
-  const orders = await prisma.order.findMany({
-    where: { userId: session.id },
-    orderBy: { createdAt: "desc" },
-    include: { items: true },
-  });
+  const orders = await getMyOrders();
+  if (!orders) redirect("/login?next=/account");
 
   return (
     <div className="mx-auto max-w-page px-6 py-14 md:px-8">

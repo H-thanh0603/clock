@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { getOrderByCode } from "@/lib/orders";
 import { formatUsd, formatVnd } from "@/data/products";
 
 const STATUS_VN: Record<string, string> = {
@@ -21,10 +21,7 @@ export default async function OrderSuccessPage({
 }) {
   const { code } = await params;
   const sp = await searchParams;
-  const order = await prisma.order.findUnique({
-    where: { code },
-    include: { items: true, payments: { orderBy: { createdAt: "desc" } } },
-  });
+  const order = await getOrderByCode(code);
   if (!order) notFound();
 
   const paid = sp.paid === "1";
