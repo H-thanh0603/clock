@@ -30,6 +30,8 @@ type CartContextValue = {
   totalQty: number;
   totalUsd: number;
   totalVnd: number;
+  /** Lỗi sync server gần nhất (null = OK) — UI có thể hiển thị cảnh báo. */
+  lastError: string | null;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -67,7 +69,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const userId = user?.id ?? null;
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const prevUser = useRef<string | null>(null);
+
+  /** Chạy một tác vụ giỏ server: thành công → set items + xoá lỗi; thất bại → ghi lastError. */
+  const runServer = (p: Promise<CartItem[]>, msg: string) => {
+    p.then((list) => {
+      setItems(list);
+      setLastError(null);
+    }).catch(() => setLastError(msg));
+  };
 
   // Khởi tạo giỏ khách từ localStorage
   useEffect(() => {
@@ -96,7 +107,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             setItems(await readList(r));
           }
         } catch {
-          // rớt mạng/DB: giữ giỏ hiện tại
+          // rớt mạng/DB: giữ giỏ hiện tại và báo lỗi
+          setLastError("Không đồng bộ được giỏ hàng từ server");
         }
       })();
     } else if (!userId && prevUser.current) {
@@ -112,14 +124,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = (item: Omit<CartItem, "qty">, qty = 1) => {
     if (userId) {
-      fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...item, qty }),
-      })
-        .then(readList)
-        .then(setItems)
-        .catch(() => {});
+      runServer(
+        fetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...item, qty }),
+        }).then(readList),
+        "Không thêm được vào giỏ (lỗi server)"
+      );
       return;
     }
     setItems((prev) => {
@@ -137,13 +149,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = (slug: string, strap: string) => {
     if (userId) {
-      fetch(
-        `/api/cart?slug=${encodeURIComponent(slug)}&strap=${encodeURIComponent(strap)}`,
-        { method: "DELETE" }
-      )
-        .then(readList)
-        .then(setItems)
-        .catch(() => {});
+      runServer(
+        fetch(
+          `/api/cart?slug=${encodeURIComponent(slug)}&strap=${encodeURIComponent(strap)}`,
+          { method: "DELETE" }
+        ).then(readList),
+        "Không xoá được vật phẩm (lỗi server)"
+      );
       return;
     }
     setItems((prev) =>
@@ -153,14 +165,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQty = (slug: string, strap: string, qty: number) => {
     if (userId) {
-      fetch("/api/cart", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, strap, qty }),
-      })
-        .then(readList)
-        .then(setItems)
-        .catch(() => {});
+      runServer(
+        fetch("/api/cart", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug, strap, qty }),
+        }).then(readList),
+        "Không cập nhật được số lượng (lỗi server)"
+      );
       return;
     }
     setItems((prev) =>
@@ -172,10 +184,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clear = () => {
     if (userId) {
-      fetch("/api/cart?clear=1", { method: "DELETE" })
-        .then(readList)
-        .then(setItems)
-        .catch(() => {});
+      runServer(
+        fetch("/api/cart?clear=1", { method: "DELETE" }).then(readList),
+        "Không xoá được giỏ hàng (lỗi server)"
+      );
       return;
     }
     setItems([]);
@@ -196,7 +208,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQty, clear, totalQty, totalUsd, totalVnd }}
+      value={{ items, addItem, removeItem, updateQty, clear, totalQty, totalUsd, totalVnd, lastError }}
     >
       {children}
     </CartContext.Provider>

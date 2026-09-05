@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { readSession } from "@/lib/auth";
-import { toClientItem } from "@/lib/cart";
-import { linePrice } from "@/lib/pricing";
+import {
+  getCart,
+  addToCart,
+  updateCartQty,
+  removeFromCart,
+  clearCart,
+} from "@/lib/cart";
+import { prismaCartStorage as storage } from "@/lib/cartStorage";
 
+/** GET /api/cart — liệt kê giỏ DB của user đang đăng nhập. */
 export async function GET() {
   const session = await readSession();
   if (!session) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
-  const rows = await prisma.cartItem.findMany({
-    where: { userId: session.id },
-    orderBy: { updatedAt: "desc" },
-  });
-  return NextResponse.json(rows.map(toClientItem));
+  try {
+    return NextResponse.json(await getCart(storage, session.id));
+  } catch (e) {
+    console.error("GET /api/cart failed:", e);
+    return NextResponse.json({ error: "Lỗi đọc giỏ hàng" }, { status: 500 });
+  }
 }
 
 type AddBody = {
@@ -19,7 +26,7 @@ type AddBody = {
   slug?: string;
   name: string;
   priceUsd: number;
-  priceVnd: number;
+  priceVnd?: number;
   image: string;
   strap?: string;
   engraving?: string;
@@ -31,40 +38,18 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
   try {
     const b = (await req.json()) as AddBody;
-    const slug = String(b.productSlug ?? b.slug ?? "").trim();
-    const name = String(b.name ?? "").trim();
-    const image = String(b.image ?? "");
-    const strap = String(b.strap ?? "Tiêu chuẩn Atelier");
-    const engraving = b.engraving ? String(b.engraving).slice(0, 120) : null;
-    const qty = Math.min(99, Math.max(1, Math.floor(Number(b.qty ?? 1))));
-    const baseUsd = Math.max(0, Math.floor(Number(b.priceUsd)));
-    // Giá chốt server-side: USD gốc + delta strap, VND suy ra — bỏ qua priceVnd client.
-    const { priceUsd, priceVnd } = linePrice(baseUsd, strap);
-    if (!slug || !name || !Number.isFinite(priceUsd)) {
-      return NextResponse.json({ error: "Thiếu thông tin vật phẩm" }, { status: 400 });
-    }
-    await prisma.cartItem.upsert({
-      where: {
-        userId_productSlug_strap: { userId: session.id, productSlug: slug, strap },
-      },
-      update: { qty: { increment: qty }, engraving: engraving ?? undefined },
-      create: {
-        userId: session.id,
-        productSlug: slug,
-        name,
-        priceUsd,
-        priceVnd,
-        image,
-        strap,
-        engraving,
-        qty,
-      },
+    const outcome = await addToCart(storage, session.id, {
+      slug: b.productSlug ?? b.slug,
+      name: b.name,
+      priceUsd: b.priceUsd,
+      image: b.image,
+      strap: b.strap,
+      engraving: b.engraving,
+      qty: b.qty,
     });
-    const rows = await prisma.cartItem.findMany({
-      where: { userId: session.id },
-      orderBy: { updatedAt: "desc" },
-    });
-    return NextResponse.json(rows.map(toClientItem));
+    if (!outcome.ok)
+      return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+    return NextResponse.json(outcome.items);
   } catch (e) {
     console.error("POST /api/cart failed:", e);
     return NextResponse.json({ error: "Lỗi thêm vào giỏ" }, { status: 500 });
@@ -76,21 +61,10 @@ export async function PATCH(req: Request) {
   if (!session) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
   try {
     const b = (await req.json()) as { slug?: string; strap?: string; qty?: number };
-    const qty = Math.min(99, Math.max(1, Math.floor(Number(b.qty))));
-    const slug = String(b.slug ?? "");
-    const strap = String(b.strap ?? "");
-    if (!slug || !Number.isFinite(qty)) {
-      return NextResponse.json({ error: "Thiếu slug/số lượng" }, { status: 400 });
-    }
-    await prisma.cartItem.updateMany({
-      where: { userId: session.id, productSlug: slug, strap },
-      data: { qty },
-    });
-    const rows = await prisma.cartItem.findMany({
-      where: { userId: session.id },
-      orderBy: { updatedAt: "desc" },
-    });
-    return NextResponse.json(rows.map(toClientItem));
+    const outcome = await updateCartQty(storage, session.id, b);
+    if (!outcome.ok)
+      return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+    return NextResponse.json(outcome.items);
   } catch (e) {
     console.error("PATCH /api/cart failed:", e);
     return NextResponse.json({ error: "Lỗi cập nhật giỏ" }, { status: 500 });
@@ -100,20 +74,20 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   const session = await readSession();
   if (!session) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
-  const { searchParams } = new URL(req.url);
-  if (searchParams.get("clear") === "1") {
-    await prisma.cartItem.deleteMany({ where: { userId: session.id } });
-  } else {
-    const slug = searchParams.get("slug");
-    const strap = searchParams.get("strap") ?? "";
-    if (!slug) return NextResponse.json({ error: "Thiếu slug" }, { status: 400 });
-    await prisma.cartItem.deleteMany({
-      where: { userId: session.id, productSlug: slug, strap },
-    });
+  try {
+    const { searchParams } = new URL(req.url);
+    const outcome =
+      searchParams.get("clear") === "1"
+        ? await clearCart(storage, session.id)
+        : await removeFromCart(storage, session.id, {
+            slug: searchParams.get("slug") ?? undefined,
+            strap: searchParams.get("strap") ?? undefined,
+          });
+    if (!outcome.ok)
+      return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+    return NextResponse.json(outcome.items);
+  } catch (e) {
+    console.error("DELETE /api/cart failed:", e);
+    return NextResponse.json({ error: "Lỗi xoá giỏ" }, { status: 500 });
   }
-  const rows = await prisma.cartItem.findMany({
-    where: { userId: session.id },
-    orderBy: { updatedAt: "desc" },
-  });
-  return NextResponse.json(rows.map(toClientItem));
 }
