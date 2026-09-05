@@ -89,6 +89,9 @@ export function ProductManager({ products }: { products: Product[] }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [history, setHistory] = useState<
+    { id: string; action: string; summary: string | null; createdAt: string }[]
+  >([]);
 
   const openNew = () => {
     setEditing({ ...EMPTY });
@@ -100,6 +103,13 @@ export function ProductManager({ products }: { products: Product[] }) {
     setEditing(toDraft(p));
     setIsNew(false);
     setError("");
+    setHistory([]);
+    fetch(apiUrl(`/admin/products/${p.slug}/events`), {
+      credentials: "include",
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((h) => setHistory(Array.isArray(h) ? h : []))
+      .catch(() => {});
   };
 
   const uploadImage = async (file: File, target: "card" | "gallery") => {
@@ -270,6 +280,17 @@ export function ProductManager({ products }: { products: Product[] }) {
             <h2 className="font-title-editorial text-title-editorial text-on-surface">
               {isNew ? "Thêm sản phẩm" : `Sửa ${editing.slug}`}
             </h2>
+            {!isNew && history.length > 0 && (
+              <p className="font-body-sm text-body-sm mt-2 text-on-surface-variant/70">
+                Lịch sử:{" "}
+                {history
+                  .map(
+                    (h) =>
+                      `${h.action}${h.summary ? ` (${h.summary})` : ""}`
+                  )
+                  .join(" • ")}
+              </p>
+            )}
             {error && (
               <p className="font-body-sm text-body-sm mt-4 rounded border border-error/40 bg-error-container/20 px-4 py-3 text-error">
                 {error}

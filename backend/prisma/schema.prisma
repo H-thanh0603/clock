@@ -167,3 +167,14 @@ model WishlistItem {
   @@unique([userId, productSlug])
   @@index([userId])
 }
+
+model ProductEvent {
+  id        String   @id @default(cuid())
+  slug      String
+  action    String
+  byUserId  String?
+  summary   String?
+  createdAt DateTime @default(now())
+
+  @@index([slug, createdAt])
+}

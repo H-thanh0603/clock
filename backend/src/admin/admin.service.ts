@@ -179,7 +179,7 @@ export class AdminService {
   }
 
   /** Tạo sản phẩm mới (priceVnd suy ra từ priceUsd — không nhận từ client). */
-  async createProduct(body: Record<string, unknown>) {
+  async createProduct(body: Record<string, unknown>, byUserId?: string) {
     const slug = String(body.slug ?? '').trim();
     const name = String(body.name ?? '').trim();
     const reference = String(body.reference ?? '').trim();
@@ -219,11 +219,23 @@ export class AdminService {
         narrative: str(body.narrative, 5000),
       },
     });
+    await this.prisma.productEvent.create({
+      data: {
+        slug,
+        action: 'CREATE',
+        byUserId: byUserId ?? null,
+        summary: `${name} • $${priceUsd.toLocaleString()}`,
+      },
+    });
     return { slug: row.slug };
   }
 
   /** Sửa sản phẩm (cho phép đổi giá/labels/ẩn-hiện; không đổi slug). */
-  async updateProduct(slug: string, body: Record<string, unknown>) {
+  async updateProduct(
+    slug: string,
+    body: Record<string, unknown>,
+    byUserId?: string,
+  ) {
     const exists = await this.prisma.product.findUnique({ where: { slug } });
     if (!exists) throw new NotFoundException('Không thấy sản phẩm');
     const data: Record<string, unknown> = {};
@@ -261,6 +273,23 @@ export class AdminService {
     if (body.inBoutique !== undefined)
       data.inBoutique = body.inBoutique !== false;
     const row = await this.prisma.product.update({ where: { slug }, data });
+    const changed = Object.keys(data).join(',');
+    await this.prisma.productEvent.create({
+      data: {
+        slug,
+        action: 'UPDATE',
+        byUserId: byUserId ?? null,
+        summary: changed || 'no-change',
+      },
+    });
     return { slug: row.slug };
+  }
+
+  async productEvents(slug: string) {
+    return this.prisma.productEvent.findMany({
+      where: { slug },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
   }
 }

@@ -51,8 +51,11 @@ export class AdminController {
 
   @Post('products')
   @HttpCode(201)
-  createProduct(@Body() body: Record<string, unknown>) {
-    return this.admin.createProduct(body);
+  createProduct(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.admin.createProduct(body, user.id);
   }
 
   @Patch('products/:slug')
@@ -60,7 +63,13 @@ export class AdminController {
   updateProduct(
     @Param('slug') slug: string,
     @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
   ) {
-    return this.admin.updateProduct(slug, body);
+    return this.admin.updateProduct(slug, body, user.id);
+  }
+
+  @Get('products/:slug/events')
+  productEvents(@Param('slug') slug: string) {
+    return this.admin.productEvents(slug);
   }
 }
