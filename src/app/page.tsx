@@ -96,7 +96,7 @@ export default function Home() {
 </section>
 {/* BRAND FILM — BÊN TRONG XƯỞNG GENÈVE */}
 <section id="brand-film" className="relative w-full overflow-hidden bg-surface-container-lowest">
-<video className="h-[70vh] min-h-[480px] w-full object-cover" src="/swiss-luxury-watches-and-chronographs/video.mp4" poster="/swiss-luxury-watches-and-chronographs/video-poster.jpg" autoPlay muted loop playsInline></video>
+<video className="aspect-video w-full object-cover" src="/swiss-luxury-watches-and-chronographs/video.mp4" poster="/swiss-luxury-watches-and-chronographs/video-poster.jpg" autoPlay muted loop playsInline></video>
 <div className="absolute inset-0 bg-surface-container-lowest/30"></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/35 to-surface-container-lowest/70"></div>
 <div className="absolute inset-0 flex flex-col items-center justify-center px-gutter-desktop text-center">
