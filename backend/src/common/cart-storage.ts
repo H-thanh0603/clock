@@ -2,6 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CartRow, CartStorage } from './cart';
 
+type UpsertLine = {
+  key: { productSlug: string; strap: string };
+  data: {
+    create: Omit<CartRow, 'productSlug' | 'strap'> & {
+      productSlug: string;
+      strap: string;
+    };
+    incrementQty: number;
+  };
+};
+
 /**
  * Triển khai CartStorage bằng Prisma (Postgres).
  * Adapter duy nhất chạm DB — service cart thuần, test được.
@@ -30,13 +41,7 @@ export class PrismaCartStorage implements CartStorage {
   async upsert(
     userId: string,
     key: { productSlug: string; strap: string },
-    data: {
-      create: Omit<CartRow, 'productSlug' | 'strap'> & {
-        productSlug: string;
-        strap: string;
-      };
-      incrementQty: number;
-    },
+    data: UpsertLine['data'],
   ): Promise<void> {
     await this.prisma.cartItem.upsert({
       where: {
@@ -59,6 +64,36 @@ export class PrismaCartStorage implements CartStorage {
         qty: data.create.qty,
       },
     });
+  }
+
+  /** Gộp nhiều dòng trong 1 transaction (merge giỏ lúc login). */
+  async upsertMany(userId: string, lines: UpsertLine[]): Promise<void> {
+    if (lines.length === 0) return;
+    await this.prisma.$transaction(
+      lines.map((l) =>
+        this.prisma.cartItem.upsert({
+          where: {
+            userId_productSlug_strap: {
+              userId,
+              productSlug: l.key.productSlug,
+              strap: l.key.strap,
+            },
+          },
+          update: { qty: { increment: l.data.incrementQty } },
+          create: {
+            userId,
+            productSlug: l.data.create.productSlug,
+            name: l.data.create.name,
+            priceUsd: l.data.create.priceUsd,
+            priceVnd: l.data.create.priceVnd,
+            image: l.data.create.image,
+            strap: l.data.create.strap,
+            engraving: l.data.create.engraving,
+            qty: l.data.create.qty,
+          },
+        }),
+      ),
+    );
   }
 
   async updateQty(

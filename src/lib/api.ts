@@ -9,6 +9,8 @@ import { apiUrl } from "@/lib/api-client";
 
 type ApiOptions = RequestInit & {
   forwardCookies?: boolean;
+  /** Tag cho Next cache (chỉ có tác dụng ở Server Components). */
+  next?: { revalidate?: number };
 };
 
 /** fetch JSON tới backend, throw Error(message) khi backend trả lỗi. */
@@ -16,7 +18,7 @@ export async function apiJson<T>(
   path: string,
   init?: ApiOptions
 ): Promise<T> {
-  const { forwardCookies, ...rest } = init ?? {};
+  const { forwardCookies, next, ...rest } = init ?? {};
   const headers = new Headers(rest.headers);
   if (forwardCookies) {
     const cookie = (await cookies()).toString();
@@ -28,7 +30,8 @@ export async function apiJson<T>(
   const res = await fetch(apiUrl(path), {
     ...rest,
     headers,
-    cache: "no-store",
+    // Catalog/statics cache 60s; mặc định no-store cho dữ liệu phiên.
+    ...(next ? { next } : { cache: "no-store" }),
   });
   const data = (await res.json().catch(() => null)) as {
     error?: string;

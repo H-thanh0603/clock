@@ -1,5 +1,6 @@
 
 import DetailPurchase from "@/components/DetailPurchase";
+import Image from "next/image";
 import { getProduct } from "@/lib/db";
 import VaultAddButton from "@/components/VaultAddButton";
 import { notFound } from "next/navigation";
@@ -15,12 +16,15 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  // Song song hóa 2 fetch độc lập (SP chính + phụ kiện đi kèm).
+  const [product, accessory] = await Promise.all([
+    getProduct(slug),
+    getProduct(ACCESSORY_SLUG).catch(() => null),
+  ]);
   // Slug lạ → 404 thay vì render trang cứng mặc định.
   if (!product) notFound();
 
   // Phụ kiện đi kèm từ DB; thiếu thì ẩn block (không crash).
-  const accessory = await getProduct(ACCESSORY_SLUG).catch(() => null);
   const accLine = accessory ? linePrice(accessory.priceUsd) : null;
 
   const collectionLabel =
@@ -66,7 +70,7 @@ export default async function Page({
 <div className="relative w-full aspect-[4/5] bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl flex items-center justify-center group">
 {/* Ambient Vignette Gradient */}
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-surface-container-lowest/30 pointer-events-none z-10"></div>
-<img className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105" data-alt={product.shortDescription} id="main-watch-img" src={heroImage}/>
+<Image className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105" alt={product.name} id="main-watch-img" src={heroImage} fill priority sizes="(max-width: 1024px) 100vw, 58vw" />
 {/* Live Complication HUD Overlay */}
 <div className="absolute top-space-md left-space-md z-20 flex flex-col gap-space-2xs">
 <span className="px-space-xs py-1 rounded bg-surface-container-low/90 backdrop-blur-md text-primary font-label-badge text-label-badge uppercase tracking-widest shadow-md">
@@ -102,7 +106,7 @@ export default async function Page({
 <div className="grid grid-cols-4 gap-space-sm">
 {detailImages.map((src, i) => (
 <button key={src + i} className={`gallery-thumb${i === 0 ? " active-thumb" : ""} relative aspect-square rounded-lg overflow-hidden bg-surface-container-low shadow-md group transition-all transform hover:-translate-y-0.5`} >
-<img className="w-full h-full object-cover" data-alt={product.shortDescription} src={src}/>
+<Image className="object-cover" alt={product.name} src={src} fill sizes="(max-width: 1024px) 25vw, 15vw" loading="lazy" />
 <span className="absolute inset-0 bg-primary/20 transition-opacity opacity-0 thumb-overlay"></span>
 </button>
 ))}

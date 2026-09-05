@@ -17,6 +17,10 @@ const STATUSES = [
   'CANCELLED',
 ] as const;
 
+// Cache dashboard 60s trong memory (số liệu tổng quan không cần realtime).
+let statsCache: { at: number; data: unknown } | null = null;
+const STATS_TTL_MS = 60_000;
+
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -46,8 +50,17 @@ export class AdminService {
     return { id: order.id, status: order.status };
   }
 
-  /** Số liệu tổng quan cho dashboard. */
+  /** Số liệu tổng quan cho dashboard (cache 60s). */
   async stats() {
+    if (statsCache && Date.now() - statsCache.at < STATS_TTL_MS) {
+      return statsCache.data as Awaited<ReturnType<AdminService['statsRaw']>>;
+    }
+    const data = await this.statsRaw();
+    statsCache = { at: Date.now(), data };
+    return data;
+  }
+
+  private async statsRaw() {
     const [counts, revenue, users, products, recent] = await Promise.all([
       this.prisma.order.groupBy({
         by: ['status'],

@@ -65,15 +65,60 @@ function toDto(row: {
   };
 }
 
+export type ProductQuery = {
+  q?: string;
+  collection?: string;
+  sort?: 'featured' | 'price-asc' | 'price-desc' | 'newest';
+  page?: number;
+  limit?: number;
+};
+
+const MAX_LIMIT = 50;
+
 @Injectable()
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(): Promise<ProductDto[]> {
-    const rows = await this.prisma.product.findMany({
-      orderBy: { priceUsd: 'desc' },
-    });
-    return rows.map(toDto);
+  async list(query: ProductQuery): Promise<{
+    items: ProductDto[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const q = (query.q ?? '').trim();
+    const collection = (query.collection ?? '').trim();
+    const sort = query.sort ?? 'featured';
+    const limit = Math.min(
+      MAX_LIMIT,
+      Math.max(1, Math.floor(Number(query.limit) || 12)),
+    );
+    const page = Math.max(1, Math.floor(Number(query.page) || 1));
+    const where: Record<string, unknown> = {};
+    if (collection) where.collection = collection;
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { reference: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    const orderBy =
+      sort === 'price-asc'
+        ? { priceUsd: 'asc' as const }
+        : sort === 'price-desc'
+          ? { priceUsd: 'desc' as const }
+          : sort === 'newest'
+            ? { createdAt: 'desc' as const }
+            : { priceUsd: 'desc' as const };
+    const [rows, total] = await Promise.all([
+      this.prisma.product.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+    return { items: rows.map(toDto), total, page, limit };
   }
 
   async bySlug(slug: string): Promise<ProductDto> {

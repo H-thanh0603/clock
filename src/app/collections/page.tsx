@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { formatUsd, formatVnd, type Product } from "@/data/products";
 import { apiUrl } from "@/lib/api-client";
@@ -63,17 +64,43 @@ export default function Page() {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 9;
+
+  // Debounce ô tìm kiếm 400ms.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQ(q.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [q]);
 
   useEffect(() => {
     let alive = true;
-    fetch(apiUrl("/products"))
+    setLoading(true);
+    setLoadError(false);
+    // Sort "complications" chỉ có ở client → xin featured rồi sort tay.
+    const serverSort =
+      sort === "complications" ? "featured" : sort;
+    const qs = new URLSearchParams({
+      sort: serverSort,
+      page: String(page),
+      limit: String(LIMIT),
+    });
+    if (debouncedQ) qs.set("q", debouncedQ);
+    fetch(apiUrl(`/products?${qs.toString()}`))
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((data: Product[]) => {
+      .then((data: { items: Product[]; total: number }) => {
         if (alive) {
-          setItems(data);
+          setItems(data.items);
+          setTotal(data.total);
           setLoading(false);
         }
       })
@@ -86,7 +113,7 @@ export default function Page() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [debouncedQ, sort, page]);
 
   const toggleMov = (id: string) =>
     setMov((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -98,6 +125,8 @@ export default function Page() {
     setSize("");
     setComp([]);
     setSort("featured");
+    setQ("");
+    setPage(1);
   };
 
   const filtered = useMemo(() => {
@@ -107,19 +136,14 @@ export default function Page() {
     if (size) list = list.filter((p) => SIZE_MATCH[size](p.diameterMm));
     if (comp.length)
       list = list.filter((p) => comp.some((c) => COMPLICATION_MATCH[c](p)));
-    switch (sort) {
-      case "price-desc":
-        list.sort((a, b) => b.priceUsd - a.priceUsd);
-        break;
-      case "price-asc":
-        list.sort((a, b) => a.priceUsd - b.priceUsd);
-        break;
-      case "complications":
-        list.sort((a, b) => b.complications.length - a.complications.length);
-        break;
+    // Sort server đã lo (trừ complications sort tay ở đây).
+    if (sort === "complications") {
+      list.sort((a, b) => b.complications.length - a.complications.length);
     }
     return list;
   }, [items, mov, mat, size, comp, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(total / LIMIT));
 
   const activeCount = mov.length + (mat ? 1 : 0) + (size ? 1 : 0) + comp.length;
 
@@ -178,15 +202,25 @@ export default function Page() {
 {activeCount > 0 && (<span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[10px] font-bold flex items-center justify-center">{activeCount}</span>)}
 </button>
 <span className="font-label-spec text-label-spec tracking-widest uppercase text-on-surface-variant hidden md:inline">
-          Hiển Thị: <span className="text-primary font-bold">{filtered.length}</span> / {items.length} Kiệt Tác
+          Hiển Thị: <span className="text-primary font-bold">{filtered.length}</span> / {total} Kiệt Tác
         </span>
 </div>
 <div className="flex items-center gap-space-lg">
+{/* Search */}
+<div className="relative hidden md:block">
+<span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
+<input
+  value={q}
+  onChange={(e) => setQ(e.target.value)}
+  placeholder="Tìm tên / reference..."
+  className="bg-surface-container pl-10 pr-4 py-space-xs rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-primary w-56"
+/>
+</div>
 {/* Sort Control */}
 <div className="flex items-center gap-space-xs">
 <span className="font-label-spec text-label-spec uppercase tracking-widest text-on-surface-variant hidden sm:inline">Sắp Xếp:</span>
 <div className="relative">
-<select value={sort} onChange={(e) => setSort(e.target.value)} className="appearance-none bg-surface-container px-space-md py-space-xs pr-8 rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer uppercase font-label-spec text-[12px] tracking-wider">
+<select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} className="appearance-none bg-surface-container px-space-md py-space-xs pr-8 rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer uppercase font-label-spec text-[12px] tracking-wider">
 <option value="featured">Mới Ra Mắt (Genève 2025)</option>
 <option value="price-desc">Giá Trị Cao Nhất (Giá Giảm Dần)</option>
 <option value="complications">Độ Phức Tạp Bộ Máy (Complication Tier)</option>
@@ -380,8 +414,15 @@ export default function Page() {
                     {p.badges[1] && (<span className="px-2 py-0.5 bg-primary-container text-on-primary font-label-badge text-[9px] uppercase tracking-widest rounded font-bold">{p.badges[1]}</span>)}
                   </div>
                   <WishBtn slug={p.slug} />
-                  <Link href={`/products/${p.slug}`} className="w-full h-full flex items-center justify-center">
-                    <img className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-500" data-alt={p.shortDescription} src={p.cardImage}/>
+                  <Link href={`/products/${p.slug}`} className="relative block h-full w-full">
+                    <Image
+                      className="object-contain transition-transform duration-500 group-hover:scale-105"
+                      alt={p.name}
+                      src={p.cardImage}
+                      fill
+                      sizes="(max-width: 768px) 50vw, 33vw"
+                      loading="lazy"
+                    />
                   </Link>
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-surface-container-high/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-label-badge text-on-surface-variant uppercase tracking-wider">Dây:</span>
@@ -422,17 +463,22 @@ export default function Page() {
 {/* Curatorial Pagination */}
 <div className="mt-space-3xl pt-space-xl flex flex-col sm:flex-row items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl">
 <div className="font-body-sm text-body-sm text-on-surface-variant">
-            Đang hiển thị <span className="text-on-surface font-semibold">{filtered.length === 0 ? 0 : 1} — {filtered.length}</span> trong số <span className="text-primary font-semibold">{items.length}</span> kiệt tác tuyển chọn
+            Đang hiển thị <span className="text-on-surface font-semibold">{filtered.length === 0 ? 0 : (page - 1) * LIMIT + 1} — {(page - 1) * LIMIT + filtered.length}</span> trong số <span className="text-primary font-semibold">{total}</span> kiệt tác tuyển chọn
           </div>
 <nav className="flex items-center gap-space-xs">
-<button aria-label="Previous Page" className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors disabled:opacity-40" disabled>
+<button aria-label="Previous Page" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors disabled:opacity-40">
 <span className="material-symbols-outlined text-[18px]">chevron_left</span>
 </button>
-<button className="w-9 h-9 rounded bg-primary text-on-primary font-label-spec text-label-spec font-bold flex items-center justify-center">1</button>
-<button className="w-9 h-9 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-label-spec text-label-spec flex items-center justify-center transition-colors">2</button>
-<button className="w-9 h-9 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-label-spec text-label-spec flex items-center justify-center transition-colors">3</button>
-<button className="w-9 h-9 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-label-spec text-label-spec flex items-center justify-center transition-colors">4</button>
-<button aria-label="Next Page" className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors">
+{Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+  <button
+    key={n}
+    onClick={() => setPage(n)}
+    className={`w-9 h-9 rounded font-label-spec text-label-spec flex items-center justify-center ${n === page ? "bg-primary text-on-primary font-bold" : "bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors"}`}
+  >
+    {n}
+  </button>
+))}
+<button aria-label="Next Page" onClick={() => setPage((p) => Math.min(pageCount, p + 1))} disabled={page >= pageCount} className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors disabled:opacity-40">
 <span className="material-symbols-outlined text-[18px]">chevron_right</span>
 </button>
 </nav>

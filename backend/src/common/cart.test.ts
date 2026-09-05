@@ -175,6 +175,28 @@ describe("cart service — mergeGuestCart", () => {
     expect(s.rows[0].priceUsd).toBe(1700);
     expect(s.rows[0].priceVnd).toBe(BigInt(1700 * USD_TO_VND));
   });
+
+  it("merge dùng upsertMany 1 roundtrip khi storage hỗ trợ", async () => {
+    const batched: unknown[][] = [];
+    const storage = {
+      ...s,
+      upsertMany: async (_uid: string, lines: unknown[]) => {
+        batched.push(lines);
+        for (const l of lines as { key: { productSlug: string; strap: string }; data: { create: CartRow; incrementQty: number } }[]) {
+          await s.upsert(_uid, l.key, l.data);
+        }
+      },
+    };
+    const out = await mergeGuestCart(storage, UID, [
+      { slug: "a", name: "A", priceUsd: 100 },
+      { slug: "b", name: "B", priceUsd: 200 },
+      { slug: "", name: "" },
+    ]);
+    expect(batched).toHaveLength(1);
+    expect(batched[0]).toHaveLength(2);
+    if (!out.ok) throw new Error("merge phải ok");
+    expect(out.items).toHaveLength(2);
+  });
 });
 
 describe("toClientItem", () => {

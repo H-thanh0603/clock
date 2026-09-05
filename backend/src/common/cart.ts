@@ -53,6 +53,20 @@ export interface CartStorage {
       incrementQty: number;
     },
   ): Promise<void>;
+  /** Gộp nhiều dòng trong 1 transaction (nếu storage hỗ trợ). */
+  upsertMany?(
+    userId: string,
+    lines: {
+      key: { productSlug: string; strap: string };
+      data: {
+        create: Omit<CartRow, 'productSlug' | 'strap'> & {
+          productSlug: string;
+          strap: string;
+        };
+        incrementQty: number;
+      };
+    }[],
+  ): Promise<void>;
   updateQty(
     userId: string,
     key: { productSlug: string; strap: string },
@@ -203,22 +217,21 @@ export async function mergeGuestCart(
   rawItems: unknown,
 ): Promise<CartOutcome> {
   const items = Array.isArray(rawItems) ? rawItems.slice(0, 50) : [];
+  const batch: Parameters<NonNullable<CartStorage['upsertMany']>>[1] = [];
   for (const raw of items) {
     const line = normalizeLine(
       (raw ?? {}) as Parameters<typeof normalizeLine>[0],
     );
     if (!line.ok) continue;
-    await storage.upsert(
-      userId,
-      {
-        productSlug: line.row.productSlug,
-        strap: line.row.strap,
-      },
-      {
-        create: line.row,
-        incrementQty: line.row.qty,
-      },
-    );
+    batch.push({
+      key: { productSlug: line.row.productSlug, strap: line.row.strap },
+      data: { create: line.row, incrementQty: line.row.qty },
+    });
+  }
+  // 1 roundtrip duy nhất nếu storage hỗ trợ batch, ngược lại vẫn đúng.
+  if (batch.length > 0) {
+    if (storage.upsertMany) await storage.upsertMany(userId, batch);
+    else for (const l of batch) await storage.upsert(userId, l.key, l.data);
   }
   return { ok: true, items: await listItems(storage, userId) };
 }
