@@ -25,8 +25,9 @@ docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
 docker compose -f docker-compose.prod.yml exec backend npm run seed
 ```
 
-`npm run seed` tạo admin `admin@aurel.local / Admin123!` — **đăng nhập và
-đổi mật khẩu ngay**, sau đó xóa dòng creds này khỏi đầu (không để lại).
+`npm run seed` tạo admin từ `ADMIN_EMAIL`/`ADMIN_PASSWORD` trong `.env.prod`
+— **không đặt 2 biến này thì seed từ chối chạy ở production** (guard chống
+mật khẩu mặc định). Đăng nhập và đổi mật khẩu ngay sau khi tạo.
 
 Kiểm tra: `https://<DOMAIN>/health` (qua `/backend`? trực tiếp backend không
 public — check log `docker compose ... logs backend`), trang chủ 200,
@@ -35,7 +36,9 @@ public — check log `docker compose ... logs backend`), trang chủ 200,
 ## 4. VNPay production
 
 1. Lấy `VNPAY_TMN_CODE` + `VNPAY_HASH_SECRET` production ở merchant portal,
-   điền vào `.env.prod`, `up -d` lại backend.
+   điền vào `.env.prod`, **đặt `VNPAY_ENV=production`** (đổi sang cổng thật;
+   thiếu TMN code khi ở chế độ production thì backend throw, không lén
+   chạy sandbox), `up -d` lại backend.
 2. Trong portal VNPay, đăng ký:
    - Return URL: `https://<DOMAIN>/backend/payments/vnpay/return`
    - IPN URL: `https://<DOMAIN>/backend/payments/vnpay/ipn`
@@ -50,10 +53,14 @@ public — check log `docker compose ... logs backend`), trang chủ 200,
 
 ## 5. Backup
 
-Cron trên VPS (2h sáng mỗi ngày, giữ 14 bản):
+Stack prod có sẵn service `db-backup` chạy sẵn trong compose (không cần
+crontab VPS): pg_dump mỗi sáng 02:00, giữ 14 bản (`BACKUP_KEEP`), file nằm
+ở `./backups/` trên host. Xem log: `docker compose ... logs db-backup`.
+
+Tùy chọn thêm cron rsync nếu vẫn muốn nhân bản ra chỗ khác:
 
 ```cron
-0 2 * * * cd /opt/clock && ./scripts/backup-db.sh "-f docker-compose.prod.yml --env-file .env.prod" 14 >> /var/log/aurel-backup.log 2>&1
+0 3 * * * rsync -a /opt/clock/backups/ backup-host:/srv/aurel-backups/
 ```
 
 Đồng bộ `backups/` ra chỗ khác (rsync/S3) — backup cùng ổ đĩa với DB thì
@@ -74,3 +81,19 @@ mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
   (qua container) mỗi 5 phút, báo Telegram khi down.
 - `docker compose -f docker-compose.prod.yml logs -f backend` khi tra sự cố.
 - Sentry (optional): gắn DSN vào cả FE/BE để bắt lỗi runtime của khách.
+
+## 7. Các dịch vụ tùy chọn (đều có fallback an toàn khi bỏ trống)
+
+- **Ảnh upload**: điền `S3_*` trong `.env.prod` để lưu ảnh lên S3/R2/MinIO;
+  bỏ trống = lưu disk volume `uploads/` (vẫn an toàn vì có volume mount).
+- **Thông báo**: `TELEGRAM_*` (admin nhận đơn mới/paid ngay lập tức) và
+  `SMTP_*` (email xác nhận cho khách) — nên bật ít nhất Telegram.
+- **Hóa đơn điện tử**: mỗi đơn PAID tự sinh record Invoice. Đủ `EINVOICE_*`
+  thì backend tự phát hành qua API nhà cung cấp; không thì invoice ở trạng
+  thái PENDING_ISSUE để kế toán phát hành qua portal và đối chiếu bằng
+  `externalRef`/số hóa đơn.
+- **Form đặt hẹn / bespoke**: lưu table `Inquiry`, xem ở
+  `GET /inquiries` (admin token) — concierge xử lý theo trạng thái
+  NEW → CONTACTED → CLOSED.
+- **Uptime monitor ngoài**: trỏ 1 dịch vụ (UptimeRobot...) vào
+  `https://<DOMAIN>/backend/health` mỗi 5 phút — cảnh báo khi backend/DB xuống.
