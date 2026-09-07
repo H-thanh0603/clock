@@ -72,14 +72,20 @@ describe("verifyReturn", () => {
 });
 
 describe("vnpayEnv", () => {
+  // process.env.X = undefined lưu thành chuỗi "undefined" (truthy) —
+  // phải delete key khi giá trị gốc chưa tồn tại.
+  const restore = (key: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  };
   const prevEnv = process.env.VNPAY_ENV;
   const prevUrl = process.env.VNPAY_URL;
   const prevTmnEnv = process.env.VNPAY_TMN_CODE;
 
   afterEach(() => {
-    process.env.VNPAY_ENV = prevEnv;
-    process.env.VNPAY_URL = prevUrl;
-    process.env.VNPAY_TMN_CODE = prevTmnEnv;
+    restore("VNPAY_ENV", prevEnv);
+    restore("VNPAY_URL", prevUrl);
+    restore("VNPAY_TMN_CODE", prevTmnEnv);
   });
 
   it("trả về URL sandbox mặc định khi không config", () => {
@@ -87,9 +93,9 @@ describe("vnpayEnv", () => {
     expect(env.url).toContain("sandbox.vnpayment.vn");
   });
 
-  it("VNPAY_ENV=production → URL cổng thật, bỏ qua VNPAY_URL", () => {
+  it("VNPAY_ENV=production → fallback cổng thật, bỏ qua VNPAY_URL sandbox", () => {
     process.env.VNPAY_ENV = "production";
-    process.env.VNPAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    delete process.env.VNPAY_URL;
     process.env.VNPAY_TMN_CODE = "AUREL01";
     const env = vnpayEnv();
     expect(env.url).toContain("vnpayment.vn/paymentv2");
@@ -101,15 +107,31 @@ describe("vnpayEnv", () => {
     delete process.env.VNPAY_TMN_CODE;
     expect(() => vnpayEnv()).toThrow("VNPAY_TMN_CODE");
   });
+
+  it("VNPAY_ENV rỗng → fallback sandbox, không dính state production", () => {
+    process.env.VNPAY_ENV = "";
+    process.env.VNPAY_TMN_CODE = "TMN01";
+    delete process.env.VNPAY_URL;
+    const env = vnpayEnv();
+    expect(env.url).toContain("sandbox.vnpayment.vn");
+  });
 });
 
 describe("buildPayUrl", () => {
+  const restore = (key: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  };
   const prevTmn = process.env.VNPAY_TMN_CODE;
   const prevSecret = process.env.VNPAY_HASH_SECRET;
+  const prevEnv = process.env.VNPAY_ENV;
+  const prevUrl = process.env.VNPAY_URL;
 
   afterEach(() => {
-    process.env.VNPAY_TMN_CODE = prevTmn;
-    process.env.VNPAY_HASH_SECRET = prevSecret;
+    restore("VNPAY_TMN_CODE", prevTmn);
+    restore("VNPAY_HASH_SECRET", prevSecret);
+    restore("VNPAY_ENV", prevEnv);
+    restore("VNPAY_URL", prevUrl);
   });
 
   it("dựng đúng amount = vnd × 100 và đủ params bắt buộc", () => {

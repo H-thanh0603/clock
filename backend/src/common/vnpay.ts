@@ -9,14 +9,14 @@ const VNP_LOCALE = "vn";
 export function vnpayEnv() {
   const tmnCode = process.env.VNPAY_TMN_CODE ?? "";
   const hashSecret = process.env.VNPAY_HASH_SECRET ?? "";
-  // VNPAY_ENV=production → dùng cổng thật (bỏ qua VNPAY_URL), bắt buộc có
-  // TMN code + hash secret; thiếu thì build URL sẽ throw thay vì lén chạy
-  // sandbox với tiền thật.
+  // VNPAY_ENV=production → fallback cổng thật, bắt buộc có TMN code;
+  // thiếu thì build URL sẽ throw thay vì lén chạy sandbox với tiền thật.
+  // VNPAY_URL (nếu set) vẫn override trong mọi môi trường.
   const isProd = process.env.VNPAY_ENV === "production";
-  const url = isProd
+  const fallback = isProd
     ? "https://vnpayment.vn/paymentv2/vpcpay.html"
-    : process.env.VNPAY_URL ??
-      "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    : "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+  const url = process.env.VNPAY_URL?.trim() || fallback;
   if (isProd && !tmnCode) {
     throw new Error(
       "VNPAY_ENV=production nhưng thiếu VNPAY_TMN_CODE — không thể tạo URL thanh toán."
