@@ -14,7 +14,7 @@
     "emitDecoratorMetadata": true,
     "outDir": "dist",
     "baseUrl": ".",
-    "types": ["node"]
+    "types": ["node", "multer"]
   },
   "include": ["src/**/*", "prisma/seed.ts", "prisma.config.ts"]
 }
