@@ -72,9 +72,34 @@ describe("verifyReturn", () => {
 });
 
 describe("vnpayEnv", () => {
+  const prevEnv = process.env.VNPAY_ENV;
+  const prevUrl = process.env.VNPAY_URL;
+  const prevTmnEnv = process.env.VNPAY_TMN_CODE;
+
+  afterEach(() => {
+    process.env.VNPAY_ENV = prevEnv;
+    process.env.VNPAY_URL = prevUrl;
+    process.env.VNPAY_TMN_CODE = prevTmnEnv;
+  });
+
   it("trả về URL sandbox mặc định khi không config", () => {
     const env = vnpayEnv();
     expect(env.url).toContain("sandbox.vnpayment.vn");
+  });
+
+  it("VNPAY_ENV=production → URL cổng thật, bỏ qua VNPAY_URL", () => {
+    process.env.VNPAY_ENV = "production";
+    process.env.VNPAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    process.env.VNPAY_TMN_CODE = "AUREL01";
+    const env = vnpayEnv();
+    expect(env.url).toContain("vnpayment.vn/paymentv2");
+    expect(env.url).not.toContain("sandbox");
+  });
+
+  it("VNPAY_ENV=production thiếu TMN code → throw, không lén chạy sandbox", () => {
+    process.env.VNPAY_ENV = "production";
+    delete process.env.VNPAY_TMN_CODE;
+    expect(() => vnpayEnv()).toThrow("VNPAY_TMN_CODE");
   });
 });
 
