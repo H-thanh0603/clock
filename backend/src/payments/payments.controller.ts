@@ -14,6 +14,22 @@ import { PaymentsService } from './payments.service';
 import { OptionalSessionGuard } from '../common/guards';
 import { CurrentUser } from '../common/current-user.decorator';
 import type { SessionUser } from '../common/session';
+import { simulatedMethodsEnabled } from '../orders/orders.service';
+
+const ALL_METHODS = ['centurion', 'escrow', 'deposit', 'vnpay', 'cod'] as const;
+
+/** FE checkout gọi để biết method thanh toán nào đang được phép. */
+@Controller('payments')
+export class PaymentsMethodsController {
+  @Get('methods')
+  methods() {
+    const enabled = simulatedMethodsEnabled();
+    const methods = (ALL_METHODS as readonly string[]).filter(
+      (m) => m === 'vnpay' || enabled,
+    );
+    return { methods };
+  }
+}
 
 @Controller('payments/vnpay')
 export class PaymentsController {

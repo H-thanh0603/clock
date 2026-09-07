@@ -148,6 +148,42 @@ describe('OrdersService.create', () => {
     expect(r.paidUsd).toBe(0);
   });
 
+  it('production chặn method mô phỏng (PAY-001), vnpay vẫn chạy', async () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    const prevFlag = process.env.ENABLE_SIMULATED_METHODS;
+    process.env.NODE_ENV = 'production';
+    process.env.ENABLE_SIMULATED_METHODS = '1'; // cố bật → vẫn phải bị chặn
+    const { prisma } = makePrisma();
+    const svc = new OrdersService(prisma, notifyStub);
+    await expect(
+      svc.create({ ...BASE_ORDER, payment: { method: 'centurion' } }, null),
+    ).rejects.toThrow(/demo/i);
+    await expect(
+      svc.create({ ...BASE_ORDER, payment: { method: 'cod' } }, null),
+    ).rejects.toThrow(/demo/i);
+    // VNPay không bị ảnh hưởng.
+    const r = await svc.create(
+      { ...BASE_ORDER, payment: { method: 'vnpay' } },
+      null,
+    );
+    expect(r.status).toBe('PENDING');
+    process.env.NODE_ENV = prevNodeEnv;
+    if (prevFlag === undefined) delete process.env.ENABLE_SIMULATED_METHODS;
+    else process.env.ENABLE_SIMULATED_METHODS = prevFlag;
+  });
+
+  it('dev set =0 → tắt tường minh, chặn cả cod', async () => {
+    const prevFlag = process.env.ENABLE_SIMULATED_METHODS;
+    process.env.ENABLE_SIMULATED_METHODS = '0';
+    const { prisma } = makePrisma();
+    const svc = new OrdersService(prisma, notifyStub);
+    await expect(
+      svc.create({ ...BASE_ORDER, payment: { method: 'cod' } }, null),
+    ).rejects.toThrow(/demo/i);
+    if (prevFlag === undefined) delete process.env.ENABLE_SIMULATED_METHODS;
+    else process.env.ENABLE_SIMULATED_METHODS = prevFlag;
+  });
+
   it('cancel PENDING của chính chủ → CANCELLED + hoàn kho', async () => {
     const stock = new Map([['vip-1', 0]]);
     const events: unknown[] = [];

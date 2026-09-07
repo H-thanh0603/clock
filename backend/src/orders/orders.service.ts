@@ -9,6 +9,17 @@ import { NotifyService } from '../notify/notify.service';
 import { linePrice } from '../common/pricing';
 
 const METHODS = ['centurion', 'escrow', 'deposit', 'vnpay', 'cod'] as const;
+// Method mô phỏng (giả lập thu tiền, không có rails thật). Ở production
+// bắt buộc tắt — bật thì đơn tự CONFIRMED + ghi payment SUCCESS mà không
+// một đồng nào được thu (audit PAY-001).
+const SIMULATED_METHODS = ['centurion', 'escrow', 'deposit', 'cod'] as const;
+
+export function simulatedMethodsEnabled(): boolean {
+  // Mặc định: bật ở dev/demo, TẮT ở production (fail-closed với tiền thật).
+  // Set ENABLE_SIMULATED_METHODS=0 để tắt ở dev; =1 không bật được ở prod.
+  if (process.env.NODE_ENV === 'production') return false;
+  return process.env.ENABLE_SIMULATED_METHODS !== '0';
+}
 
 function orderCode() {
   return `AC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -63,13 +74,20 @@ export class OrdersService {
     const contact = String(input.contact ?? '').trim();
     const address = String(input.address ?? '').trim();
     const slot = input.slot ? String(input.slot) : null;
-    const method = String(input.payment?.method ?? 'centurion');
+    const method = String(input.payment?.method ?? 'vnpay');
     const items = Array.isArray(input.items) ? input.items.slice(0, 50) : [];
 
     if (!customerName || !contact || !address)
       throw new BadRequestException('Thiếu tên, liên lạc hoặc địa chỉ');
     if (!(METHODS as readonly string[]).includes(method))
       throw new BadRequestException('Phương thức thanh toán không hợp lệ');
+    if (
+      (SIMULATED_METHODS as readonly string[]).includes(method) &&
+      !simulatedMethodsEnabled()
+    )
+      throw new BadRequestException(
+        'Phương thức thanh toán này chỉ khả dụng ở môi trường demo — vui lòng chọn VNPay',
+      );
     if (items.length === 0)
       throw new BadRequestException('Giỏ hàng trống');
 

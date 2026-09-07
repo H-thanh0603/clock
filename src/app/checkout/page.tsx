@@ -2,9 +2,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
-import { csrfFetch } from "@/lib/api-client";
+import { apiUrl, csrfFetch } from "@/lib/api-client";
 import VaultItemCard from "@/components/VaultItemCard";
 import { formatUsd, formatVnd } from "@/data/products";
 
@@ -23,8 +23,9 @@ export default function Page() {
     remainingUsd: number;
   } | null>(null);
   const [orderError, setOrderError] = useState("");
-  const [pay, setPay] = useState("centurion");
+  const [pay, setPay] = useState("vnpay");
   const [processing, setProcessing] = useState<string | null>(null);
+  const [allowedMethods, setAllowedMethods] = useState<string[]>(["vnpay"]);
 
   const PAY_LABELS: Record<string, string> = {
     centurion: "Centurion Black Card / Visa Infinite",
@@ -32,6 +33,18 @@ export default function Page() {
     deposit: "Đặt cọc 20%",
     vnpay: "VNPay",
   };
+
+  // Backend quyết định method nào được phép (prod chỉ còn VNPay).
+  useEffect(() => {
+    fetch(apiUrl("/payments/methods"))
+      .then((r) => r.json())
+      .then((d: { methods?: string[] }) => {
+        const methods = Array.isArray(d.methods) && d.methods.length ? d.methods : ["vnpay"];
+        setAllowedMethods(methods);
+        setPay((cur) => (methods.includes(cur) ? cur : methods[0]));
+      })
+      .catch(() => setAllowedMethods(["vnpay"]));
+  }, []);
   const chargeNow = pay === "deposit" ? deposit : totalUsd;
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -448,6 +461,7 @@ export default function Page() {
               Phương Thức Thanh Toán Đặc Quyền
             </h4>
 {/* Option A: Centurion Black Card / Visa Infinite */}
+{allowedMethods.includes("centurion") && (
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input checked={pay === "centurion"} onChange={() => setPay("centurion")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="centurion"/>
 <div className="flex flex-col">
@@ -457,7 +471,9 @@ export default function Page() {
 <span className="text-xs text-on-surface-variant/70">Mã hóa chuẩn PCI-DSS Level 1</span>
 </div>
 </label>
+)}
 {/* Option B: Escrow Wire Transfer */}
+{allowedMethods.includes("escrow") && (
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input checked={pay === "escrow"} onChange={() => setPay("escrow")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="escrow"/>
 <div className="flex flex-col">
@@ -465,7 +481,9 @@ export default function Page() {
 <span className="text-xs text-on-surface-variant/70">Ký quỹ an toàn tại Credit Suisse Genève</span>
 </div>
 </label>
+)}
 {/* Option C: 20% Deposit & 80% on Delivery */}
+{allowedMethods.includes("deposit") && (
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input checked={pay === "deposit"} onChange={() => setPay("deposit")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="deposit"/>
 <div className="flex flex-col">
@@ -473,6 +491,7 @@ export default function Page() {
 <span className="text-xs text-on-surface-variant/70">Quyết toán 80% còn lại khi diện kiến thử đồng hồ</span>
 </div>
 </label>
+)}
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input checked={pay === "vnpay"} onChange={() => setPay("vnpay")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="vnpay"/>
 <div className="flex flex-col">
