@@ -314,11 +314,17 @@ export class OrdersService {
     if (!owned) throw new ForbiddenException('Không có quyền hủy đơn này');
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.order.update({
-        where: { id: orderId },
+      // Update ĐIỀU KIỆN: chỉ thắng khi đơn vẫn PENDING — hai lần hủy
+      // song song thì bên thua nhận count=0, không hoàn kho lần 2 (ORD-001).
+      const won = await tx.order.updateMany({
+        where: { id: orderId, status: 'PENDING' },
         data: { status: 'CANCELLED' },
       });
-      // Hoàn kho các dòng có product thật.
+      if (won.count === 0)
+        throw new BadRequestException(
+          'Đơn đã được xử lý trước đó, vui lòng tải lại trang',
+        );
+      // Hoàn kho các dòng có product thật — chỉ người thắng race mới đến đây.
       for (const l of order.items) {
         if (!l.productSlug) continue;
         await tx.product.updateMany({

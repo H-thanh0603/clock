@@ -58,31 +58,50 @@ export class AdminService {
     };
     const current = await this.prisma.order.findUnique({
       where: { id },
-      select: { status: true },
+      include: { items: true },
     });
     if (!current) throw new NotFoundException('Không thấy đơn hàng');
     if (!allowed[current.status].includes(status))
       throw new BadRequestException(
         `Không thể chuyển từ ${current.status} sang ${status}`,
       );
-    const [order] = await this.prisma.$transaction([
-      this.prisma.order.update({
-        where: { id },
+    const from = current.status;
+    const order = await this.prisma.$transaction(async (tx) => {
+      // Conditional update: hai admin đua nhau đổi trạng thái thì bên thua
+      // nhận count=0 → 400, không ghi đè last-write-wins (audit ORD-001).
+      const won = await tx.order.updateMany({
+        where: { id, status: from },
         data: { status: status as (typeof STATUSES)[number] },
-      }),
-      this.prisma.orderEvent.create({
+      });
+      if (won.count === 0)
+        throw new BadRequestException(
+          'Đơn vừa được người khác cập nhật, vui lòng tải lại',
+        );
+      // Hủy đơn chưa chốt → hoàn tồn kho (trước đây chỉ khách hủy mới hoàn,
+      // admin hủy làm hàng "bốc hơi" — audit ORD-001).
+      if (status === 'CANCELLED' && (from === 'PENDING' || from === 'CONFIRMED')) {
+        for (const l of current.items) {
+          if (!l.productSlug) continue;
+          await tx.product.updateMany({
+            where: { slug: l.productSlug },
+            data: { stock: { increment: l.qty } },
+          });
+        }
+      }
+      await tx.orderEvent.create({
         data: {
           orderId: id,
-          from: current.status,
+          from,
           to: status as (typeof STATUSES)[number],
           byUserId: byUserId ?? null,
           note: 'Admin cập nhật',
         },
-      }),
-    ]);
+      });
+      return tx.order.findUnique({ where: { id } });
+    });
     // Vô hiệu cache dashboard vì số liệu đã đổi.
     statsCache = null;
-    return { id: order.id, status: order.status };
+    return { id: order!.id, status: order!.status };
   }
 
   /** Số liệu tổng quan cho dashboard (cache 60s). */

@@ -184,7 +184,7 @@ describe('OrdersService.create', () => {
     else process.env.ENABLE_SIMULATED_METHODS = prevFlag;
   });
 
-  it('cancel PENDING của chính chủ → CANCELLED + hoàn kho', async () => {
+  it('cancel PENDING của chính chủ → CANCELLED + hoàn kho (đúng 1 lần)', async () => {
     const stock = new Map([['vip-1', 0]]);
     const events: unknown[] = [];
     const order = {
@@ -197,7 +197,9 @@ describe('OrdersService.create', () => {
     const prisma = {
       order: {
         findUnique: () => Promise.resolve(order),
-        update: () => Promise.resolve({}),
+        // Conditional update: chỉ thắng khi đơn vẫn PENDING.
+        updateMany: ({ where }: { where: { status: string } }) =>
+          Promise.resolve(where.status === 'PENDING' ? { count: 1 } : { count: 0 }),
       },
       product: {
         updateMany: ({ where }: { where: { slug: string } }) => {
@@ -213,7 +215,47 @@ describe('OrdersService.create', () => {
     expect(r.status).toBe('CANCELLED');
     expect(stock.get('vip-1')).toBe(1);
     expect(events).toHaveLength(1);
-    vi.clearAllMocks();
+  });
+
+  it('cancel hai lần song song → bên thua race KHÔNG hoàn kho lần 2 (ORD-001)', async () => {
+    const stock = new Map([['vip-1', 0]]);
+    // Mô phỏng race thật: cả 2 request đều ĐỌC thấy PENDING (findUnique chạy
+    // trước khi một bên kịp commit) — chỉ DB conditional update phân thắng.
+    const order = {
+      id: 'ord-9',
+      status: 'PENDING',
+      userId: 'u-1',
+      contact: '0900',
+      items: [{ productSlug: 'vip-1', qty: 1 }],
+    };
+    let dbStatus = 'PENDING';
+    const prisma = {
+      order: {
+        findUnique: () => Promise.resolve({ ...order, status: 'PENDING' }),
+        updateMany: ({ where }: { where: { status: string } }) => {
+          const win = dbStatus === where.status;
+          if (win) dbStatus = 'CANCELLED';
+          return Promise.resolve(win ? { count: 1 } : { count: 0 });
+        },
+      },
+      product: {
+        updateMany: ({ where }: { where: { slug: string } }) => {
+          stock.set(where.slug, (stock.get(where.slug) ?? 0) + 1);
+          return Promise.resolve({ count: 1 });
+        },
+      },
+      orderEvent: { create: () => Promise.resolve({}) },
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
+    };
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
+    // 2 request "cùng lúc": cả hai đã qua check PENDING ngoài tx.
+    const [r1, r2] = await Promise.allSettled([
+      svc.cancel('ord-9', { userId: 'u-1' }),
+      svc.cancel('ord-9', { userId: 'u-1' }),
+    ]);
+    const wins = [r1, r2].filter((r) => r.status === 'fulfilled').length;
+    expect(wins).toBe(1);
+    expect(stock.get('vip-1')).toBe(1);
   });
 
   it('cancel đơn đã CONFIRMED → 400', async () => {
