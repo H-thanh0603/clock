@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AdminGuard } from '../common/guards';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotifyService } from '../notify/notify.service';
@@ -19,6 +20,7 @@ export class InquiriesController {
   ) {}
 
   @Post()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async create(@Body() dto: CreateInquiryDto) {
     const type = TYPES.has(dto.type) ? dto.type : 'SALON';
     const inquiry = await this.prisma.inquiry.create({

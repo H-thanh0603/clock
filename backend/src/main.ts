@@ -26,10 +26,30 @@ async function bootstrap() {
     logger: isProd ? ['warn', 'error'] : undefined,
   });
   // Phục vụ ảnh upload (volume). Prod sau Caddy: /backend/uploads/*.
+  // Tên file có random hex nên nội dung bất biến → cache dài tối đa.
   app.useStaticAssets(process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads'), {
     prefix: '/uploads/',
+    maxAge: '365d',
+    immutable: true,
   });
   app.use(helmet());
+  // HSTS cho client sau khi Caddy lo TLS (chỉ prod; dev http sẽ tự bỏ qua).
+  if (isProd) {
+    app.use(
+      helmet({
+        strictTransportSecurity: {
+          maxAge: 31536000,
+          includeSubDomains: true,
+        },
+      }),
+    );
+  }
+  // API trả dữ liệu cá nhân (khách hàng, giỏ, đơn) — không cho proxy/browser cache.
+  app.use((req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
+    if (req.path.startsWith('/uploads/')) return next();
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
