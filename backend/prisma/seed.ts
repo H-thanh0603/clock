@@ -11,6 +11,13 @@ const prisma = new PrismaClient({
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@aurel.local";
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin123!";
+  // Production không được phép dùng mật khẩu seed mặc định — nếu quên set
+  // ADMIN_PASSWORD thì dừng seed thay vì tạo lỗ hổng ai cũng biết.
+  if (process.env.NODE_ENV === "production" && !process.env.ADMIN_PASSWORD) {
+    throw new Error(
+      "Seed từ chối chạy ở production: đặt ADMIN_PASSWORD (và ADMIN_EMAIL) trước khi `npm run seed`."
+    );
+  }
   await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
