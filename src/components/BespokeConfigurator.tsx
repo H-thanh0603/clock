@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import GoldButton from "@/components/GoldButton";
 import { useCurrency } from "@/components/CurrencyProvider";
+import { csrfFetch } from "@/lib/api-client";
 import { USD_TO_VND } from "@/lib/pricing";
 
 type Option = {
@@ -120,6 +121,9 @@ export default function BespokeConfigurator() {
   const [personal, setPersonal] = useState<Option>(personalizations[3]);
   const [initials, setInitials] = useState("");
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [contact, setContact] = useState({ name: "", phone: "", email: "" });
+  const [contactError, setContactError] = useState("");
 
   const totalUsd =
     movement.priceUsd + caseOpt.priceUsd + dial.priceUsd + personal.priceUsd;
@@ -133,8 +137,39 @@ export default function BespokeConfigurator() {
   ];
   const current = steps[step];
 
-  const submitInquiry = () => {
-    setSent(true);
+  const submitInquiry = async () => {
+    if (!contact.name.trim() || !contact.phone.trim()) {
+      setContactError("Vui lòng điền họ tên và số điện thoại để concierge liên hệ.");
+      return;
+    }
+    setContactError("");
+    setSending(true);
+    try {
+      const res = await csrfFetch("/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "BESPOKE",
+          name: contact.name,
+          phone: contact.phone,
+          email: contact.email || undefined,
+          message: initials || undefined,
+          payload: {
+            movement: movement.label,
+            case: caseOpt.label,
+            dial: dial.label,
+            personalization: personal.label,
+            estimatedUsd: totalUsd,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setSent(true);
+    } catch {
+      setContactError("Gửi thất bại — vui lòng thử lại hoặc gọi concierge.");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (sent) {
@@ -213,6 +248,38 @@ export default function BespokeConfigurator() {
             </div>
           )}
 
+          {step === 3 && (
+            <div className="mt-6 border border-outline-variant/30 bg-surface-container/40 p-5">
+              <span className="text-[10px] tracking-[0.25em] text-primary uppercase">
+                Thông Tin Liên Hệ Của Bạn
+              </span>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <input
+                  value={contact.name}
+                  onChange={(e) => setContact({ ...contact, name: e.target.value })}
+                  placeholder="Họ tên *"
+                  className="border border-outline-variant/40 bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 outline-none focus:border-primary"
+                />
+                <input
+                  value={contact.phone}
+                  onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+                  placeholder="Số điện thoại *"
+                  className="border border-outline-variant/40 bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 outline-none focus:border-primary"
+                />
+                <input
+                  value={contact.email}
+                  onChange={(e) => setContact({ ...contact, email: e.target.value })}
+                  placeholder="Email (không bắt buộc)"
+                  type="email"
+                  className="border border-outline-variant/40 bg-surface-lowest px-4 py-3 text-sm text-on-surface placeholder:text-on-surface-variant/40 outline-none focus:border-primary sm:col-span-2"
+                />
+              </div>
+              {contactError && (
+                <p className="mt-3 text-sm text-red-400">{contactError}</p>
+              )}
+            </div>
+          )}
+
           <div className="mt-8 flex justify-between">
             <GoldButton
               variant="secondary"
@@ -226,8 +293,8 @@ export default function BespokeConfigurator() {
                 Tiếp Tục
               </GoldButton>
             ) : (
-              <GoldButton onClick={submitInquiry} icon="send">
-                Gửi Đơn Đăng Ký
+              <GoldButton onClick={submitInquiry} icon="send" className={sending ? "pointer-events-none opacity-50" : ""}>
+                {sending ? "Đang Gửi..." : "Gửi Đơn Đăng Ký"}
               </GoldButton>
             )}
           </div>

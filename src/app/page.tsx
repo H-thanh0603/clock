@@ -1,3 +1,4 @@
+import SalonForm from "@/components/SalonForm";
 import Link from "next/link";
 
 export default function Home() {
@@ -422,51 +423,7 @@ export default function Home() {
 <h4 className="font-headline-sm text-headline-sm text-on-surface mt-1">Thỉnh Cầu Lịch Hẹn Riêng Tư</h4>
 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Concierge của chúng tôi sẽ liên hệ trong vòng 2 giờ làm việc để xác nhận khung giờ bảo mật.</p>
 </div>
-<form className="space-y-space-md" >
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-<div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant mb-space-2xs">Danh Xưng &amp; Họ Tên *</label>
-<input className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:bg-surface-bright transition-colors" placeholder="Ngài / Bà..." required type="text"/>
-</div>
-<div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant mb-space-2xs">Số Điện Thoại Bảo Mật *</label>
-<input className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:bg-surface-bright transition-colors" placeholder="+84 ..." required type="tel"/>
-</div>
-</div>
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
-<div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant mb-space-2xs">Địa Điểm Trải Nghiệm</label>
-<select className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-md text-on-surface focus:outline-none focus:bg-surface-bright transition-colors">
-<option>Private Salon Saigon (Quận 1)</option>
-<option>Private Salon Hanoi (Hoàn Kiếm)</option>
-<option>Atelier Genève (Thụy Sĩ)</option>
-<option>Phục Vụ Tận Biệt Thự / Tư Gia</option>
-</select>
-</div>
-<div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant mb-space-2xs">Tác Phẩm Quan Tâm</label>
-<select className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-md text-on-surface focus:outline-none focus:bg-surface-bright transition-colors">
-<option>Grand Complication Tourbillon</option>
-<option>Celestial Moonphase Obsidian</option>
-<option>Royal Chronograph Flyback</option>
-<option>Atelier Skeleton Pure Gold</option>
-<option>Bespoke Métiers d'Art Độc Bản</option>
-</select>
-</div>
-</div>
-<div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant mb-space-2xs">Ghi Chú Đặc Biệt (Rượu champagne, sở thích ẩm thực hoặc bảo mật)</label>
-<textarea className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:bg-surface-bright transition-colors resize-none" placeholder="Gợi ý thêm yêu cầu đón tiếp..." rows={2}></textarea>
-</div>
-<div className="flex items-center gap-space-xs text-on-surface-variant pt-1">
-<input className="w-4 h-4 rounded bg-surface-container-high accent-primary" id="privacy-check" required type="checkbox"/>
-<label className="font-body-sm text-[12px]" htmlFor="privacy-check">Tôi đồng ý với chính sách bảo mật tư gia &amp; quy chế danh sách khách mời Circle Privé.</label>
-</div>
-<button className="w-full py-4 rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-semibold hover:bg-secondary transition-colors shadow-lg flex items-center justify-center gap-space-sm" type="submit">
-<span className="material-symbols-outlined text-[18px]">verified_user</span>
-<span>Xác Nhận Đặt Lịch Tiếp Đón</span>
-</button>
-</form>
+<SalonForm/>
 </div>
 </div>
 </div>

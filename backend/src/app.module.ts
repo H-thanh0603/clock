@@ -13,6 +13,7 @@ import { OrdersModule } from './orders/orders.module';
 import { AdminModule } from './admin/admin.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WishlistModule } from './wishlist/wishlist.module';
+import { InquiriesModule } from './inquiries/inquiries.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     AdminModule,
     PaymentsModule,
     WishlistModule,
+    InquiriesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

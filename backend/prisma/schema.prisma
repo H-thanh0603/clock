@@ -178,3 +178,20 @@ model ProductEvent {
 
   @@index([slug, createdAt])
 }
+
+/// Form "Đặt lịch Private Salon" (trang chủ / atelier) và đơn đăng ký
+/// bespoke (configurator) — trước đây chỉ là mock frontend.
+model Inquiry {
+  id        String   @id @default(cuid())
+  type      String   /// "SALON" | "BESPOKE"
+  name      String
+  phone     String
+  email     String?
+  message   String?
+  /// JSON: lựa chọn configurator (movement/case/dial/personal) hoặc salon location
+  payload   Json?
+  status    String   @default("NEW") /// NEW | CONTACTED | CLOSED
+  createdAt DateTime @default(now())
+
+  @@index([type, status, createdAt])
+}
