@@ -195,3 +195,21 @@ model Inquiry {
 
   @@index([type, status, createdAt])
 }
+
+/// Hóa đơn điện tử cho đơn đã PAID — sinh khi VNPay confirm. `status`:
+/// PENDING_ISSUE (chưa gửi nhà cung cấp) | ISSUED (đã có số hóa đơn) | FAILED.
+/// `externalRef` = mã hóa đơn nhà cung cấp e-invoice (MISA, EasyInvoice...).
+model Invoice {
+  id          String   @id @default(cuid())
+  orderCode   String   @unique
+  number      String?  /// Số hóa đơn dạng AUR-YYYY-XXXXX sau khi phát hành
+  externalRef String?  /// Mã tham chiếu nhà cung cấp e-invoice
+  status      String   @default("PENDING_ISSUE")
+  amountVnd   Int
+  buyerName   String
+  buyerEmail String?
+  createdAt   DateTime @default(now())
+  issuedAt    DateTime?
+
+  @@index([status, createdAt])
+}

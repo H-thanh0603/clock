@@ -8,6 +8,7 @@ import { randomBytes } from 'crypto';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotifyService } from '../notify/notify.service';
+import { InvoiceService } from '../invoices/invoice.service';
 import {
   buildPayUrl,
   settlePayment,
@@ -30,6 +31,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notify: NotifyService,
+    private readonly invoices: InvoiceService,
   ) {}
 
   private settleDeps(): SettleDeps {
@@ -170,6 +172,13 @@ export class PaymentsService {
       const order = await this.prisma.order.findUnique({ where: { code } });
       if (order) {
         await this.notify.orderPaid(code, Number(order.totalVnd));
+        // Hóa đơn điện tử cho đơn đã thu tiền (idempotent, không chặn callback).
+        await this.invoices.ensureForOrder({
+          code: order.code,
+          totalVnd: Number(order.totalVnd),
+          customerName: order.customerName,
+          contact: order.contact,
+        });
       }
     } catch {
       // Thông báo không được làm hỏng callback thanh toán.
