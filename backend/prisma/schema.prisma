@@ -65,6 +65,10 @@ model Product {
   orderItems       OrderItem[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  // List catalog: filter theo bộ sưu tập + sort giá; sort newest (audit DB-001).
+  @@index([collection, priceUsd])
+  @@index([createdAt])
 }
 
 model Order {

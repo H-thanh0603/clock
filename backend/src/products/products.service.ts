@@ -42,8 +42,9 @@ function toDto(row: {
   complications: string[];
   inBoutique: boolean;
   stock: number;
-  specs: unknown;
-  narrative: string;
+  /** List projection không select 2 field này → nullish fallback. */
+  specs?: unknown;
+  narrative?: string;
 }): ProductDto {
   return {
     slug: row.slug,
@@ -63,8 +64,8 @@ function toDto(row: {
     complications: row.complications,
     inBoutique: row.inBoutique,
     stock: row.stock,
-    specs: (row.specs as { label: string; value: string }[]) ?? [],
-    narrative: row.narrative,
+    specs: (row.specs as { label: string; value: string }[] | undefined) ?? [],
+    narrative: row.narrative ?? '',
   };
 }
 
@@ -118,6 +119,27 @@ export class ProductsService {
         orderBy,
         skip: (page - 1) * limit,
         take: limit,
+        // List chỉ cần field card/grid — bỏ specs JSON + narrative Text
+        // nặng khỏi payload catalog (audit API-003). Detail lấy full ở bySlug.
+        select: {
+          slug: true,
+          name: true,
+          reference: true,
+          collection: true,
+          priceUsd: true,
+          priceVnd: true,
+          shortDescription: true,
+          badges: true,
+          strapLabel: true,
+          cardImage: true,
+          images: true,
+          calibre: true,
+          diameterMm: true,
+          caseMaterial: true,
+          complications: true,
+          inBoutique: true,
+          stock: true,
+        },
       }),
       this.prisma.product.count({ where }),
     ]);
