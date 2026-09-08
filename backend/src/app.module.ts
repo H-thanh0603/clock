@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { GuardsModule } from './common/guards.module';
 import { CsrfMiddleware } from './common/csrf.middleware';
@@ -19,6 +20,7 @@ import { InvoiceModule } from './invoices/invoice.module';
 @Module({
   imports: [
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 200 }]),
+    ScheduleModule.forRoot(),
     PrismaModule,
     GuardsModule,
     NotifyModule,

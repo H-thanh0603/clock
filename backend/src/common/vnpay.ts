@@ -113,6 +113,19 @@ export type SettleDeps = {
   updateOrder: (orderId: string, status: "PAID") => Promise<void>;
   /** Xóa giỏ DB của user sau khi VNPay success (giỏ local do client tự clear). */
   clearCart: (userId: string | null) => Promise<void>;
+  /**
+   * Optional: bọc updatePayment + updateOrder + clearCart trong MỘT DB
+   * transaction — crash giữa chừng không còn kẹt "payment SUCCESS nhưng
+   * order vẫn PENDING" (audit ORD-002). Truyền false = payment đã settle
+   * (thua race), bỏ qua phần còn lại.
+   */
+  settleAtomically?: (input: {
+    paymentId: string;
+    orderId: string;
+    userId: string | null;
+    paymentStatus: "SUCCESS" | "FAILED";
+    orderStatus: "PAID";
+  }) => Promise<boolean>;
 };
 
 export type SettleOutcome =
@@ -158,10 +171,32 @@ export async function settlePayment(
   }
 
   const success = params.vnp_ResponseCode === "00";
-  const updated = await deps.updatePayment(
-    payment.id,
-    success ? "SUCCESS" : "FAILED"
-  );
+  const paymentStatus = success ? "SUCCESS" : "FAILED";
+
+  // Đường atomic: một transaction cho cả payment + order (+ giỏ) — ORD-002.
+  if (deps.settleAtomically) {
+    const updated = await deps.settleAtomically({
+      paymentId: payment.id,
+      orderId: payment.orderId,
+      userId: order.userId,
+      paymentStatus,
+      orderStatus: "PAID",
+    });
+    if (!updated) {
+      const current = await deps.findPayment(txnRef);
+      return {
+        outcome: "already-set",
+        code: order.code,
+        settled: current?.status === "SUCCESS",
+      };
+    }
+    return success
+      ? { outcome: "success", code: order.code }
+      : { outcome: "unpaid", code: order.code };
+  }
+
+  // Fallback cho deps cũ (test fake): tuần tự như trước.
+  const updated = await deps.updatePayment(payment.id, paymentStatus);
   if (!updated) {
     // Thua race với IPN/return kia — đọc lại trạng thái cuối để trả về.
     const current = await deps.findPayment(txnRef);

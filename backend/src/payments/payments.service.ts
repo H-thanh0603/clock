@@ -80,6 +80,38 @@ export class PaymentsService {
           await this.prisma.cartItem.deleteMany({ where: { userId } });
         }
       },
+      // Một transaction cho cả payment + order + giỏ: crash giữa chừng
+      // không còn kẹt payment SUCCESS / order PENDING (audit ORD-002).
+      settleAtomically: async ({
+        paymentId,
+        orderId,
+        userId,
+        paymentStatus,
+      }) => {
+        try {
+          return await this.prisma.$transaction(async (tx) => {
+            const r = await tx.payment.updateMany({
+              where: { id: paymentId, status: 'PENDING' },
+              data: { status: paymentStatus },
+            });
+            if (r.count === 0) return false;
+            if (paymentStatus === 'SUCCESS') {
+              await tx.order.updateMany({
+                where: { id: orderId, status: 'PENDING' },
+                data: { status: 'PAID' },
+              });
+              if (userId) {
+                await tx.cartItem.deleteMany({ where: { userId } });
+              }
+            }
+            return true;
+          });
+        } catch {
+          // Tx rollback (timeout/deadlock) — coi như chưa settle, caller
+          // VNPay sẽ retry bằng IPN.
+          return false;
+        }
+      },
     };
   }
 
