@@ -25,8 +25,16 @@ export class AdminController {
   }
 
   @Get('orders')
-  listOrders(@Query('status') status?: string) {
-    return this.admin.list(status || undefined);
+  listOrders(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.admin.list(
+      status || undefined,
+      Number(page) || 1,
+      Number(limit) || 20,
+    );
   }
 
   @Patch('orders/:id')
@@ -40,8 +48,11 @@ export class AdminController {
   }
 
   @Get('users')
-  listUsers() {
-    return this.admin.listUsers();
+  listUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.admin.listUsers(Number(page) || 1, Number(limit) || 20);
   }
 
   @Get('users/:id')

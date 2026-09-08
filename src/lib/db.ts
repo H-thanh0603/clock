@@ -20,9 +20,10 @@ export type ProductListParams = {
   limit?: number;
 };
 
-/** Trang catalog có phân trang/search/sort (cho /collections). */
+/** Trang catalog có phân trang/search/sort. opts.noStore cho backoffice. */
 export async function getProductPage(
-  params: ProductListParams = {}
+  params: ProductListParams = {},
+  opts: { noStore?: boolean } = {}
 ): Promise<ProductPage> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
@@ -32,7 +33,7 @@ export async function getProductPage(
   if (params.limit) qs.set("limit", String(params.limit));
   const q = qs.toString();
   return apiJson<ProductPage>(`/products${q ? `?${q}` : ""}`, {
-    next: { revalidate: 60 },
+    ...(opts.noStore ? { cache: "no-store" as const } : { next: { revalidate: 60 } }),
   });
 }
 

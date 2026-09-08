@@ -285,13 +285,30 @@ export class OrdersService {
     };
   }
 
-  async mine(userId: string) {
-    const orders = await this.prisma.order.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: { items: true },
-    });
-    return orders.map(serializeOrder);
+  /** Đơn của tôi — phân trang (trước đây trả toàn bộ, audit API-001). */
+  async mine(
+    userId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<{ items: unknown[]; total: number; page: number; limit: number }> {
+    const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 10));
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        include: { items: true },
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.order.count({ where: { userId } }),
+    ]);
+    return {
+      items: orders.map(serializeOrder),
+      total,
+      page: safePage,
+      limit: safeLimit,
+    };
   }
 
   /** Hủy đơn PENDING (chính chủ hoặc contact khớp cho khách vãng lai). */

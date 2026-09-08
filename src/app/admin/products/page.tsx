@@ -1,10 +1,20 @@
 import { redirect } from "next/navigation";
-import { getProducts } from "@/lib/db";
+import { getProductPage } from "@/lib/db";
 import { ProductManager } from "./ProductManager";
 
-export default async function AdminProductsPage() {
-  const products = await getProducts().catch(() => null);
-  if (!products) redirect("/login?next=/admin/products");
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
+  const sp = await searchParams;
+  const pageNum = Math.max(1, Number(sp.page) || 1);
+  // Backoffice cần dữ liệu mới nhất — không dùng revalidate cache.
+  const data = await getProductPage(
+    { page: pageNum, limit: 20, q: sp.q },
+    { noStore: true }
+  ).catch(() => null);
+  if (!data) redirect("/login?next=/admin/products");
 
   return (
     <div>
@@ -14,7 +24,13 @@ export default async function AdminProductsPage() {
       <h1 className="font-display mt-3 text-4xl font-medium">
         Quản Lý <span className="text-gold-gradient">Sản Phẩm</span>
       </h1>
-      <ProductManager products={products} />
+      <ProductManager
+        items={data.items}
+        total={data.total}
+        page={data.page}
+        limit={data.limit}
+        q={sp.q ?? ""}
+      />
     </div>
   );
 }

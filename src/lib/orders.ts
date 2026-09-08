@@ -59,25 +59,37 @@ export async function getOrderByCode(code: string): Promise<OrderDto | null> {
   }
 }
 
-/** Đơn của user đang đăng nhập. null = chưa đăng nhập. */
-export async function getMyOrders(): Promise<OrderDto[] | null> {
+/** Đơn của user đang đăng nhập — phân trang server-side. null = chưa đăng nhập. */
+export async function getMyOrders(
+  page = 1,
+  limit = 10
+): Promise<{ items: OrderDto[]; total: number } | null> {
   try {
-    return await apiJson<OrderDto[]>("/orders/mine", {
-      forwardCookies: true,
-    });
+    return await apiJson<{ items: OrderDto[]; total: number }>(
+      `/orders/mine?page=${page}&limit=${limit}`,
+      { forwardCookies: true }
+    );
   } catch {
     return null;
   }
 }
 
-/** Danh sách đơn cho trang admin (kèm counts theo status). */
-export async function getAdminOrders(status?: string): Promise<{
+/** Danh sách đơn cho trang admin (kèm counts theo status) — phân trang. */
+export async function getAdminOrders(
+  status?: string,
+  page = 1,
+  limit = 20
+): Promise<{
   orders: OrderDto[];
   counts: { status: string; _count: { status: number } }[];
+  total: number;
+  page: number;
+  limit: number;
 } | null> {
   try {
-    const q = status ? `?status=${encodeURIComponent(status)}` : "";
-    return await apiJson(`/admin/orders${q}`, { forwardCookies: true });
+    const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) qs.set("status", status);
+    return await apiJson(`/admin/orders?${qs}`, { forwardCookies: true });
   } catch {
     return null;
   }
@@ -113,11 +125,15 @@ export type AdminUserRow = {
   totalVnd: number;
 };
 
-export async function getAdminUsers(): Promise<AdminUserRow[] | null> {
+export async function getAdminUsers(
+  page = 1,
+  limit = 20
+): Promise<{ users: AdminUserRow[]; total: number } | null> {
   try {
-    return await apiJson<AdminUserRow[]>("/admin/users", {
-      forwardCookies: true,
-    });
+    return await apiJson<{ users: AdminUserRow[]; total: number }>(
+      `/admin/users?page=${page}&limit=${limit}`,
+      { forwardCookies: true }
+    );
   } catch {
     return null;
   }

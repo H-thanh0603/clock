@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -30,8 +31,12 @@ export class OrdersController {
 
   @Get('mine')
   @UseGuards(RequiredAuthGuard)
-  mine(@CurrentUser() user: SessionUser) {
-    return this.orders.mine(user.id);
+  mine(
+    @CurrentUser() user: SessionUser,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.orders.mine(user.id, Number(page) || 1, Number(limit) || 10);
   }
 
   @Get('by-code/:code')

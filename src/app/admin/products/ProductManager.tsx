@@ -82,16 +82,38 @@ function splitCommas(v: string) {
     .filter(Boolean);
 }
 
-export function ProductManager({ products }: { products: Product[] }) {
+export function ProductManager({
+  items,
+  total,
+  page,
+  limit,
+  q,
+}: {
+  items: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  q: string;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState<Draft | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState(q);
   const [history, setHistory] = useState<
     { id: string; action: string; summary: string | null; createdAt: string }[]
   >([]);
+  const pageCount = Math.max(1, Math.ceil(total / limit));
+
+  const goTo = (nextPage: number, nextQ?: string) =>
+    router.push(
+      `/admin/products?${new URLSearchParams({
+        page: String(nextPage),
+        ...(nextQ !== undefined && nextQ ? { q: nextQ } : {}),
+      })}`
+    );
 
   const openNew = () => {
     setEditing({ ...EMPTY });
@@ -215,10 +237,10 @@ export function ProductManager({ products }: { products: Product[] }) {
 
   return (
     <div>
-      <div className="mt-space-lg flex items-center justify-between">
+      <div className="mt-space-lg flex items-center justify-between gap-space-md">
         <p className="font-body-md text-body-md text-on-surface-variant">
-          {products.length} mẫu • tắt “Boutique” để ẩn khỏi cửa hàng (không xóa
-          cứng vì còn ràng buộc đơn hàng)
+          {total} mẫu (trang {page}/{pageCount}) • tắt “Boutique” để ẩn khỏi cửa
+          hàng (không xóa cứng vì còn ràng buộc đơn hàng)
         </p>
         <button
           onClick={openNew}
@@ -228,8 +250,42 @@ export function ProductManager({ products }: { products: Product[] }) {
         </button>
       </div>
 
+      {/* Tìm kiếm server-side */}
+      <form
+        className="mt-space-sm flex gap-space-xs"
+        onSubmit={(e) => {
+          e.preventDefault();
+          goTo(1, search.trim());
+        }}
+      >
+        <input
+          className={inputCls}
+          placeholder="Tìm theo tên hoặc mã tham chiếu..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          type="submit"
+          className="rounded bg-surface-container px-4 py-2 font-label-spec text-label-spec uppercase text-on-surface hover:bg-surface-container-high transition-colors"
+        >
+          Tìm
+        </button>
+        {q && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearch("");
+              goTo(1, "");
+            }}
+            className="rounded bg-surface-container px-4 py-2 font-label-spec text-label-spec uppercase text-on-surface-variant hover:bg-surface-container-high transition-colors"
+          >
+            Xóa
+          </button>
+        )}
+      </form>
+
       <div className="mt-space-md space-y-space-xs">
-        {products.map((p) => (
+        {items.map((p) => (
           <div
             key={p.slug}
             className="flex flex-wrap items-center justify-between gap-space-sm rounded bg-surface-container px-5 py-4"
@@ -273,6 +329,29 @@ export function ProductManager({ products }: { products: Product[] }) {
           </div>
         ))}
       </div>
+
+      {/* Phân trang server-side */}
+      {pageCount > 1 && (
+        <div className="mt-space-lg flex items-center justify-center gap-space-sm">
+          <button
+            disabled={page <= 1}
+            onClick={() => goTo(page - 1, q)}
+            className="rounded bg-surface-container px-4 py-2 font-label-spec text-label-spec uppercase text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-40"
+          >
+            ← Trước
+          </button>
+          <span className="font-body-sm text-body-sm text-on-surface-variant">
+            Trang {page} / {pageCount}
+          </span>
+          <button
+            disabled={page >= pageCount}
+            onClick={() => goTo(page + 1, q)}
+            className="rounded bg-surface-container px-4 py-2 font-label-spec text-label-spec uppercase text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-40"
+          >
+            Sau →
+          </button>
+        </div>
+      )}
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">

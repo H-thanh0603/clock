@@ -20,11 +20,12 @@ export default async function AdminCustomersPage({
 }) {
   const sp = await searchParams;
   // Song song hóa 2 fetch độc lập (danh sách + chi tiết khi có id).
-  const [users, selected] = await Promise.all([
+  const [data, selected] = await Promise.all([
     getAdminUsers(),
     sp.id ? getAdminUserDetail(sp.id).catch(() => null) : Promise.resolve(null),
   ]);
-  if (!users) redirect("/login?next=/admin/customers");
+  if (!data) redirect("/login?next=/admin/customers");
+  const users = data.users;
 
   return (
     <div>

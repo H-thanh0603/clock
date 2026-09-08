@@ -25,23 +25,35 @@ const STATS_TTL_MS = 60_000;
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(status?: string) {
+  async list(status?: string, page = 1, limit = 20) {
     const where = status ? { status: status as (typeof STATUSES)[number] } : {};
-    const orders = await this.prisma.order.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        items: true,
-        payments: { orderBy: { createdAt: 'desc' } },
-        events: { orderBy: { createdAt: 'asc' } },
-      },
-      take: 100,
-    });
-    const counts = await this.prisma.order.groupBy({
-      by: ['status'],
-      _count: { status: true },
-    });
-    return { orders: orders.map(serializeOrder), counts };
+    const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 20));
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const [orders, total, counts] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: true,
+          payments: { orderBy: { createdAt: 'desc' } },
+          events: { orderBy: { createdAt: 'asc' } },
+        },
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.order.count({ where }),
+      this.prisma.order.groupBy({
+        by: ['status'],
+        _count: { status: true },
+      }),
+    ]);
+    return {
+      orders: orders.map(serializeOrder),
+      counts,
+      total,
+      page: safePage,
+      limit: safeLimit,
+    };
   }
 
   async updateStatus(id: string, status: string, byUserId?: string) {
@@ -147,18 +159,27 @@ export class AdminService {
     };
   }
 
-  /** Danh sách khách hàng kèm số đơn + tổng chi (trừ đơn hủy). */
-  async listUsers() {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+  /** Danh sách khách hàng kèm số đơn + tổng chi (trừ đơn hủy) — phân trang. */
+  async listUsers(page = 1, limit = 20) {
+    const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 20));
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.user.count(),
+    ]);
     const ids = users.map((u) => u.id);
-    const spent = await this.prisma.order.groupBy({
-      by: ['userId'],
-      where: { userId: { in: ids }, status: { not: 'CANCELLED' } },
-      _count: { userId: true },
-      _sum: { totalVnd: true },
-    });
+    const spent = ids.length
+      ? await this.prisma.order.groupBy({
+          by: ['userId'],
+          where: { userId: { in: ids }, status: { not: 'CANCELLED' } },
+          _count: { userId: true },
+          _sum: { totalVnd: true },
+        })
+      : [];
     const byUser = new Map(
       spent.map((s) => [
         s.userId,
@@ -168,15 +189,20 @@ export class AdminService {
         },
       ]),
     );
-    return users.map((u) => ({
-      id: u.id,
-      email: u.email,
-      name: u.name,
-      role: u.role,
-      createdAt: u.createdAt,
-      orderCount: byUser.get(u.id)?.orderCount ?? 0,
-      totalVnd: byUser.get(u.id)?.totalVnd ?? 0,
-    }));
+    return {
+      users: users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        createdAt: u.createdAt,
+        orderCount: byUser.get(u.id)?.orderCount ?? 0,
+        totalVnd: byUser.get(u.id)?.totalVnd ?? 0,
+      })),
+      total,
+      page: safePage,
+      limit: safeLimit,
+    };
   }
 
   async userDetail(id: string) {

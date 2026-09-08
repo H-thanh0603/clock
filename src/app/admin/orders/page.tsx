@@ -15,12 +15,14 @@ const STATUS_VN: Record<string, string> = {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const sp = await searchParams;
-  const data = await getAdminOrders(sp.status);
+  const pageNum = Math.max(1, Number(sp.page) || 1);
+  const data = await getAdminOrders(sp.status, pageNum);
   if (!data) redirect("/login?next=/admin/orders");
-  const { orders, counts } = data;
+  const { orders, counts, total, limit } = data;
+  const pageCount = Math.max(1, Math.ceil(total / limit));
 
   return (
     <div className="mx-auto max-w-page px-6 py-14 md:px-8">
@@ -116,6 +118,37 @@ export default async function AdminOrdersPage({
           </div>
         ))}
       </div>
+
+      {/* Phân trang server-side */}
+      {pageCount > 1 && (
+        <div className="mt-space-lg flex items-center justify-center gap-space-sm">
+          {pageNum > 1 && (
+            <a
+              href={`/admin/orders?${new URLSearchParams({
+                ...(sp.status ? { status: sp.status } : {}),
+                page: String(pageNum - 1),
+              })}`}
+              className="px-space-md py-space-sm rounded bg-surface-container text-on-surface font-label-spec text-label-spec uppercase hover:bg-surface-container-high transition-colors"
+            >
+              ← Trước
+            </a>
+          )}
+          <span className="font-body-sm text-body-sm text-on-surface-variant">
+            Trang {pageNum} / {pageCount} ({total} đơn)
+          </span>
+          {pageNum < pageCount && (
+            <a
+              href={`/admin/orders?${new URLSearchParams({
+                ...(sp.status ? { status: sp.status } : {}),
+                page: String(pageNum + 1),
+              })}`}
+              className="px-space-md py-space-sm rounded bg-surface-container text-on-surface font-label-spec text-label-spec uppercase hover:bg-surface-container-high transition-colors"
+            >
+              Sau →
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

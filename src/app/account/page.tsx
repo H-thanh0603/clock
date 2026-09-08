@@ -15,8 +15,9 @@ const STATUS_VN: Record<string, string> = {
 };
 
 export default async function AccountPage() {
-  const orders = await getMyOrders();
-  if (!orders) redirect("/login?next=/account");
+  const data = await getMyOrders();
+  if (!data) redirect("/login?next=/account");
+  const orders = data.items;
 
   return (
     <div className="mx-auto max-w-page px-6 py-14 md:px-8">
