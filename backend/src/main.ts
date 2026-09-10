@@ -8,6 +8,7 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { initObservability } from './common/observability';
 
 function parseOrigins(): string[] {
   const raw = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
@@ -21,6 +22,8 @@ function parseOrigins(): string[] {
 
 async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
+  // Sentry noop khi không có SENTRY_DSN (dev/CI) — xem common/observability.
+  initObservability();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Prod: chỉ log warn/error để nhẹ disk; dev giữ đầy đủ.
     logger: isProd ? ['warn', 'error'] : undefined,

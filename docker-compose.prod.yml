@@ -70,6 +70,10 @@ services:
       EINVOICE_PROVIDER: ${EINVOICE_PROVIDER:-}
       EINVOICE_API_URL: ${EINVOICE_API_URL:-}
       EINVOICE_API_KEY: ${EINVOICE_API_KEY:-}
+      # --- Sentry (optional; bỏ trống = noop an toàn) ---
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod-vps}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 15s
@@ -121,6 +125,8 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         NEXT_PUBLIC_BACKEND_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/backend"
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-prod-vps}
     restart: unless-stopped
     logging:
       driver: json-file

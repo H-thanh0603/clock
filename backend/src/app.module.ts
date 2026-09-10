@@ -1,10 +1,15 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { GuardsModule } from './common/guards.module';
 import { CsrfMiddleware } from './common/csrf.middleware';
+import {
+  RequestIdMiddleware,
+  captureException,
+} from './common/observability';
+import { SentryAllExceptionsFilter } from './common/sentry-exception.filter';
 import { HealthController } from './health.controller';
 import { NotifyModule } from './notify/notify.module';
 import { AuthModule } from './auth/auth.module';
@@ -35,10 +40,14 @@ import { InvoiceModule } from './invoices/invoice.module';
     InvoiceModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Mọi exception 5xx/chưa xử lý → Sentry + log kèm request-id.
+    { provide: APP_FILTER, useClass: SentryAllExceptionsFilter },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CsrfMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, CsrfMiddleware).forRoutes('*');
   }
 }

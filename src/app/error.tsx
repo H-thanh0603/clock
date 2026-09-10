@@ -1,13 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { captureClientError } from "@/lib/monitoring";
 
 export default function Error({
   reset,
+  error,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Bắn lỗi UI lên Sentry (nếu cấu hình) — khách không phải test QA.
+  captureClientError(error);
   return (
     <div className="mx-auto max-w-page px-6 py-24 md:px-8">
       <div className="gold-border-card mx-auto flex max-w-xl flex-col items-center gap-space-sm p-12 text-center">

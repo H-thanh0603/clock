@@ -79,8 +79,15 @@ mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
 
 - UptimeRobot/Uptime Kuma check `https://<DOMAIN>/` + backend `/health`
   (qua container) mỗi 5 phút, báo Telegram khi down.
-- `docker compose -f docker-compose.prod.yml logs -f backend` khi tra sự cố.
-- Sentry (optional): gắn DSN vào cả FE/BE để bắt lỗi runtime của khách.
+- `docker compose -f docker-compose.prod.yml logs -f backend` khi tra sự cố
+  — mọi request đều có `[request-id]` trong log + header `X-Request-Id`,
+  ghép chuỗi log↔Sentry↔khách báo lỗi bằng id này.
+- **Sentry (nên bật, miễn phí)**: tạo project ở sentry.io (platform
+  "Next.js" cho FE + "Node.js" cho BE), lấy DSN điền:
+  - `SENTRY_DSN` (backend — lỗi 5xx, exception chưa xử lý)
+  - `NEXT_PUBLIC_SENTRY_DSN` (frontend — UI crash qua error boundary)
+  Rồi `up -d --build backend frontend`. Bỏ trống cả 2 = noop an toàn.
+  Sentry cảnh báo email/Slack ngay khi có lỗi mới — không cần ai trông 24/7.
 
 ## 7. Các dịch vụ tùy chọn (đều có fallback an toàn khi bỏ trống)
 
