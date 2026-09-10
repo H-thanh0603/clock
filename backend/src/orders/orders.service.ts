@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -22,7 +23,10 @@ export function simulatedMethodsEnabled(): boolean {
 }
 
 function orderCode() {
-  return `AC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+  // 6 chữ số crypto-random (không dùng Math.random — không gian đoán được;
+  // mã đơn lộ qua URL tra cứu/hủy theo SĐT nên phải khó dò). Trùng thì
+  // transaction bên dưới bắt P2002 và thử lại.
+  return `AC-${new Date().getFullYear()}-${randomInt(100000, 1000000)}`;
 }
 
 export type ItemInput = {

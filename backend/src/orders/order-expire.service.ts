@@ -3,8 +3,11 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
 function ttlHours(): number {
-  const n = Number(process.env.ORDER_PENDING_TTL_HOURS ?? 24);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 24;
+  // Mặc định 6h: VNPay sandbox/production TTL cổng ngắn hơn nhiều — giữ
+  // tồn kho bị "ghim" cho đơn bỏ giữa chừng 24h là quá lâu. Cấu hình
+  // được qua ORDER_PENDING_TTL_HOURS nếu muốn khác.
+  const n = Number(process.env.ORDER_PENDING_TTL_HOURS ?? 6);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 6;
 }
 
 /**
