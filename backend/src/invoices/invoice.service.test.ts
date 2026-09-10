@@ -1,18 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import { InvoiceService } from "./invoice.service";
+import type { PrismaService } from "../prisma/prisma.service";
 
 /** Prisma stub — chỉ cần findUnique + create/update cho các path test. */
 function makePrisma(overrides: Record<string, unknown> = {}) {
   return {
     invoice: {
       findUnique: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockImplementation(({ data }) =>
-        Promise.resolve({ id: "inv-1", ...data })
-      ),
+      create: vi
+        .fn()
+        .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: "inv-1", ...data })
+        ),
       update: vi.fn().mockResolvedValue({}),
     },
     ...overrides,
-  } as never;
+  };
+}
+
+/** Ép kiểu một lần cho call-site — giữ type-check cho prisma.invoice.create. */
+function asPrisma(p: ReturnType<typeof makePrisma>): PrismaService {
+  return p as unknown as PrismaService;
 }
 
 const order = {
@@ -24,7 +32,7 @@ const order = {
 
 describe("InvoiceService.ensureForOrder", () => {
   it("tạo invoice PENDING_ISSUE khi chưa có (không cấu hình provider)", async () => {
-    const svc = new InvoiceService(makePrisma());
+    const svc = new InvoiceService(asPrisma(makePrisma()));
     const inv = await svc.ensureForOrder(order);
     expect(inv).toMatchObject({
       orderCode: "AC-2026-42",
@@ -41,14 +49,14 @@ describe("InvoiceService.ensureForOrder", () => {
         create: vi.fn(),
       },
     });
-    const svc = new InvoiceService(prisma);
+    const svc = new InvoiceService(asPrisma(prisma));
     const inv = await svc.ensureForOrder(order);
     expect(inv).toBe(existing);
     expect(prisma.invoice.create).not.toHaveBeenCalled();
   });
 
   it("contact không phải email → buyerEmail null", async () => {
-    const svc = new InvoiceService(makePrisma());
+    const svc = new InvoiceService(asPrisma(makePrisma()));
     const inv = await svc.ensureForOrder({ ...order, contact: "0901234567" });
     expect(inv.buyerEmail).toBeNull();
   });
