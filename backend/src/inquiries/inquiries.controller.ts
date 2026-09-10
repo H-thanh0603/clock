@@ -40,7 +40,8 @@ export class InquiriesController {
       },
     });
 
-    // Thông báo concierge — kênh optional, lỗi không chặn lưu DB.
+    // Thông báo concierge — qua hàng đợi NotifyService (không chặn response,
+    // Telegram/SMTP fail thì retry với backoff thay vì mất thông báo).
     const label = type === 'BESPOKE' ? 'Đơn bespoke' : 'Yêu cầu đặt lịch';
     const lines = [
       `📬 <b>${label} mới</b> (${inquiry.id.slice(-6)})`,
@@ -57,9 +58,9 @@ export class InquiriesController {
         .join(' • ');
       if (opts) lines.push(`Cấu hình: ${opts}`);
     }
-    await this.notify.telegram(lines.join('\n'));
+    await this.notify.enqueueText(lines.join('\n'));
     if (inquiry.email) {
-      await this.notify.email(
+      await this.notify.enqueueEmail(
         inquiry.email,
         `[Aurel & Co.] Đã nhận ${label.toLowerCase()}`,
         `Kính chào ${inquiry.name},\n\nAtelier đã nhận ${label.toLowerCase()} của quý khách. Concierge sẽ liên hệ trong 24 giờ làm việc.\n\nTrân trọng,\nAurel & Co.`,
