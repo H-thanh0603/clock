@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { serializeOrder } from '../orders/orders.service';
 import { linePrice } from '../common/pricing';
+import { ProductsService } from '../products/products.service';
 
 const STATUSES = [
   'PENDING',
@@ -23,7 +24,10 @@ const STATS_TTL_MS = 60_000;
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly products: ProductsService,
+  ) {}
 
   async list(status?: string, page = 1, limit = 20) {
     const where = status ? { status: status as (typeof STATUSES)[number] } : {};
@@ -133,7 +137,10 @@ export class AdminService {
         _count: { status: true },
       }),
       this.prisma.order.aggregate({
-        where: { status: { not: 'CANCELLED' } },
+        // Doanh thu chỉ tính đơn ĐÃ THU tiền (PAID+). Trước đây tính cả
+        // PENDING chưa thanh toán → số liệu dashboard sai quyết định
+        // khi nhiều đơn VNPay bỏ giữa chừng (audit P3).
+        where: { status: { in: ['PAID', 'SHIPPED', 'COMPLETED'] } },
         _sum: { totalUsd: true, totalVnd: true },
         _count: true,
       }),
@@ -221,6 +228,24 @@ export class AdminService {
       createdAt: user.createdAt,
       orders: orders.map(serializeOrder),
     };
+  }
+
+  /** Danh sách SP cho backoffice — thấy cả SP ẩn (inBoutique=false). */
+  async listProducts(
+    page = 1,
+    limit = 20,
+    q?: string,
+    includeHidden = true,
+  ) {
+    return this.products.list(
+      {
+        q,
+        page,
+        limit,
+        sort: 'newest',
+      },
+      { includeHidden },
+    );
   }
 
   /** Tạo sản phẩm mới (priceVnd suy ra từ priceUsd — không nhận từ client). */

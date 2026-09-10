@@ -65,7 +65,7 @@ function makePrisma(initialStatus: string) {
 describe('AdminService.updateStatus', () => {
   it('PENDING → CANCELLED: hoàn tồn kho + ghi event', async () => {
     const { prisma, restocked, events } = makePrisma('PENDING');
-    const svc = new AdminService(prisma);
+    const svc = new AdminService(prisma, {} as never);
     const r = await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
     expect(r.status).toBe('CANCELLED');
     expect(restocked.get('vip-1')).toBe(2);
@@ -74,21 +74,21 @@ describe('AdminService.updateStatus', () => {
 
   it('CONFIRMED → CANCELLED: vẫn hoàn tồn kho (trước đây bị rò)', async () => {
     const { prisma, restocked } = makePrisma('CONFIRMED');
-    const svc = new AdminService(prisma);
+    const svc = new AdminService(prisma, {} as never);
     await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
     expect(restocked.get('vip-1')).toBe(2);
   });
 
   it('PAID → CANCELLED: KHÔNG hoàn tồn kho (đã thu tiền, xử lý hoàn riêng)', async () => {
     const { prisma, restocked } = makePrisma('PAID');
-    const svc = new AdminService(prisma);
+    const svc = new AdminService(prisma, {} as never);
     await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
     expect(restocked.size).toBe(0);
   });
 
   it('hai admin đua nhau → đúng 1 bên thắng, không ghi event đúp', async () => {
     const { prisma, events } = makePrisma('PENDING');
-    const svc = new AdminService(prisma);
+    const svc = new AdminService(prisma, {} as never);
     // Cả hai đều đọc thấy PENDING (race thật), DB conditional update phân thắng.
     const order = {
       id: 'ord-1',
@@ -114,7 +114,7 @@ describe('AdminService.updateStatus', () => {
 
   it('PENDING → COMPLETED: chặn nhảy cóc trạng thái', async () => {
     const { prisma } = makePrisma('PENDING');
-    const svc = new AdminService(prisma);
+    const svc = new AdminService(prisma, {} as never);
     await expect(svc.updateStatus('ord-1', 'COMPLETED')).rejects.toThrow(
       /Không thể chuyển/,
     );

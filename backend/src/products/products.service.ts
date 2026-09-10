@@ -140,7 +140,10 @@ const MAX_LIMIT = 50;
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: ProductQuery): Promise<{
+  async list(
+    query: ProductQuery,
+    opts: { includeHidden?: boolean } = {},
+  ): Promise<{
     items: ProductDto[];
     total: number;
     page: number;
@@ -155,6 +158,10 @@ export class ProductsService {
     );
     const page = Math.max(1, Math.floor(Number(query.page) || 1));
     const and: Record<string, unknown>[] = [];
+    // Catalog public chỉ hiện SP đang trưng bày — admin tắt inBoutique
+    // nghĩa là "ẩn khỏi cửa hàng" (audit P3: trước đây vẫn hiện).
+    // Backoffice gọi kèm includeHidden để vẫn thấy + sửa được SP ẩn.
+    if (!opts.includeHidden) and.push({ inBoutique: true });
     if (collection) and.push({ collection });
     if (query.movements?.length) {
       const or = movementWhere(query.movements);
@@ -222,7 +229,9 @@ export class ProductsService {
 
   async bySlug(slug: string): Promise<ProductDto> {
     const row = await this.prisma.product.findUnique({ where: { slug } });
-    if (!row) throw new NotFoundException('Không thấy sản phẩm');
+    // SP ẩn (inBoutique=false) không xem được trang detail public —
+    // consistent với list; admin quản lý qua ProductManager (API admin riêng).
+    if (!row || !row.inBoutique) throw new NotFoundException('Không thấy sản phẩm');
     return toDto(row);
   }
 }

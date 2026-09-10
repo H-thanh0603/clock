@@ -60,6 +60,22 @@ export class AdminController {
     return this.admin.userDetail(id);
   }
 
+  @Get('products')
+  listProducts(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('q') q?: string,
+    @Query('includeHidden') includeHidden?: string,
+  ) {
+    // Backoffice thấy CẢ SP ẩn (inBoutique=false) — khác catalog public.
+    return this.admin.listProducts(
+      Number(page) || 1,
+      Number(limit) || 20,
+      q || undefined,
+      includeHidden !== '0',
+    );
+  }
+
   @Post('products')
   @HttpCode(201)
   createProduct(
