@@ -3,7 +3,10 @@ import { Throttle } from '@nestjs/throttler';
 import { AdminGuard } from '../common/guards';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotifyService } from '../notify/notify.service';
-import { CreateInquiryDto } from './inquiry.dto';
+import {
+  CreateInquiryDto,
+  normalizePayload,
+} from './inquiry.dto';
 
 const TYPES = new Set(['SALON', 'BESPOKE']);
 
@@ -23,6 +26,9 @@ export class InquiriesController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async create(@Body() dto: CreateInquiryDto) {
     const type = TYPES.has(dto.type) ? dto.type : 'SALON';
+    // Payload configurator: cap 4KB + sanitize trước khi chạm DB / Telegram
+    // (audit DATA-001 — trước đây JSON client không giới hạn kích thước).
+    const payload = normalizePayload(dto.payload);
     const inquiry = await this.prisma.inquiry.create({
       data: {
         type,
@@ -30,7 +36,7 @@ export class InquiriesController {
         phone: dto.phone.trim().slice(0, 40),
         email: dto.email?.trim().slice(0, 160) || null,
         message: dto.message?.trim().slice(0, 2000) || null,
-        payload: (dto.payload ?? undefined) as never,
+        payload: (payload ?? undefined) as never,
       },
     });
 
@@ -41,10 +47,13 @@ export class InquiriesController {
       `Khách: ${inquiry.name} — ${inquiry.phone}${inquiry.email ? ` — ${inquiry.email}` : ''}`,
     ];
     if (inquiry.message) lines.push(`Ghi chú: ${inquiry.message}`);
-    if (dto.payload) {
-      const p = dto.payload as Record<string, unknown>;
-      const opts = Object.entries(p)
-        .map(([k, v]) => `${k}: ${String(v)}`)
+    if (payload) {
+      // Payload đã sanitize ở trên (4KB, scalar, sâu ≤3) — render an toàn
+      // vì Telegram parse_mode=HTML: escape thẻ trước khi ghép vào chuỗi.
+      const esc = (v: string) =>
+        v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const opts = Object.entries(payload)
+        .map(([k, v]) => `${esc(k)}: ${esc(String(v))}`)
         .join(' • ');
       if (opts) lines.push(`Cấu hình: ${opts}`);
     }
