@@ -127,6 +127,7 @@ services:
         NEXT_PUBLIC_BACKEND_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/backend"
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
         NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-prod-vps}
+        SITE_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
     restart: unless-stopped
     logging:
       driver: json-file
@@ -140,6 +141,7 @@ services:
       BACKEND_URL: "http://backend:4000"
       PORT: 3000
       HOSTNAME: "0.0.0.0"
+      SITE_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
     healthcheck:
       # FE chết thì Caddy vẫn proxy vào — phải có healthcheck để ps/metrics
       # thấy được (audit OPS-002).

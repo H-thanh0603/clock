@@ -34,9 +34,32 @@ export default async function Page({
     product.images.length > 1
       ? product.images.slice(1, 4)
       : [product.cardImage];
+
+  // JSON-LD Product — Google hiển thị giá/kho ngay kết quả tìm kiếm.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    sku: product.reference,
+    description: product.shortDescription,
+    image: product.images.slice(0, 5),
+    brand: { "@type": "Brand", name: "Aurel & Co." },
+    offers: {
+      "@type": "Offer",
+      price: product.priceUsd,
+      priceCurrency: "USD",
+      availability: product.inBoutique
+        ? "https://schema.org/InStock"
+        : "https://schema.org/PreOrder",
+    },
+  };
   return (
   <div className="flex flex-col w-full">
   <div className="flex flex-col w-full">
+  <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 {/* Subtle Ambient Glow Background Aura */}
 <div className="relative w-full overflow-hidden">
 <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
