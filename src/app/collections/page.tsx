@@ -2,42 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { formatUsd, formatVnd, type Product } from "@/data/products";
 import { apiUrl } from "@/lib/api-client";
 import { useWishlist } from "@/components/WishlistProvider";
-
-const MOVEMENT_MATCH: Record<string, (p: Product) => boolean> = {
-  tourbillon: (p) =>
-    p.collection === "tourbillon" ||
-    p.complications.some((c) => /tourbillon/i.test(c)),
-  automatic: (p) => p.collection === "classic" || p.collection === "grand-complication",
-  manual: (p) => p.collection === "skeleton",
-  chrono: (p) =>
-    p.collection === "sport" ||
-    p.complications.some((c) => /chronograph|flyback/i.test(c)),
-};
-
-const MATERIAL_MATCH: Record<string, (p: Product) => boolean> = {
-  rose: (p) => /vàng hồng|rose/i.test(p.caseMaterial),
-  platinum: (p) => /platinum/i.test(p.caseMaterial),
-  titanium: (p) => /titanium/i.test(p.caseMaterial),
-  ceramic: (p) => /carbon|ceramic/i.test(p.caseMaterial),
-};
-
-const SIZE_MATCH: Record<string, (d: number) => boolean> = {
-  "39": (d) => d <= 39.5,
-  "40": (d) => d > 39.5 && d <= 40.5,
-  "41": (d) => d > 40.5 && d < 42.5,
-  "42.5": (d) => d >= 42.5,
-};
-
-const COMPLICATION_MATCH: Record<string, (p: Product) => boolean> = {
-  perpetual: (p) => p.complications.some((c) => /perpetual/i.test(c)),
-  moonphase: (p) => p.complications.some((c) => /moonphase/i.test(c)),
-  repeater: (p) => p.complications.some((c) => /repeater/i.test(c)),
-  skeleton: (p) => p.complications.some((c) => /skeleton/i.test(c)),
-};
 
 function WishBtn({ slug }: { slug: string }) {
   const { has, toggle } = useWishlist();
@@ -68,7 +36,27 @@ export default function Page() {
   const [debouncedQ, setDebouncedQ] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
   const LIMIT = 9;
+
+  // Hydrate filter từ URL khi vào trang (share/back giữ đúng trạng thái).
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const movParam = sp.get("movements")?.split(",").filter(Boolean) ?? [];
+    const compParam = sp.get("complications")?.split(",").filter(Boolean) ?? [];
+    if (movParam.length) setMov(movParam);
+    if (sp.get("material")) setMat(sp.get("material")!);
+    if (sp.get("size")) setSize(sp.get("size")!);
+    if (compParam.length) setComp(compParam);
+    if (sp.get("sort")) setSort(sp.get("sort")!);
+    if (sp.get("q")) {
+      setQ(sp.get("q")!);
+      setDebouncedQ(sp.get("q")!);
+    }
+    const p = Number(sp.get("page"));
+    if (Number.isFinite(p) && p > 1) setPage(p);
+    setHydrated(true);
+  }, []);
 
   // Debounce ô tìm kiếm 400ms.
   useEffect(() => {
@@ -92,6 +80,11 @@ export default function Page() {
       limit: String(LIMIT),
     });
     if (debouncedQ) qs.set("q", debouncedQ);
+    // Filter chạy server-side (audit FE-001) — đúng kết quả trên cả catalog lớn.
+    if (mov.length) qs.set("movements", mov.join(","));
+    if (mat) qs.set("material", mat);
+    if (size) qs.set("size", size);
+    if (comp.length) qs.set("complications", comp.join(","));
     fetch(apiUrl(`/products?${qs.toString()}`))
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -99,7 +92,14 @@ export default function Page() {
       })
       .then((data: { items: Product[]; total: number }) => {
         if (alive) {
-          setItems(data.items);
+          let list = data.items;
+          // Sort "complications" vẫn là sort tay client trên 1 page.
+          if (sort === "complications") {
+            list = [...list].sort(
+              (a, b) => b.complications.length - a.complications.length
+            );
+          }
+          setItems(list);
           setTotal(data.total);
           setLoading(false);
         }
@@ -113,12 +113,33 @@ export default function Page() {
     return () => {
       alive = false;
     };
-  }, [debouncedQ, sort, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQ, sort, page, mov, mat, size, comp]);
 
-  const toggleMov = (id: string) =>
+  // Đồng bộ filter chính vào URL — back/share/reload giữ được trạng thái.
+  useEffect(() => {
+    if (!hydrated) return; // đợi hydrate từ URL xong mới sync ngược lại
+    const qs = new URLSearchParams();
+    if (debouncedQ) qs.set("q", debouncedQ);
+    if (mov.length) qs.set("movements", mov.join(","));
+    if (mat) qs.set("material", mat);
+    if (size) qs.set("size", size);
+    if (comp.length) qs.set("complications", comp.join(","));
+    if (sort !== "featured") qs.set("sort", sort);
+    if (page > 1) qs.set("page", String(page));
+    const url = qs.size > 0 ? `/collections?${qs}` : "/collections";
+    // replace (không push) — không spam history mỗi lần tick filter.
+    window.history.replaceState(null, "", url);
+  }, [hydrated, debouncedQ, mov, mat, size, comp, sort, page]);
+
+  const toggleMov = (id: string) => {
     setMov((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const toggleComp = (id: string) =>
+    setPage(1);
+  };
+  const toggleComp = (id: string) => {
     setComp((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setPage(1);
+  };
   const resetAll = () => {
     setMov([]);
     setMat("");
@@ -128,20 +149,6 @@ export default function Page() {
     setQ("");
     setPage(1);
   };
-
-  const filtered = useMemo(() => {
-    let list = [...items];
-    if (mov.length) list = list.filter((p) => mov.some((m) => MOVEMENT_MATCH[m](p)));
-    if (mat) list = list.filter((p) => MATERIAL_MATCH[mat](p));
-    if (size) list = list.filter((p) => SIZE_MATCH[size](p.diameterMm));
-    if (comp.length)
-      list = list.filter((p) => comp.some((c) => COMPLICATION_MATCH[c](p)));
-    // Sort server đã lo (trừ complications sort tay ở đây).
-    if (sort === "complications") {
-      list.sort((a, b) => b.complications.length - a.complications.length);
-    }
-    return list;
-  }, [items, mov, mat, size, comp, sort]);
 
   const pageCount = Math.max(1, Math.ceil(total / LIMIT));
 
@@ -202,7 +209,7 @@ export default function Page() {
 {activeCount > 0 && (<span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[10px] font-bold flex items-center justify-center">{activeCount}</span>)}
 </button>
 <span className="font-label-spec text-label-spec tracking-widest uppercase text-on-surface-variant hidden md:inline">
-          Hiển Thị: <span className="text-primary font-bold">{filtered.length}</span> / {total} Kiệt Tác
+          Hiển Thị: <span className="text-primary font-bold">{items.length}</span> / {total} Kiệt Tác
         </span>
 </div>
 <div className="flex items-center gap-space-lg">
@@ -399,14 +406,14 @@ export default function Page() {
               <p className="font-body-md text-body-md text-on-surface-variant">Không kết nối được cơ sở dữ liệu. Kiểm tra Postgres rồi thử lại.</p>
               <button onClick={() => window.location.reload()} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">Tải Lại Trang</button>
             </div>
-          ) : filtered.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="col-span-full flex flex-col items-center gap-space-sm rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-space-lg py-space-3xl text-center">
               <span className="material-symbols-outlined text-5xl text-outline-variant">hourglass_empty</span>
               <p className="font-body-md text-body-md text-on-surface-variant">Không có kiệt tác nào phù hợp bộ lọc hiện tại.</p>
               <button onClick={resetAll} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">Thiết Lập Lại Bộ Lọc</button>
             </div>
           ) : (
-            filtered.map((p) => (
+            items.map((p) => (
               <article key={p.slug} className="group bg-surface-container-low rounded-xl overflow-hidden shadow-md flex flex-col justify-between transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
                 <div className="relative bg-surface-container-lowest p-space-md flex items-center justify-center overflow-hidden aspect-square">
                   <div className="absolute top-space-sm left-space-sm flex flex-col gap-1 z-10">
@@ -463,7 +470,7 @@ export default function Page() {
 {/* Curatorial Pagination */}
 <div className="mt-space-3xl pt-space-xl flex flex-col sm:flex-row items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl">
 <div className="font-body-sm text-body-sm text-on-surface-variant">
-            Đang hiển thị <span className="text-on-surface font-semibold">{filtered.length === 0 ? 0 : (page - 1) * LIMIT + 1} — {(page - 1) * LIMIT + filtered.length}</span> trong số <span className="text-primary font-semibold">{total}</span> kiệt tác tuyển chọn
+            Đang hiển thị <span className="text-on-surface font-semibold">{items.length === 0 ? 0 : (page - 1) * LIMIT + 1} — {(page - 1) * LIMIT + items.length}</span> trong số <span className="text-primary font-semibold">{total}</span> kiệt tác tuyển chọn
           </div>
 <nav className="flex items-center gap-space-xs">
 <button aria-label="Previous Page" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors disabled:opacity-40">

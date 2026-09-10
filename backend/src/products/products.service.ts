@@ -75,6 +75,63 @@ export type ProductQuery = {
   sort?: 'featured' | 'price-asc' | 'price-desc' | 'newest';
   page?: number;
   limit?: number;
+  /** Filter server-side cho catalog (FE gửi kèm trong query params). */
+  movements?: string[];
+  material?: string;
+  size?: string;
+  complications?: string[];
+};
+
+/**
+ * Predicate bộ máy → điều kiện Prisma (di chuyển từ FE, audit FE-001:
+ * filter client-side từng sai vì chỉ thấy 1 page).
+ * key: tourbillon | automatic | manual | chrono.
+ */
+function movementWhere(ids: string[]): Record<string, unknown>[] {
+  const or: Record<string, unknown>[] = [];
+  for (const id of ids) {
+    if (id === 'tourbillon')
+      or.push(
+        { collection: 'tourbillon' },
+        { complications: { hasSome: ['Tourbillon'] } },
+      );
+    else if (id === 'automatic')
+      or.push({ collection: { in: ['classic', 'grand-complication'] } });
+    else if (id === 'manual') or.push({ collection: 'skeleton' });
+    else if (id === 'chrono')
+      or.push(
+        { collection: 'sport' },
+        { complications: { hasSome: ['Chronograph', 'Chronograph Flyback', 'Date'] } },
+      );
+  }
+  return or;
+}
+
+const MATERIAL_WHERE: Record<string, Record<string, unknown>> = {
+  rose: { caseMaterial: { contains: 'rose', mode: 'insensitive' } },
+  platinum: { caseMaterial: { contains: 'platinum', mode: 'insensitive' } },
+  titanium: { caseMaterial: { contains: 'titanium', mode: 'insensitive' } },
+  ceramic: {
+    OR: [
+      { caseMaterial: { contains: 'carbon', mode: 'insensitive' } },
+      { caseMaterial: { contains: 'ceramic', mode: 'insensitive' } },
+    ],
+  },
+};
+
+const SIZE_WHERE: Record<string, Record<string, unknown>> = {
+  '39': { diameterMm: { lte: 39.5 } },
+  '40': { AND: [{ diameterMm: { gt: 39.5 } }, { diameterMm: { lte: 40.5 } }] },
+  '41': { AND: [{ diameterMm: { gt: 40.5 } }, { diameterMm: { lt: 42.5 } }] },
+  '42.5': { diameterMm: { gte: 42.5 } },
+};
+
+/** Complication filter: match "contains" để bắt cả biến thể (Flyback...). */
+const COMPLICATION_WHERE: Record<string, Record<string, unknown>> = {
+  perpetual: { complications: { hasSome: ['Perpetual Calendar'] } },
+  moonphase: { complications: { hasSome: ['Moonphase'] } },
+  repeater: { complications: { hasSome: ['Minute repeater'] } },
+  skeleton: { complications: { hasSome: ['Skeleton'] } },
 };
 
 const MAX_LIMIT = 50;
@@ -97,14 +154,31 @@ export class ProductsService {
       Math.max(1, Math.floor(Number(query.limit) || 12)),
     );
     const page = Math.max(1, Math.floor(Number(query.page) || 1));
-    const where: Record<string, unknown> = {};
-    if (collection) where.collection = collection;
-    if (q) {
-      where.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
-        { reference: { contains: q, mode: 'insensitive' } },
-      ];
+    const and: Record<string, unknown>[] = [];
+    if (collection) and.push({ collection });
+    if (query.movements?.length) {
+      const or = movementWhere(query.movements);
+      if (or.length) and.push({ OR: or });
     }
+    if (query.material && MATERIAL_WHERE[query.material])
+      and.push(MATERIAL_WHERE[query.material]);
+    if (query.size && SIZE_WHERE[query.size]) and.push(SIZE_WHERE[query.size]);
+    if (query.complications?.length) {
+      const ors = query.complications
+        .map((c) => COMPLICATION_WHERE[c])
+        .filter(Boolean);
+      if (ors.length) and.push({ OR: ors });
+    }
+    if (q) {
+      and.push({
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { reference: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    // Prisma AND-thêm chuỗi điều kiện; where rỗng = lấy tất cả.
+    const where: Record<string, unknown> = and.length ? { AND: and } : {};
     const orderBy =
       sort === 'price-asc'
         ? { priceUsd: 'asc' as const }
