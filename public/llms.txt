@@ -1,0 +1,26 @@
+# Aurel & Co. — Boutique đồng hồ cao cấp (Haute Horlogerie, Genève 1892)
+
+> Cửa hàng trực tuyến của Aurel & Co.: đồng hồ cơ cao cấp manufacture riêng, bespoke tại atelier, và phụ kiện da thuộc. Giá hiển thị bằng USD, quy đổi VND theo tỷ lệ cố định. Thanh toán VNPay (cổng hợp pháp Việt Nam). Hỗ trợ tiếng Việt.
+
+## Điều hướng chính
+- [Bộ sưu tập (catalog đầy đủ)](/collections): lọc theo bộ sưu tập, cỡ máy, chất liệu, biến thể
+- [Trang sản phẩm mẫu](/products/chronos-tourbillon-no-07): thông số kỹ thuật, giá, tồn kho từng chiếc
+- [Bespoke](/bespoke): đặt lịch chế tác riêng — form yêu cầu
+- [Atelier](/atelier): câu chuyện thương hiệu
+- [Điều khoản](/legal/terms) · [Bảo mật](/legal/privacy) · [Giải quyết khiếu nại](/legal/complaints)
+
+## API công khai (JSON, không cần auth)
+- GET /backend/products?page=1&limit=50&sort=newest — danh sách sản phẩm đang bán: tên, slug, giá USD/VND, tồn kho, ảnh, bộ sưu tập. Hỗ trợ filter collection/movement/material/size.
+- GET /backend/products/{slug} — chi tiết 1 sản phẩm (mô tả, thông số, giá, tồn kho)
+- GET /backend/products?q={tu-khoa} — tìm kiếm theo tên/mã tham chiếu
+- GET /backend/health — trạng thái dịch vụ
+
+## Số liệu & quy ước
+- Giá: USD là gốc; VND = USD × 25.200 (suất quy đổi nội bộ hiển thị liền)
+- Tồn kho: mỗi chiếc là độc bản; trường stock là số nguyên
+- Đơn hàng: mã dạng AC-YYYY-NNNNNN; trạng thái PENDING → PAID → SHIPPED → COMPLETED (hoặc CANCELLED)
+- Không crawl trang /admin, /checkout, /cart — nội dung phiên người dùng
+
+## Liên hệ
+- Yêu cầu bespoke/đặt lịch: POST /backend/inquiries (form, có rate limit)
+- Mọi truy vấn máy phải tôn trọng robots.txt

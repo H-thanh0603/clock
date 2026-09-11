@@ -26,6 +26,21 @@ export const metadata: Metadata = {
   description:
     "Manufacture de Haute Horlogerie tại Genève từ 1892. Đồng hồ cơ cao cấp, tourbillon và bộ sưu tập cá nhân hóa (bespoke).",
   icons: { icon: "/images/logo.png" },
+  other: {
+    "llms.txt": "/llms.txt", // hướng dẫn cho AI agent/LLM crawler
+  },
+};
+
+/** JSON-LD Organization — cho Google/máy hiểu thương hiệu ngay mọi trang. */
+const orgJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Aurel & Co.",
+  foundingDate: "1892",
+  foundingLocation: { "@type": "Place", name: "Genève, Thụy Sĩ" },
+  description:
+    "Manufacture de Haute Horlogerie — đồng hồ cơ cao cấp và bespoke.",
+  url: process.env.SITE_URL || undefined,
 };
 
 export default async function RootLayout({
@@ -37,6 +52,10 @@ export default async function RootLayout({
   return (
     <html lang="vi" className={`dark ${playfair.variable} ${jakarta.variable}`}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+        />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"

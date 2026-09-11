@@ -44,6 +44,7 @@ export default async function Page({
     description: product.shortDescription,
     image: product.images.slice(0, 5),
     brand: { "@type": "Brand", name: "Aurel & Co." },
+    category: `Đồng hồ cao cấp — ${collectionLabel}`,
     offers: {
       "@type": "Offer",
       price: product.priceUsd,
@@ -51,14 +52,25 @@ export default async function Page({
       availability: product.inBoutique
         ? "https://schema.org/InStock"
         : "https://schema.org/PreOrder",
+      itemCondition: "https://schema.org/NewCondition",
     },
+  };
+  // BreadcrumbList — máy hiểu cấu trúc catalog → SERP breadcrumb đẹp.
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Bộ Sưu Tập", item: "/collections" },
+      { "@type": "ListItem", position: 2, name: collectionLabel, item: `/collections?collection=${product.collection}` },
+      { "@type": "ListItem", position: 3, name: product.name },
+    ],
   };
   return (
   <div className="flex flex-col w-full">
   <div className="flex flex-col w-full">
   <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, breadcrumbLd]) }}
       />
 {/* Subtle Ambient Glow Background Aura */}
 <div className="relative w-full overflow-hidden">
