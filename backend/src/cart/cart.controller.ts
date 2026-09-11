@@ -21,12 +21,25 @@ import {
 } from '../common/cart';
 import { RequiredAuthGuard } from '../common/guards';
 import { CurrentUser } from '../common/current-user.decorator';
+import { PrismaService } from '../prisma/prisma.service';
 import type { SessionUser } from '../common/session';
 
 @Controller('cart')
 @UseGuards(RequiredAuthGuard)
 export class CartController {
-  constructor(private readonly storage: PrismaCartStorage) {}
+  constructor(
+    private readonly storage: PrismaCartStorage,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /** Tra giá gốc USD theo slug từ DB — cart KHÔNG tin giá client (SEC). */
+  private lookupPrice = async (slugs: string[]) => {
+    const rows = await this.prisma.product.findMany({
+      where: { slug: { in: slugs }, inBoutique: true },
+      select: { slug: true, priceUsd: true },
+    });
+    return new Map(rows.map((r) => [r.slug, { priceUsd: r.priceUsd }]));
+  };
 
   @Get()
   list(@CurrentUser() user: SessionUser) {
@@ -39,7 +52,12 @@ export class CartController {
     @CurrentUser() user: SessionUser,
     @Body() body: { items?: unknown },
   ) {
-    return mergeGuestCart(this.storage, user.id, body.items);
+    return mergeGuestCart(
+      this.storage,
+      user.id,
+      body.items,
+      this.lookupPrice,
+    );
   }
 
   @Post()
@@ -66,7 +84,7 @@ export class CartController {
       strap: body.strap,
       engraving: body.engraving,
       qty: body.qty,
-    });
+    }, this.lookupPrice);
     if (!outcome.ok) throw new BadRequestException(outcome.error);
     return outcome.items;
   }

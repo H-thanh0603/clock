@@ -97,16 +97,25 @@ async function listItems(
   return rows.map(toClientItem);
 }
 
+/** Tra giá gốc USD theo slug — null khi SP không có trong DB (bespoke).
+ *  Được inject để test được + để controller tách Prisma khỏi logic thuần. */
+export type PriceLookup = (
+  slugs: string[],
+) => Promise<Map<string, { priceUsd: number }>>;
+
 /** Chuẩn hoá 1 dòng raw (client/merge) → dữ liệu upsert đã chốt giá server-side. */
-function normalizeLine(it: {
-  slug?: string;
-  name?: string;
-  priceUsd?: number;
-  image?: string;
-  strap?: string;
-  engraving?: string;
-  qty?: number;
-}):
+function normalizeLine(
+  it: {
+    slug?: string;
+    name?: string;
+    priceUsd?: number;
+    image?: string;
+    strap?: string;
+    engraving?: string;
+    qty?: number;
+  },
+  priceBySlug: Map<string, { priceUsd: number }>,
+):
   | {
       ok: true;
       row: Extract<CartRow, { productSlug: string }>;
@@ -115,12 +124,13 @@ function normalizeLine(it: {
   const productSlug = String(it.slug ?? '').trim();
   const name = String(it.name ?? '').trim();
   if (!productSlug || !name) return { ok: false };
+  // KHÔNG TIN GIÁ CLIENT: SP phải có trong DB, giá lấy từ DB theo slug
+  // (audit SEC mục cart — trước đây tin priceUsd client gửi lên).
+  // Hàng bespoke (không có slug DB) đi luồng inquiry riêng, không qua cart.
+  const db = priceBySlug.get(productSlug);
+  if (!db) return { ok: false };
   const strap = String(it.strap ?? DEFAULT_STRAP) || DEFAULT_STRAP;
-  // Giá chốt server-side (C1): USD gốc client + delta strap, VND suy ra.
-  const { priceUsd, priceVnd } = linePrice(
-    Math.max(0, Math.floor(Number(it.priceUsd) || 0)),
-    strap,
-  );
+  const { priceUsd, priceVnd } = linePrice(db.priceUsd, strap);
   return {
     ok: true,
     row: {
@@ -155,10 +165,19 @@ export async function addToCart(
     engraving?: string;
     qty?: number;
   },
+  lookupPrice: PriceLookup,
 ): Promise<CartOutcome> {
-  const line = normalizeLine(raw);
-  if (!line.ok)
+  const slug = String(raw.slug ?? '').trim();
+  if (!slug)
     return { ok: false, status: 400, error: 'Thiếu thông tin vật phẩm' };
+  const priceBySlug = await lookupPrice([slug]);
+  const line = normalizeLine(raw, priceBySlug);
+  if (!line.ok)
+    return {
+      ok: false,
+      status: 400,
+      error: 'Sản phẩm không còn bán — vui lòng làm mới trang',
+    };
   await storage.upsert(
     userId,
     {
@@ -215,12 +234,24 @@ export async function mergeGuestCart(
   storage: CartStorage,
   userId: string,
   rawItems: unknown,
+  lookupPrice: PriceLookup,
 ): Promise<CartOutcome> {
   const items = Array.isArray(rawItems) ? rawItems.slice(0, 50) : [];
+  // Tra giá DB 1 lần cho mọi slug — không tin giá client (SEC).
+  const slugs = [
+    ...new Set(
+      items
+        .map((it) => String((it as { slug?: string })?.slug ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
+  const priceBySlug =
+    slugs.length > 0 ? await lookupPrice(slugs) : new Map();
   const batch: Parameters<NonNullable<CartStorage['upsertMany']>>[1] = [];
   for (const raw of items) {
     const line = normalizeLine(
       (raw ?? {}) as Parameters<typeof normalizeLine>[0],
+      priceBySlug,
     );
     if (!line.ok) continue;
     batch.push({

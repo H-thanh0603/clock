@@ -50,6 +50,22 @@ function makeFakeStorage(): CartStorage & { rows: CartRow[] } {
 
 const UID = "user-1";
 
+/** Fake PriceLookup — giả lập bảng Product trong DB: giá gốc theo slug.
+ *  Slug không có trong map = không tồn tại/được bán → normalizeLine từ chối. */
+function makePrices(entries: Record<string, number>) {
+  const m = new Map(
+    Object.entries(entries).map(([slug, usd]) => [slug, { priceUsd: usd }])
+  );
+  return async (slugs: string[]) =>
+    new Map(
+      slugs
+        .map((s) => [s, m.get(s)] as const)
+        .filter((e): e is readonly [string, { priceUsd: number }] => e[1] != null)
+        .map((e) => [e[0], e[1]] as [string, { priceUsd: number }])
+    );
+}
+const makePricesSync = makePrices;
+
 let s: ReturnType<typeof makeFakeStorage>;
 beforeEach(() => {
   s = makeFakeStorage();
@@ -57,12 +73,13 @@ beforeEach(() => {
 
 describe("cart service — addToCart", () => {
   it("thêm dòng mới với giá chốt server-side (VND suy ra)", async () => {
+    // Giá client gửi 1 USD — server PHẢI dùng giá DB 145000 (SEC).
     const out = await addToCart(s, UID, {
       slug: "chronos-tourbillon-no-07",
       name: "Tourbillon",
-      priceUsd: 145000,
+      priceUsd: 1,
       strap: "Dây kim loại tích hợp",
-    });
+    }, makePrices({ "chronos-tourbillon-no-07": 145000 }));
     expect(out.ok).toBe(true);
     if (out.ok) {
       expect(out.items).toHaveLength(1);
@@ -71,50 +88,50 @@ describe("cart service — addToCart", () => {
     }
   });
 
-  it("bỏ qua mọi giá client không hợp lệ (âm/NaN → 0)", async () => {
+  it("slug không có trong DB → 400 (không thêm hàng bespoke/giả vào cart)", async () => {
     const out = await addToCart(s, UID, {
       slug: "x",
       name: "X",
-      priceUsd: -50,
-    });
-    expect(out.ok).toBe(true);
-    if (out.ok) {
-      expect(out.items[0].priceUsd).toBe(0);
-      expect(out.items[0].priceVnd).toBe(0);
-    }
+      priceUsd: 999,
+    }, makePrices({}));
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.status).toBe(400);
   });
 
   it("cùng slug+strap → tăng qty; khác strap → dòng riêng", async () => {
-    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 100, qty: 2 });
-    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 100, qty: 3 });
+    const prices = makePrices({ x: 100 });
+    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 100, qty: 2 }, prices);
+    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 100, qty: 3 }, prices);
     await addToCart(s, UID, {
       slug: "x",
       name: "X",
       priceUsd: 100,
       strap: "Dây kim loại tích hợp",
-    });
+    }, prices);
     expect(s.rows).toHaveLength(2);
     expect(s.rows[0].qty).toBe(5);
     expect(s.rows[1].qty).toBe(1);
   });
 
   it("thiếu slug/name → 400", async () => {
-    const out = await addToCart(s, UID, { name: "Không slug", priceUsd: 1 });
+    const out = await addToCart(s, UID, { name: "Không slug", priceUsd: 1 }, makePrices({}));
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.status).toBe(400);
   });
 
   it("qty bị clamp vào [1, 99]", async () => {
-    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 10, qty: 500 });
+    const prices = makePrices({ x: 10, y: 10 });
+    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 10, qty: 500 }, prices);
     expect(s.rows[0].qty).toBe(99);
-    await addToCart(s, UID, { slug: "y", name: "Y", priceUsd: 10, qty: 0 });
+    await addToCart(s, UID, { slug: "y", name: "Y", priceUsd: 10, qty: 0 }, prices);
     expect(s.rows[1].qty).toBe(1);
   });
 });
 
 describe("cart service — update/remove/clear", () => {
+  const prices = makePricesSync({ x: 100 });
   beforeEach(async () => {
-    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 100, qty: 2 });
+    await addToCart(s, UID, { slug: "x", name: "X", priceUsd: 100, qty: 2 }, prices);
   });
 
   it("updateQty đổi số lượng", async () => {
@@ -148,30 +165,44 @@ describe("cart service — update/remove/clear", () => {
 
 describe("cart service — mergeGuestCart", () => {
   it("gộp dòng hợp lệ, bỏ qua dòng hỏng", async () => {
-    const out = await mergeGuestCart(s, UID, [
-      { slug: "a", name: "A", priceUsd: 500, qty: 1 },
-      { name: "Không slug", priceUsd: 1 },
-      null,
-      { slug: "b", name: "B", priceUsd: 200, qty: 2 },
-    ]);
+    const out = await mergeGuestCart(
+      s,
+      UID,
+      [
+        { slug: "a", name: "A", priceUsd: 500, qty: 1 },
+        { name: "Không slug", priceUsd: 1 },
+        null,
+        { slug: "b", name: "B", priceUsd: 200, qty: 2 },
+      ],
+      makePrices({ a: 500, b: 200 })
+    );
     expect(out.ok).toBe(true);
     expect(s.rows).toHaveLength(2);
     expect(s.rows.map((r) => r.productSlug).sort()).toEqual(["a", "b"]);
   });
 
   it("gộp trùng slug+strap → cộng dồn qty", async () => {
-    await mergeGuestCart(s, UID, [
-      { slug: "a", name: "A", priceUsd: 500, qty: 1 },
-      { slug: "a", name: "A", priceUsd: 500, qty: 2 },
-    ]);
+    await mergeGuestCart(
+      s,
+      UID,
+      [
+        { slug: "a", name: "A", priceUsd: 500, qty: 1 },
+        { slug: "a", name: "A", priceUsd: 500, qty: 2 },
+      ],
+      makePrices({ a: 500 })
+    );
     expect(s.rows).toHaveLength(1);
     expect(s.rows[0].qty).toBe(3);
   });
 
-  it("merge đặt giá lại server-side", async () => {
-    await mergeGuestCart(s, UID, [
-      { slug: "a", name: "A", priceUsd: 500, priceVnd: 1, strap: "Dây cao su kỹ thuật cao cấp" },
-    ]);
+  it("merge đặt giá lại server-side — bỏ qua giá client giả", async () => {
+    await mergeGuestCart(
+      s,
+      UID,
+      [{ slug: "a", name: "A", priceUsd: 1, priceVnd: 1, strap: "Dây cao su kỹ thuật cao cấp" }],
+      makePrices({ a: 500 })
+    );
+    // Giá DB 500 + strap 1200 = 1700 — client gửi 1 bị bỏ qua.
     expect(s.rows[0].priceUsd).toBe(1700);
     expect(s.rows[0].priceVnd).toBe(BigInt(1700 * USD_TO_VND));
   });
@@ -187,11 +218,16 @@ describe("cart service — mergeGuestCart", () => {
         }
       },
     };
-    const out = await mergeGuestCart(storage, UID, [
-      { slug: "a", name: "A", priceUsd: 100 },
-      { slug: "b", name: "B", priceUsd: 200 },
-      { slug: "", name: "" },
-    ]);
+    const out = await mergeGuestCart(
+      storage,
+      UID,
+      [
+        { slug: "a", name: "A", priceUsd: 100 },
+        { slug: "b", name: "B", priceUsd: 200 },
+        { slug: "", name: "" },
+      ],
+      makePrices({ a: 100, b: 200 })
+    );
     expect(batched).toHaveLength(1);
     expect(batched[0]).toHaveLength(2);
     if (!out.ok) throw new Error("merge phải ok");
