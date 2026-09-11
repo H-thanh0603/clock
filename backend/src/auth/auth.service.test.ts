@@ -1,7 +1,15 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeAll,
+  beforeEach,
+  afterEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
-import { AuthService } from './auth.service';
+import { AuthService, bcryptCost } from './auth.service';
 import { verifySessionToken } from '../common/session';
 import type { PrismaService } from '../prisma/prisma.service';
 
@@ -79,6 +87,27 @@ let seq = 0;
 beforeAll(() => {
   // signSession cần JWT_SECRET — mỗi run một secret riêng.
   process.env.JWT_SECRET = `TEST_AUTH_SECRET_${Date.now()}_${seq++}`;
+});
+
+describe('bcryptCost', () => {
+  const prev = process.env.BCRYPT_COST;
+  afterEach(() => {
+    if (prev === undefined) delete process.env.BCRYPT_COST;
+    else process.env.BCRYPT_COST = prev;
+  });
+
+  it('mặc định 10, override được, ngoài khoảng 4-15 thì về 10', () => {
+    delete process.env.BCRYPT_COST;
+    expect(bcryptCost()).toBe(10);
+    process.env.BCRYPT_COST = '12';
+    expect(bcryptCost()).toBe(12);
+    process.env.BCRYPT_COST = '1'; // quá thấp → fallback
+    expect(bcryptCost()).toBe(10);
+    process.env.BCRYPT_COST = '99'; // quá cao → fallback
+    expect(bcryptCost()).toBe(10);
+    process.env.BCRYPT_COST = 'rác';
+    expect(bcryptCost()).toBe(10);
+  });
 });
 
 describe('AuthService.login', () => {

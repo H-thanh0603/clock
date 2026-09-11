@@ -46,6 +46,8 @@ services:
       BACKEND_PUBLIC_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/backend"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD chưa đặt}@db:5432/${POSTGRES_DB:-aurel}"
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET chưa đặt trong .env.prod}
+      # Cost bcrypt cho hash mật khẩu (4-15, prod nên 12 — ~250ms/hash).
+      BCRYPT_COST: ${BCRYPT_COST:-12}
       COOKIE_SAMESITE: lax
       COOKIE_SECURE: "true"
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}

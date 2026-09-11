@@ -20,6 +20,14 @@ const MAX_PASSWORD_LEN = 72;
 // Hash giả để so sánh khi user không tồn tại (chống timing enumeration).
 const DUMMY_HASH = '$2b$10$C6UzMDM.H6dfI/f/IKcEe.8rSBp0R8uN9xQwErTYuIoPpAqS1a2b3c';
 
+/** Cost bcrypt cấu hình được — default 10 (dev/test nhanh), prod nên 12+.
+ *  BCRYPT_COST=12 ≈ 250ms/lần hash — đủ chặn brute-force offline. */
+export function bcryptCost(): number {
+  const n = Number(process.env.BCRYPT_COST ?? 10);
+  if (!Number.isFinite(n) || n < 4 || n > 15) return 10;
+  return Math.floor(n);
+}
+
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
@@ -80,7 +88,7 @@ export class AuthService {
       data: {
         email: normalized,
         name: String(name ?? '').trim() || null,
-        passwordHash: await bcrypt.hash(pw, 10),
+        passwordHash: await bcrypt.hash(pw, bcryptCost()),
       },
     });
     const token = await signSession({
@@ -132,7 +140,7 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        passwordHash: await bcrypt.hash(nw, 10),
+        passwordHash: await bcrypt.hash(nw, bcryptCost()),
         tokenVersion: { increment: 1 },
       },
     });

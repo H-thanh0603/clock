@@ -24,7 +24,10 @@ async function main() {
     create: {
       email: adminEmail,
       name: "Atelier Admin",
-      passwordHash: await bcrypt.hash(adminPassword, 10),
+      passwordHash: await bcrypt.hash(
+        adminPassword,
+        Number(process.env.BCRYPT_COST ?? 10),
+      ),
       role: "ADMIN",
     },
   });
