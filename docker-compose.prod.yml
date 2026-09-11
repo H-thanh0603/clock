@@ -51,6 +51,10 @@ services:
       VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
       VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
       VNPAY_ENV: ${VNPAY_ENV:-sandbox}
+      # TTL URL thanh toán VNPay (phút) — hết hạn thì cổng từ chối giao dịch.
+      VNPAY_URL_TTL_MINUTES: ${VNPAY_URL_TTL_MINUTES:-30}
+      # Giới hạn đơn PENDING (giờ) cho cron expire — gợi ý prod: 2-6h.
+      ORDER_PENDING_TTL_HOURS: ${ORDER_PENDING_TTL_HOURS:-6}
       UPLOADS_DIR: /app/uploads
       # --- Ảnh upload S3 (bỏ trống = disk volume) ---
       S3_BUCKET: ${S3_BUCKET:-}

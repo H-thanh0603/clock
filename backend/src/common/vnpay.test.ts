@@ -164,6 +164,60 @@ describe("buildPayUrl", () => {
       })
     ).toThrow(/VNPAY_TMN_CODE/);
   });
+
+  it("có vnp_ExpireDate sau CreateDate đúng TTL (giờ VN +7, mặc định 30')", () => {
+    process.env.VNPAY_TMN_CODE = "TMN01";
+    process.env.VNPAY_HASH_SECRET = HASH_SECRET;
+    delete process.env.VNPAY_URL_TTL_MINUTES;
+    const before = Date.now();
+    const url = buildPayUrl({
+      txnRef: "REF-2",
+      amountVnd: 100000,
+      orderInfo: "x",
+      returnUrl: "http://localhost",
+      ipAddr: "127.0.0.1",
+    });
+    const params = new URL(url).searchParams;
+    const create = params.get("vnp_CreateDate") ?? "";
+    const expire = params.get("vnp_ExpireDate") ?? "";
+    expect(create).toMatch(/^\d{14}$/);
+    expect(expire).toMatch(/^\d{14}$/);
+    // yyyyMMddHHmmss (giờ VN +7) → epoch; chênh lệch đúng 30' TTL mặc định.
+    const asEpoch = (s: string) =>
+      Date.parse(
+        `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}+07:00`,
+      );
+    const diffSec = (asEpoch(expire) - asEpoch(create)) / 1000;
+    expect(Math.abs(diffSec - 30 * 60)).toBeLessThanOrEqual(5);
+    // Giờ VN: giờ CreateDate phải ~ giờ UTC hiện tại + 7 (±1h an toàn trôi đồng hồ).
+    const vnHour = asEpoch(create);
+    const vnNow = Date.now() + 7 * 3600_000;
+    expect(Math.abs(vnHour - vnNow)).toBeLessThan(3600_000);
+    expect(before).toBeGreaterThan(0);
+  });
+
+  it("VNPAY_URL_TTL_MINUTES override được TTL (khớp 60')", () => {
+    process.env.VNPAY_TMN_CODE = "TMN01";
+    process.env.VNPAY_HASH_SECRET = HASH_SECRET;
+    process.env.VNPAY_URL_TTL_MINUTES = "60";
+    const url = buildPayUrl({
+      txnRef: "REF-3",
+      amountVnd: 100000,
+      orderInfo: "x",
+      returnUrl: "http://localhost",
+      ipAddr: "127.0.0.1",
+    });
+    const params = new URL(url).searchParams;
+    const asEpoch = (key: string) => {
+      const s = params.get(key) ?? "";
+      return Date.parse(
+        `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}+07:00`,
+      );
+    };
+    const diffSec = (asEpoch("vnp_ExpireDate") - asEpoch("vnp_CreateDate")) / 1000;
+    expect(Math.abs(diffSec - 3600)).toBeLessThanOrEqual(5);
+    delete process.env.VNPAY_URL_TTL_MINUTES;
+  });
 });
 
 describe("settlePayment", () => {

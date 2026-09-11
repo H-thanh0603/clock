@@ -34,3 +34,7 @@ next-env.d.ts
 
 # backups (chứa dữ liệu thật, không commit)
 /backups/
+
+# agent/index tooling local
+.codegraph/
+.zcode/

@@ -30,6 +30,20 @@ function vnpDate(d = new Date()) {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
+/** VNPay spec: vnp_CreateDate/vnp_ExpireDate theo giờ Việt Nam (GMT+7),
+ *  KHÔNG phải giờ server (server UTC thì +7h). */
+const VN_TZ_OFFSET_MS = 7 * 60 * 60 * 1000;
+function vnpDateVN(d = new Date()) {
+  return vnpDate(new Date(d.getTime() + VN_TZ_OFFSET_MS));
+}
+
+/** TTL URL thanh toán VNPay (phút) — sau đó cổng từ chối, đơn hết hạn. */
+function vnpUrlTtlMinutes(): number {
+  const n = Number(process.env.VNPAY_URL_TTL_MINUTES ?? 30);
+  if (!Number.isFinite(n) || n < 10 || n > 1440) return 30;
+  return Math.floor(n);
+}
+
 function encode(v: string) {
   return encodeURIComponent(v).replace(/%20/g, "+");
 }
@@ -72,7 +86,10 @@ export function buildPayUrl(input: CreateVnpayUrlInput) {
     vnp_Locale: VNP_LOCALE,
     vnp_ReturnUrl: input.returnUrl,
     vnp_IpAddr: input.ipAddr,
-    vnp_CreateDate: vnpDate(),
+    vnp_CreateDate: vnpDateVN(),
+    // URL hết hạn sau TTL (mặc định 30') — đơn PENDING cũng bị cron expire
+    // sau ORDER_PENDING_TTL_HOURS; 2 lớp bảo vệ, hết hạn thì trang redirect paid=0.
+    vnp_ExpireDate: vnpDateVN(new Date(Date.now() + vnpUrlTtlMinutes() * 60 * 1000)),
   };
   const { query, hash } = signParams(params, hashSecret);
   return `${url}?${query}&vnp_SecureHash=${hash}`;
