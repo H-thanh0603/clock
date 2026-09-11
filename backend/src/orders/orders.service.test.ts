@@ -40,6 +40,7 @@ function makePrisma(over: Record<string, unknown> = {}) {
           status: d.status,
         });
       },
+      findFirst: () => Promise.resolve(null),
       findUnique: () => Promise.resolve(null),
       update: () => Promise.resolve({}),
       findMany: () => Promise.resolve([]),
@@ -95,6 +96,44 @@ describe('OrdersService.create', () => {
         null,
       ),
     ).rejects.toThrow(/ngừng trưng bày/);
+  });
+
+  it('đơn trùng trong 3 phút (double-click) → trả đơn cũ, KHÔNG tạo mới', async () => {
+    // Prisma fake: user-1 có sẵn đơn PENDING giống hệt vừa tạo 30' trước.
+    const { prisma, created } = makePrisma({
+      order: {
+        findFirst: () =>
+          Promise.resolve({
+            id: 'ord-cũ',
+            code: 'AC-2026-EXISTING',
+            totalUsd: 1000,
+            totalVnd: BigInt(1000 * 25200),
+            paidUsd: 0,
+            paidVnd: BigInt(0),
+            status: 'PENDING',
+            items: [{ productSlug: 'vip-1', qty: 1 }],
+          }),
+        create: () => {
+          throw new Error('KHÔNG được tạo đơn mới khi đã có đơn trùng');
+        },
+        findUnique: () => Promise.resolve(null),
+        findMany: () => Promise.resolve([]),
+        update: () => Promise.resolve({}),
+      },
+    });
+    const svc = new OrdersService(prisma, notifyStub);
+    const r = await svc.create(BASE_ORDER, 'user-1');
+    expect(r.code).toBe('AC-2026-EXISTING');
+    expect(r.status).toBe('PENDING');
+    expect(created).toHaveLength(0); // không trừ kho, không đơn mới
+  });
+
+  it('khách vãng lai (userId null) KHÔNG dedup — vẫn tạo đơn', async () => {
+    const { prisma, created } = makePrisma();
+    const svc = new OrdersService(prisma, notifyStub);
+    const r = await svc.create(BASE_ORDER, null);
+    expect(r.code).toMatch(/^AC-/);
+    expect(created).toHaveLength(1);
   });
 
   it('hết hàng → 400', async () => {

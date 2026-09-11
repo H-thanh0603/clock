@@ -27,7 +27,14 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Prod: chỉ log warn/error để nhẹ disk; dev giữ đầy đủ.
     logger: isProd ? ['warn', 'error'] : undefined,
+    // Cap body chủ động (nếu không Nest/express default 100kb). Payload
+    // lớn nhất là inquiry (đã cap 4KB riêng) — 256kb dư sức, chặn CPU-DoS
+    // qua JSON khổng lồ.
+    bodyParser: true,
+    rawBody: false,
   });
+  app.useBodyParser('json', { limit: '256kb' });
+  app.useBodyParser('urlencoded', { limit: '256kb', extended: true });
   // Phục vụ ảnh upload (volume). Prod sau Caddy: /backend/uploads/*.
   // Tên file có random hex nên nội dung bất biến → cache dài tối đa.
   app.useStaticAssets(process.env.UPLOADS_DIR ?? join(process.cwd(), 'uploads'), {

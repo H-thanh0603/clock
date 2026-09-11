@@ -109,11 +109,28 @@ services:
       - /bin/sh
       - -c
       - |
+        i=0
         while true; do
           STAMP=$$(date +%Y%m%d-%H%M%S)
           FILE="/backups/aurel-$$STAMP.sql.gz"
           if pg_dump -h db -U "$$PGUSER" "$$PGDATABASE" | gzip > "$$FILE"; then
             echo "[backup] $$FILE ok"
+            # Verify mỗi 7 lần (~tuần 1): restore thử vào DB scratch.
+            # Backup chưa restore thử = chưa có backup.
+            i=$$((i+1))
+            if [ $$((i % 7)) -eq 0 ]; then
+              VDB="verify_$$STAMP"
+              if createdb -h db -U "$$PGUSER" "$$VDB" \
+                 && gunzip -c "$$FILE" | psql -h db -U "$$PGUSER" -d "$$VDB" -v ON_ERROR_STOP=1 -q >/dev/null 2>&1 \
+                 && ORIG=$$(psql -h db -U "$$PGUSER" -d "$$PGDATABASE" -tAc "SELECT count(*) FROM pg_tables WHERE schemaname='public';") \
+                 && REST=$$(psql -h db -U "$$PGUSER" -d "$$VDB" -tAc "SELECT count(*) FROM pg_tables WHERE schemaname='public';") \
+                 && [ "$$ORIG" = "$$REST" ]; then
+                echo "[backup-verify] OK $$STAMP: restore thử + $$REST bảng khớp"
+              else
+                echo "[backup-verify] FAIL $$STAMP — KIỂM TRA BACKUP!" >&2
+              fi
+              dropdb -h db -U "$$PGUSER" "$$VDB" 2>/dev/null || true
+            fi
           else
             echo "[backup] FAIL $$STAMP" >&2
           fi

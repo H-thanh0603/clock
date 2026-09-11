@@ -159,6 +159,51 @@ export class OrdersService {
         : totalVnd
       : 0;
 
+    // Chống submit trùng (double-click / retry mạng): nếu user này vừa tạo
+    // đơn giống hệt (cùng món, cùng tổng, cùng thanh toán) trong 3 phút qua
+    // và đơn cũ chưa CANCELLED → trả lại đơn cũ thay vì tạo bản sao + trừ
+    // kho thêm lần nữa. Khách vãng lai (userId null) không dedup được —
+    // chấp nhận rủi ro vì VNPay settle đã idempotent theo txnRef.
+    if (userId) {
+      const since = new Date(Date.now() - 3 * 60 * 1000);
+      const recent = await this.prisma.order.findFirst({
+        where: {
+          userId,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          createdAt: { gte: since },
+          totalUsd,
+          payments: { some: { method } },
+          items: {
+            every: {
+              productSlug: { in: slugs },
+            },
+            // số dòng khớp → không thêm bớt món
+          },
+        },
+        include: { items: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (
+        recent &&
+        recent.items.length === lines.filter((l) => l.productSlug).length
+      ) {
+        // Trả lại đơn cũ (idempotent theo nội dung + khoảng 3') — cùng
+        // shape như đơn mới tạo để FE checkout redirect bình thường.
+        return {
+          orderId: recent.id,
+          code: recent.code,
+          totalUsd: recent.totalUsd,
+          totalVnd: Number(recent.totalVnd),
+          paidUsd: recent.paidUsd,
+          paidVnd: Number(recent.paidVnd),
+          remainingUsd: recent.totalUsd - recent.paidUsd,
+          remainingVnd: Number(recent.totalVnd) - Number(recent.paidVnd),
+          status: recent.status,
+          pendingReview: hasCustom,
+        };
+      }
+    }
+
     // Tạo đơn + trừ kho + xóa giỏ trong 1 transaction.
     // Mã đơn random có thể đụng → bắt unique-constraint và thử lại.
     let order = null as null | {
