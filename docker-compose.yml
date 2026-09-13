@@ -11,7 +11,9 @@ services:
       # host 5433 để trùng DATABASE_URL mẫu (tránh đụng postgres có sẵn trên 5432)
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Postgres 18+ yêu cầu mount ở /var/lib/postgresql (data nằm trong
+      # subdirectory) — mount /data cũ bị image từ chối khởi động.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -19,7 +21,10 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    # Context repo-root: Dockerfile copy dữ liệu FE (src/data) cho seed
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: aurel-backend
     restart: unless-stopped
     depends_on:
