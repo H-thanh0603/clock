@@ -59,6 +59,25 @@ Ba lớp trách nhiệm:
    - `host.py`: FastAPI app, 2 endpoint chat SSE + health; transcript in-memory
      theo session.
 
+## Provider LLM (tùy chọn gateway)
+
+Runtime upstream là Anthropic Messages API, nhưng client trỏ được tới nhiều
+provider qua `AGENT_BASE_URL` (đã verify header thực tế cho từng bên):
+
+| Provider | `AGENT_BASE_URL` | `AGENT_AUTH_HEADER` | `AGENT_MODEL` |
+|---|---|---|---|
+| DeepSeek (Anthropic API gốc) | `https://api.deepseek.com/anthropic` | `x-api-key` (mặc định) | `deepseek-chat`, `deepseek-reasoner` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `bearer` | `anthropic/claude-*`, `deepseek/deepseek-chat`, ... |
+| LiteLLM proxy | URL proxy của bạn | `x-api-key` | tùy deployment |
+| Anthropic trực tiếp | (bỏ trống) | `x-api-key` | `claude-sonnet-5` |
+
+Ghi chú:
+
+- **DeepSeek** hỗ trợ Anthropic API gốc ([docs](https://api-docs.deepseek.com/guides/anthropic_api)) — `tools`/`tool_use`/`tool_result` (cái agent cần) đầy đủ; tên model `claude-*` nếu quên đổi sẽ tự map về model DeepSeek.
+- **OpenRouter** có endpoint `/v1/messages` nhưng chỉ chấp nhận `Authorization: Bearer` — nên có `AGENT_AUTH_HEADER=bearer`.
+- **LiteLLM** là cầu nối tổng quát nhất: `/v1/messages` dịch sang provider bất kỳ (OpenAI-compatible, Bedrock, Gemini...) — xem `vendor/docs/deployment.md`. Nếu provider không nói Anthropic format, dùng LiteLLM làm lớp dịch thay vì sửa code agent.
+- Lưu ý chung: prompt của upstream dựa trên hành vi Claude (tuân thủ tool-call chặt). Model khác càng mạnh càng giữ được chất lượng agent; model nhỏ có thể phá fencing/gates — ưu tiên model tool-calling tốt.
+
 ## Chạy
 
 Yêu cầu: backend clock đang chạy (docker compose, đã migrate + seed), Python 3.11+.

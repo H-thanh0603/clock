@@ -42,6 +42,9 @@ class Settings:
     base_url: str | None = None
     api_key: str | None = None
     model: str = "claude-sonnet-5"
+    # "x-api-key" (chuẩn Anthropic/DeepSeek/z.ai...) hoặc "bearer"
+    # (OpenRouter, một số gateway khác)
+    auth_header: str = "x-api-key"
 
     # backend clock
     backend_url: str = "http://localhost:4000"
@@ -64,6 +67,7 @@ class Settings:
             base_url=os.getenv("AGENT_BASE_URL") or None,
             api_key=os.getenv("AGENT_API_KEY") or None,
             model=os.getenv("AGENT_MODEL") or "claude-sonnet-5",
+            auth_header=(os.getenv("AGENT_AUTH_HEADER") or "x-api-key").lower(),
             backend_url=os.getenv("AUREL_BACKEND_URL") or "http://localhost:4000",
             frontend_url=os.getenv("AUREL_FRONTEND_URL") or "http://localhost:3100",
             shopper_email=os.getenv("AGENT_SHOPPER_EMAIL") or "agent-shopper@aurel.local",
@@ -83,16 +87,26 @@ def get_settings() -> Settings:
 def build_anthropic_client(settings: Settings | None = None):
     """AsyncAnthropic trỏ tới gateway tương thích Anthropic Messages API.
 
-    - Không set base_url → dùng api.anthropic.com mặc định.
-    - Set AGENT_BASE_URL → mọi request đi qua gateway (z.ai, OpenRouter,
-      LiteLLM...). SDK dùng đúng wire protocol, không đổi code runtime.
+    Hỗ trợ 2 kiểu auth phổ biến (tự chọn theo AGENT_AUTH_HEADER):
+
+    - ``x-api-key`` (mặc định, chuẩn Anthropic): DeepSeek
+      (``AGENT_BASE_URL=https://api.deepseek.com/anthropic``), z.ai, Bedrock/
+      Vertex proxy, LiteLLM...
+    - ``bearer`` (Authorization: Bearer): OpenRouter
+      (``AGENT_BASE_URL=https://openrouter.ai/api/v1``) — endpoint /v1/messages
+      có thật nhưng chỉ chấp nhận Bearer token.
+
+    Không set AGENT_BASE_URL → dùng api.anthropic.com mặc định.
     """
     from anthropic import AsyncAnthropic
 
     s = settings or get_settings()
     kwargs: dict = {"timeout": 60.0}
     if s.api_key:
-        kwargs["api_key"] = s.api_key
+        if s.auth_header == "bearer":
+            kwargs["auth_token"] = s.api_key  # SDK gửi Authorization: Bearer
+        else:
+            kwargs["api_key"] = s.api_key  # SDK gửi x-api-key
     if s.base_url:
         kwargs["base_url"] = s.base_url
     return AsyncAnthropic(**kwargs)
