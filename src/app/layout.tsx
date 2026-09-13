@@ -8,6 +8,7 @@ import { CartProvider } from "@/components/CartProvider";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { safeJsonLd } from "@/lib/json-ld";
 
 const playfair = Playfair_Display({
   subsets: ["latin", "vietnamese"],
@@ -54,7 +55,7 @@ export default async function RootLayout({
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(orgJsonLd) }}
         />
         <link
           rel="stylesheet"

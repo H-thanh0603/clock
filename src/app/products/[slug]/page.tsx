@@ -7,6 +7,7 @@ import AskConciergeButton from "@/components/AskConciergeButton";
 import { notFound } from "next/navigation";
 import { collectionLabels, formatUsd } from "@/data/products";
 import { linePrice } from "@/lib/pricing";
+import { safeJsonLd } from "@/lib/json-ld";
 
 // Phụ kiện đi kèm hiển thị cuối trang — lấy từ DB (trước đây hardcode).
 const ACCESSORY_SLUG = "travel-roll-calfskin-18k";
@@ -71,7 +72,7 @@ export default async function Page({
   <div className="flex flex-col w-full">
   <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, breadcrumbLd]) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd([jsonLd, breadcrumbLd]) }}
       />
 {/* Subtle Ambient Glow Background Aura */}
 <div className="relative w-full overflow-hidden">
