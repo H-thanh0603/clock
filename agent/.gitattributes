@@ -1,0 +1,4 @@
+# Phần code upstream của Anthropic — KHÔNG sửa, chỉ đọc như một thư viện.
+# (Nguồn: https://github.com/anthropics/commerce-agents, Apache-2.0)
+agent/vendor/** linguist-generated
+agent/vendor/** -diff

@@ -1,0 +1,318 @@
+# Copyright 2026 — Aurel & Co. đồ án clock
+# SPDX-License-Identifier: MIT
+"""HTTP client cho REST API của backend clock (NestJS).
+
+Một client giữ đúng 1 phiên người dùng (JWT trong cookie ``aurel_session``),
+tự cấp và gửi kèm CSRF double-submit token cho mọi POST/PATCH/PUT/DELETE,
+đúng luật ``backend/src/common/csrf.middleware.ts``:
+
+- GET /auth/csrf → set cookie ``aurel_csrf`` (readable) + body ``csrfToken``
+- Mọi method ghi: header ``x-csrf-token`` phải trùng cookie
+
+Vòng đời phiên: ``ensure_session()`` register (nếu email mới) hoặc login;
+token hết hạn 7 ngày — gặp 401 thì tự login lại đúng tokenVersion semantics.
+"""
+
+from __future__ import annotations
+
+import logging
+from types import TracebackType
+from typing import Any
+
+import httpx
+
+logger = logging.getLogger(__name__)
+
+SESSION_COOKIE = "aurel_session"
+CSRF_COOKIE = "aurel_csrf"
+CSRF_HEADER = "x-csrf-token"
+
+WRITE_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+# Các route được CSRF middleware bỏ qua (chưa/không cần session)
+CSRF_EXEMPT_PATHS = {"/auth/login", "/auth/register", "/auth/csrf"}
+
+
+class ClockApiError(RuntimeError):
+    """BE trả lỗi không khôi phục được (4xx/5xx không phải 401)."""
+
+    def __init__(self, status: int, message: str, payload: Any = None):
+        super().__init__(f"[{status}] {message}")
+        self.status = status
+        self.payload = payload
+
+
+class ClockAuthError(RuntimeError):
+    """Login/register đều thất bại — không thể thiết lập phiên."""
+
+
+class ClockClient:
+    """Async client cho 1 user của backend clock.
+
+    Args:
+        base_url: gốc BE, ví dụ ``http://localhost:4000``.
+        email, password: tài khoản (khách cho shopping, admin cho merchant).
+        register_if_new: nếu True, email chưa có thì register (dùng cho
+            agent shopper — tạo tài khoản demo lần đầu chạy). Admin nên
+            để False: tài khoản admin đã có từ seed.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        email: str,
+        password: str,
+        *,
+        register_if_new: bool = True,
+        timeout: float = 15.0,
+    ) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._email = email
+        self._password = password
+        self._register_if_new = register_if_new
+        self._user: dict[str, Any] | None = None
+        self._csrf_token: str | None = None
+        self._http = httpx.AsyncClient(
+            base_url=self._base_url,
+            timeout=timeout,
+            cookies={},
+        )
+
+    # -- Phiên ------------------------------------------------------------------
+
+    async def __aenter__(self) -> ClockClient:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.aclose()
+
+    async def aclose(self) -> None:
+        await self._http.aclose()
+
+    @property
+    def user(self) -> dict[str, Any] | None:
+        return self._user
+
+    @property
+    def user_id(self) -> str:
+        if self._user is None:
+            return "anonymous"
+        return str(self._user.get("id", ""))
+
+    async def _fetch_csrf(self) -> str:
+        resp = await self._http.get("/auth/csrf")
+        resp.raise_for_status()
+        token = resp.json().get("csrfToken")
+        if not isinstance(token, str) or len(token) < 16:
+            raise ClockApiError(resp.status_code, "csrf token malformed", resp.json())
+        self._csrf_token = token
+        return token
+
+    async def ensure_session(self) -> dict[str, Any]:
+        """Đảm bảo có session hợp lệ; trả về ``{user}`` của /auth/me."""
+        # Đăng nhập mới ngay — đơn giản, đúng chủ đích service account
+        # (không cố kế thừa cookie cũ có thể đã hết hạn).
+        body = {"email": self._email, "password": self._password}
+        resp = await self._http.post("/auth/login", json=body)
+
+        if resp.status_code == 401 or (
+            resp.status_code == 200 and not resp.json().get("user")
+        ):
+            if not self._register_if_new:
+                raise ClockAuthError(
+                    f"Đăng nhập {self._email} thất bại và register bị tắt"
+                )
+            reg = await self._http.post("/auth/register", json=body)
+            if reg.status_code != 200 or not reg.json().get("user"):
+                raise ClockAuthError(
+                    f"Register {self._email} thất bại: {reg.status_code} {reg.text[:200]}"
+                )
+            # Register thành công cũng set cookie session
+            resp = reg
+        resp.raise_for_status()
+        user = resp.json().get("user")
+        if not user:
+            raise ClockAuthError("Login trả 200 nhưng thiếu user")
+        self._user = user
+        await self._fetch_csrf()
+        return user
+
+    # -- Request nền -------------------------------------------------------------
+
+    async def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: Any = None,
+        params: dict[str, Any] | None = None,
+        retries_left: int = 2,
+    ) -> Any:
+        """Gọi BE; tự kèm CSRF; 401 → login lại 1 lần rồi retry."""
+        headers: dict[str, str] = {}
+        effective = path.split("?")[0]
+        needs_csrf = (
+            method.upper() in WRITE_METHODS and effective not in CSRF_EXEMPT_PATHS
+        )
+        if needs_csrf:
+            if not self._csrf_token:
+                await self._fetch_csrf()
+            headers[CSRF_HEADER] = self._csrf_token or ""
+
+        resp = await self._http.request(
+            method, path, json=json, params=params, headers=headers
+        )
+
+        # Token hết hạn / tokenVersion đổi → thiết lập lại phiên 1 lần
+        if resp.status_code == 401 and retries_left > 0:
+            logger.info("401 ở %s — đăng nhập lại rồi retry", path)
+            self._user = None
+            self._csrf_token = None
+            await self.ensure_session()
+            return await self.request(
+                method,
+                path,
+                json=json,
+                params=params,
+                retries_left=retries_left - 1,
+            )
+
+        if resp.status_code >= 400:
+            try:
+                payload = resp.json()
+                message = payload.get("message", resp.text[:300])
+            except Exception:
+                payload = None
+                message = resp.text[:300]
+            raise ClockApiError(resp.status_code, str(message), payload)
+
+        if resp.status_code == 204 or not resp.content:
+            return None
+        return resp.json()
+
+    # -- API tiện dụng (map 1-1 controller của clock) ------------------------------
+
+    async def products(
+        self,
+        *,
+        q: str | None = None,
+        collection: str | None = None,
+        sort: str | None = None,
+        page: int = 1,
+        limit: int = 20,
+        movements: list[str] | None = None,
+        material: str | None = None,
+        size: str | None = None,
+        complications: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """GET /products — catalog public (FE filter server-side, audit FE-001)."""
+        params: dict[str, Any] = {"page": page, "limit": limit}
+        if q:
+            params["q"] = q
+        if collection:
+            params["collection"] = collection
+        if sort:
+            params["sort"] = sort
+        if movements:
+            params["movements"] = ",".join(movements)
+        if material:
+            params["material"] = material
+        if size:
+            params["size"] = size
+        if complications:
+            params["complications"] = ",".join(complications)
+        return await self.request("GET", "/products", params=params)
+
+    async def product(self, slug: str) -> dict[str, Any]:
+        """GET /products/{slug}"""
+        return await self.request("GET", f"/products/{slug}")
+
+    async def cart_get(self) -> list[dict[str, Any]]:
+        """GET /cart — các item (ClientCartItem)."""
+        return await self.request("GET", "/cart")
+
+    async def cart_add(
+        self,
+        slug: str,
+        name: str,
+        price_usd: float,
+        image: str,
+        *,
+        strap: str = "",
+        engraving: str | None = None,
+        qty: int = 1,
+    ) -> list[dict[str, Any]]:
+        """POST /cart — BE tự tra giá gốc trong DB (cart KHÔNG tin giá client)."""
+        return await self.request(
+            "POST",
+            "/cart",
+            json={
+                "productSlug": slug,
+                "name": name,
+                "priceUsd": price_usd,
+                "image": image,
+                "strap": strap,
+                "engraving": engraving,
+                "qty": qty,
+            },
+        )
+
+    async def cart_update(
+        self, slug: str, *, strap: str = "", qty: int = 1
+    ) -> list[dict[str, Any]]:
+        """PATCH /cart — đổi số lượng."""
+        return await self.request(
+            "PATCH", "/cart", json={"slug": slug, "strap": strap, "qty": qty}
+        )
+
+    async def cart_remove(self, slug: str, *, strap: str = "") -> Any:
+        """DELETE /cart?slug=... — bỏ 1 dòng khỏi giỏ."""
+        return await self.request(
+            "DELETE", "/cart", params={"slug": slug, "strap": strap}
+        )
+
+    async def orders_mine(self, *, page: int = 1, limit: int = 10) -> dict[str, Any]:
+        """GET /orders/mine — đơn của user đăng nhập."""
+        return await self.request(
+            "GET", "/orders/mine", params={"page": page, "limit": limit}
+        )
+
+    async def order_by_code(self, code: str) -> dict[str, Any]:
+        """GET /orders/by-code/{code} — tra cứu công khai theo mã AC-YYYY-NNNNNN."""
+        return await self.request("GET", f"/orders/by-code/{code}")
+
+    async def admin_stats(self) -> dict[str, Any]:
+        """GET /admin/stats — dashboard (chỉ ADMIN)."""
+        return await self.request("GET", "/admin/stats")
+
+    async def admin_orders(
+        self, *, status: str | None = None, page: int = 1, limit: int = 20
+    ) -> dict[str, Any]:
+        """GET /admin/orders"""
+        params: dict[str, Any] = {"page": page, "limit": limit}
+        if status:
+            params["status"] = status
+        return await self.request("GET", "/admin/orders", params=params)
+
+    async def admin_order_update(self, order_id: str, patch: dict[str, Any]) -> Any:
+        """PATCH /admin/orders/{id} — ví dụ status SHIPPED."""
+        return await self.request("PATCH", f"/admin/orders/{order_id}", json=patch)
+
+    async def admin_products(
+        self, *, page: int = 1, limit: int = 20, q: str | None = None
+    ) -> dict[str, Any]:
+        """GET /admin/products — backoffice thấy cả SP ẩn."""
+        params: dict[str, Any] = {"page": page, "limit": limit}
+        if q:
+            params["q"] = q
+        return await self.request("GET", "/admin/products", params=params)
+
+    async def admin_product_update(
+        self, slug: str, patch: dict[str, Any]
+    ) -> dict[str, Any]:
+        """PATCH /admin/products/{slug} — đổi giá/tồn kho/mô tả... có ProductEvent."""
+        return await self.request("PATCH", f"/admin/products/{slug}", json=patch)
