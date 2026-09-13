@@ -922,3 +922,32 @@ def test_pooled_storefront_delegation_binding(tmp_path):
         await pool.aclose()
 
     asyncio.run(scenario())
+
+
+def test_watch_cancel_requires_owner_session(tmp_path):
+    """Hủy watch của session khác → 403, không deactivate."""
+    from fastapi.testclient import TestClient
+
+    import aurel_agents.host as host
+    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+
+    host._watch_store = WatchStore(tmp_path / "w.json")
+    host._alert_feed = AlertFeed(tmp_path / "a.json")
+    host._ticket_store = TicketStore(tmp_path / "t.json")
+
+    w = host._watch_store.add("shopper:owner123", "chrono-x", "restock")
+    client = TestClient(host.app)
+
+    # session lạ → 403, watch vẫn active
+    r = client.post(f"/shop/watches/{w.watch_id}/cancel?session_id=intruder99")
+    assert r.status_code == 403
+    assert host._watch_store.get(w.watch_id).active is True
+
+    # chủ sở hữu (đúng prefix 8 ký tự) → ok
+    r = client.post(f"/shop/watches/{w.watch_id}/cancel?session_id=owner123xxxxxxxxxxxxxxxx")
+    assert r.status_code == 200
+    assert host._watch_store.get(w.watch_id).active is False
+
+    # watch không tồn tại → 404
+    r = client.post("/shop/watches/w-nope-0000/cancel?session_id=owner123xx")
+    assert r.status_code == 404

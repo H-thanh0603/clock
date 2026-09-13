@@ -196,6 +196,12 @@ class WatchStore(_JsonListStore):
                 return w
         return None
 
+    def get(self, watch_id: str) -> Watch | None:
+        for w in self.all():
+            if isinstance(w, Watch) and w.watch_id == watch_id:
+                return w
+        return None
+
     def for_user(self, user_id: str) -> list[Watch]:
         return [
             w

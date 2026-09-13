@@ -633,10 +633,20 @@ async def shop_watches(session_id: str = "") -> dict:
 
 
 @app.post("/shop/watches/{watch_id}/cancel")
-async def shop_watch_cancel(watch_id: str) -> dict:
-    watch = _watch_store.deactivate(watch_id)
-    if watch is None:
+async def shop_watch_cancel(watch_id: str, session_id: str = "") -> dict:
+    """Hủy watch — chỉ chủ sở hữu (session tạo watch) được hủy.
+
+    Không check thì ai cũng hủy được watch người khác vì watch_id
+    đoán được (timestamp + counter). So khớp user_id suy từ session.
+    """
+    sid = sanitize_session_id(session_id)
+    user_id = f"shopper:{sid[:8]}"
+    watch = _watch_store.get(watch_id)
+    if watch is None or not watch.active:
         raise HTTPException(status_code=404, detail="Không tìm thấy watch (hoặc đã tắt)")
+    if watch.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Không có quyền hủy watch này")
+    _watch_store.deactivate(watch_id)
     return {"ok": True, "watch": watch.model_dump(mode="json")}
 
 
