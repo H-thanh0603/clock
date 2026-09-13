@@ -99,4 +99,61 @@ export class AdminController {
   productEvents(@Param('slug') slug: string) {
     return this.admin.productEvents(slug);
   }
+
+  @Get('promotions')
+  listPromotions(@Query('active') active?: string) {
+    return this.admin.listPromotions(
+      active === undefined || active === '' ? undefined : active !== '0',
+    );
+  }
+
+  @Post('promotions')
+  @HttpCode(201)
+  createPromotion(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.admin.createPromotion(body, user.id);
+  }
+
+  @Patch('promotions/:id')
+  @HttpCode(200)
+  setPromotionActive(
+    @Param('id') id: string,
+    @Body() body: { active?: boolean },
+  ) {
+    return this.admin.setPromotionActive(id, body.active !== false);
+  }
+
+  @Get('campaigns')
+  listCampaigns(@Query('status') status?: string) {
+    return this.admin.listCampaigns(status || undefined);
+  }
+
+  @Post('campaigns')
+  @HttpCode(201)
+  createCampaign(
+    @Body() body: Record<string, unknown>,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.admin.createCampaign(body, user.id);
+  }
+
+  @Patch('campaigns/:id')
+  @HttpCode(200)
+  updateCampaign(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.admin.updateCampaign(id, body);
+  }
+
+  @Get('metrics')
+  metrics(
+    @Query('metric') metric?: string,
+    @Query('granularity') granularity?: string,
+    @Query('days') days?: string,
+  ) {
+    return this.admin.metrics(metric || 'sales', granularity || 'day', Number(days) || 30);
+  }
 }

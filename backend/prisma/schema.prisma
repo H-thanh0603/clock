@@ -183,6 +183,45 @@ model ProductEvent {
   @@index([slug, createdAt])
 }
 
+/// Khuyến mãi theo khung ngày (merchant agent stage/apply).
+/// Apply = tạo bản ghi + cập nhật giá SP về giá KM (guardrail cap
+/// max_promotion_discount_pct ở agent ledger). Giá gốc nằm ở ProductEvent audit.
+model Promotion {
+  id          String   @id @default(cuid())
+  name        String
+  listingSlugs String[]
+  discountPct Float
+  startsAt    DateTime
+  endsAt      DateTime
+  active      Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, endsAt])
+}
+
+/// Chiến dịch marketing (merchant agent stage/apply).
+/// `spend`/`revenue` để null khi kênh chưa báo — không dùng số 0 giả.
+model Campaign {
+  id        String   @id @default(cuid())
+  name      String
+  objective String?
+  audience  String?
+  budgetUsd Int      @default(0)
+  spendUsd  Int?
+  revenueUsd Int?
+  copyText  String?  @db.Text
+  status    String   @default("draft") /// draft | active | paused | ended
+  startsAt  DateTime?
+  endsAt    DateTime?
+  createdById String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
 /// Form "Đặt lịch Private Salon" (trang chủ / atelier) và đơn đăng ký
 /// bespoke (configurator) — trước đây chỉ là mock frontend.
 model Inquiry {

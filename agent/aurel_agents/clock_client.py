@@ -119,13 +119,9 @@ class ClockClient:
         body = {"email": self._email, "password": self._password}
         resp = await self._http.post("/auth/login", json=body)
 
-        if resp.status_code == 401 or (
-            resp.status_code == 200 and not resp.json().get("user")
-        ):
+        if resp.status_code == 401 or (resp.status_code == 200 and not resp.json().get("user")):
             if not self._register_if_new:
-                raise ClockAuthError(
-                    f"Đăng nhập {self._email} thất bại và register bị tắt"
-                )
+                raise ClockAuthError(f"Đăng nhập {self._email} thất bại và register bị tắt")
             reg = await self._http.post("/auth/register", json=body)
             if reg.status_code != 200 or not reg.json().get("user"):
                 raise ClockAuthError(
@@ -155,17 +151,13 @@ class ClockClient:
         """Gọi BE; tự kèm CSRF; 401 → login lại 1 lần rồi retry."""
         headers: dict[str, str] = {}
         effective = path.split("?")[0]
-        needs_csrf = (
-            method.upper() in WRITE_METHODS and effective not in CSRF_EXEMPT_PATHS
-        )
+        needs_csrf = method.upper() in WRITE_METHODS and effective not in CSRF_EXEMPT_PATHS
         if needs_csrf:
             if not self._csrf_token:
                 await self._fetch_csrf()
             headers[CSRF_HEADER] = self._csrf_token or ""
 
-        resp = await self._http.request(
-            method, path, json=json, params=params, headers=headers
-        )
+        resp = await self._http.request(method, path, json=json, params=params, headers=headers)
 
         # Token hết hạn / tokenVersion đổi → thiết lập lại phiên 1 lần
         if resp.status_code == 401 and retries_left > 0:
@@ -265,21 +257,15 @@ class ClockClient:
         self, slug: str, *, strap: str = "", qty: int = 1
     ) -> list[dict[str, Any]]:
         """PATCH /cart — đổi số lượng."""
-        return await self.request(
-            "PATCH", "/cart", json={"slug": slug, "strap": strap, "qty": qty}
-        )
+        return await self.request("PATCH", "/cart", json={"slug": slug, "strap": strap, "qty": qty})
 
     async def cart_remove(self, slug: str, *, strap: str = "") -> Any:
         """DELETE /cart?slug=... — bỏ 1 dòng khỏi giỏ."""
-        return await self.request(
-            "DELETE", "/cart", params={"slug": slug, "strap": strap}
-        )
+        return await self.request("DELETE", "/cart", params={"slug": slug, "strap": strap})
 
     async def orders_mine(self, *, page: int = 1, limit: int = 10) -> dict[str, Any]:
         """GET /orders/mine — đơn của user đăng nhập."""
-        return await self.request(
-            "GET", "/orders/mine", params={"page": page, "limit": limit}
-        )
+        return await self.request("GET", "/orders/mine", params={"page": page, "limit": limit})
 
     async def order_by_code(self, code: str) -> dict[str, Any]:
         """GET /orders/by-code/{code} — tra cứu công khai theo mã AC-YYYY-NNNNNN."""
@@ -311,8 +297,44 @@ class ClockClient:
             params["q"] = q
         return await self.request("GET", "/admin/products", params=params)
 
-    async def admin_product_update(
-        self, slug: str, patch: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def admin_product_update(self, slug: str, patch: dict[str, Any]) -> dict[str, Any]:
         """PATCH /admin/products/{slug} — đổi giá/tồn kho/mô tả... có ProductEvent."""
         return await self.request("PATCH", f"/admin/products/{slug}", json=patch)
+
+    async def admin_promotions(self, *, active: bool | None = None) -> list[dict[str, Any]]:
+        """GET /admin/promotions — khuyến mãi theo khung ngày."""
+        params: dict[str, Any] = {}
+        if active is not None:
+            params["active"] = "1" if active else "0"
+        return await self.request("GET", "/admin/promotions", params=params)
+
+    async def admin_promotion_create(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST /admin/promotions — tạo khuyến mãi (apply từ staged change)."""
+        return await self.request("POST", "/admin/promotions", json=body)
+
+    async def admin_campaigns(self, *, status: str | None = None) -> list[dict[str, Any]]:
+        """GET /admin/campaigns — chiến dịch marketing."""
+        params: dict[str, Any] = {}
+        if status:
+            params["status"] = status
+        return await self.request("GET", "/admin/campaigns", params=params)
+
+    async def admin_campaign_create(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST /admin/campaigns — tạo campaign (apply từ staged change)."""
+        return await self.request("POST", "/admin/campaigns", json=body)
+
+    async def admin_campaign_update(
+        self, campaign_id: str, patch: dict[str, Any]
+    ) -> dict[str, Any]:
+        """PATCH /admin/campaigns/{id} — đổi status/budget/copy..."""
+        return await self.request("PATCH", f"/admin/campaigns/{campaign_id}", json=patch)
+
+    async def admin_metrics(
+        self, *, metric: str = "sales", granularity: str = "day", days: int = 30
+    ) -> dict[str, Any]:
+        """GET /admin/metrics — time-series sales/orders từ DB thật."""
+        return await self.request(
+            "GET",
+            "/admin/metrics",
+            params={"metric": metric, "granularity": granularity, "days": days},
+        )

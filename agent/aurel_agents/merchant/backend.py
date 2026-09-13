@@ -1,17 +1,16 @@
 # Copyright 2026 — Aurel & Co. đồ án clock
 # SPDX-License-Identifier: MIT
 """``MerchantBackend`` của Aurel & Co.: map admin API của backend clock
-(stats/orders/products) lên interface merchant-agent (Anthropic commerce-agents).
+(stats/orders/products/promotions/campaigns/metrics) lên interface
+merchant-agent (Anthropic commerce-agents).
 
 Kiến trúc staged-change (propose → preview → approve → apply):
 
-- ``stage_*``: ghi vào ``ChangeLedger`` (in-memory của upstream) — KHÔNG đụng BE.
-- ``apply_change``: duy nhất nơi ghi thật, gọi ``PATCH /admin/products/{slug}``.
-  Mọi PATCH của BE tự ghi ``ProductEvent`` — audit trail 2 lớp.
-- clock KHÔNG có hệ thống campaign/promotion → ``stage_campaign`` /
-  ``stage_promotion`` raise ``ChangeNotApplicable`` (executor sẽ relay cho model).
+- ``stage_*``: ghi vào ``ChangeLedger`` — KHÔNG đụng BE.
+- ``apply_change``: duy nhất nơi ghi thật (products/promotions/campaigns).
+  Mọi PATCH product của BE tự ghi ``ProductEvent`` — audit trail 2 lớp.
 
-Số liệu map từ ``GET /admin/stats``: revenue (đơn PAID+), orders, users, products.
+Số liệu: snapshot từ ``GET /admin/stats`` + time-series từ ``GET /admin/metrics``.
 Traffic/conversion không có nguồn → None đúng luật "never a stand-in zero".
 """
 
@@ -92,6 +91,50 @@ def _details_from_clock(p: dict[str, Any]) -> ListingDetails:
     return ListingDetails(**base)
 
 
+_DRAFT_PREFIX = "aurel-draft:"
+
+
+def _encode_draft(kind: str, draft: dict[str, Any]) -> str:
+    """Nhúng draft vào guardrail_notes để sống qua persist ledger (restart)."""
+    import json as _json
+
+    return _DRAFT_PREFIX + kind + ":" + _json.dumps(draft, ensure_ascii=False, default=str)
+
+
+def _decode_draft(change: Any, kind: str) -> dict[str, Any]:
+    """Đọc draft từ guardrail_notes của change (fallback khi sidecar memory mất)."""
+    import json as _json
+
+    for note in getattr(change, "guardrail_notes", None) or []:
+        if isinstance(note, str) and note.startswith(_DRAFT_PREFIX + kind + ":"):
+            try:
+                data = _json.loads(note[len(_DRAFT_PREFIX + kind + ":") :])
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+    return {}
+
+
+def _campaign_from_clock(c: dict[str, Any]) -> Campaign:
+    """CampaignDto (clock) → merchant Campaign (spend/revenue None khi chưa báo)."""
+    status = str(c.get("status", "draft"))
+    if status not in ("draft", "active", "paused", "ended"):
+        status = "draft"
+    return Campaign(
+        campaign_id=str(c.get("id", "")),
+        name=str(c.get("name", "")),
+        status=status,  # type: ignore[arg-type]
+        objective=c.get("objective"),
+        budget=float(c.get("budgetUsd", 0) or 0),
+        spend=c.get("spendUsd"),
+        revenue=c.get("revenueUsd"),
+        currency="USD",
+        starts=str(c["startsAt"][:10]) if c.get("startsAt") else None,
+        ends=str(c["endsAt"][:10]) if c.get("endsAt") else None,
+    )
+
+
 class AurelMerchant(MerchantBackend):
     """Adapter chạy trên 1 ``ClockClient`` admin (login ADMIN)."""
 
@@ -106,6 +149,9 @@ class AurelMerchant(MerchantBackend):
         self._ledger = ledger or ChangeLedger(
             config or MerchantAgentConfig(brand_name="Aurel & Co.")
         )
+        # Draft gốc cho staged PROMOTION/CAMPAIGN (apply mới ghi BE).
+        self._promo_drafts: dict[str, dict[str, Any]] = {}
+        self._campaign_drafts: dict[str, dict[str, Any]] = {}
 
     # -- Performance ------------------------------------------------------------
 
@@ -118,9 +164,7 @@ class AurelMerchant(MerchantBackend):
             str(c["status"]): int(c["count"]) for c in stats.get("ordersByStatus", [])
         }
         pending = len(self._ledger.pending())
-        open_issues = sum(
-            1 for s in ("PENDING", "CONFIRMED") if orders_by_status.get(s, 0) > 0
-        )
+        open_issues = sum(1 for s in ("PENDING", "CONFIRMED") if orders_by_status.get(s, 0) > 0)
         return BusinessSnapshot(
             period=period,
             compare_to=None,
@@ -150,36 +194,41 @@ class AurelMerchant(MerchantBackend):
         granularity: str = "day",
         segment: str | None = None,
     ) -> MetricSeries:
-        # clock chỉ có tổng lũy kế qua /admin/stats — không có chuỗi thời gian
-        if metric == "sales":
-            stats = await self._client.admin_stats()
+        # Time-series thật từ /admin/metrics (sales + orders theo ngày/tuần/tháng).
+        # Traffic/others không có nguồn → points rỗng + note, không bịa số.
+        if metric in ("sales", "orders"):
+            gran = granularity if granularity in ("day", "week", "month") else "day"
+            data = await self._client.admin_metrics(metric=metric, granularity=gran, days=90)
+            points = [
+                MetricPoint(date=str(p.get("date", "")), value=float(p.get("value", 0)))
+                for p in (data.get("points") or [])
+            ]
             return MetricSeries(
-                metric="sales",
-                unit="USD",
-                granularity="month",
-                period=period or "to-date",
+                metric=metric,
+                unit="USD" if metric == "sales" else "orders",
+                granularity=gran,  # type: ignore[arg-type]
+                period=period or "last-90-days",
                 segment=segment,
-                points=[
-                    MetricPoint(
-                        date=datetime.now(UTC).strftime("%Y-%m"),
-                        value=float(stats.get("revenueUsd", 0) or 0),
-                    )
-                ],
-                note="Tổng lũy kế từ /admin/stats; không có chuỗi theo ngày.",
+                points=points,
+                note="Số liệu từ đơn thật (sales chỉ PAID+).",
             )
         return MetricSeries(
             metric=metric,
-            granularity=granularity,
+            granularity=granularity,  # type: ignore[arg-type]
             period=period,
             segment=segment,
             points=[],
-            note="clock chỉ có số liệu tổng lũy kế — metric này không có nguồn.",
+            note="clock không có nguồn cho metric này (traffic: chưa có analytics).",
         )
 
     async def get_campaign_performance(
         self, session: MerchantSessionContext, campaign_id: str | None = None
     ) -> list[Campaign]:
-        return []  # clock không chạy campaign — model sẽ nói rõ điều này
+        rows = await self._client.admin_campaigns()
+        campaigns = [_campaign_from_clock(r) for r in rows]
+        if campaign_id:
+            campaigns = [c for c in campaigns if c.campaign_id == campaign_id]
+        return campaigns
 
     # -- Listings -----------------------------------------------------------------
 
@@ -218,9 +267,7 @@ class AurelMerchant(MerchantBackend):
 
     # -- Inventory and order health --------------------------------------------------
 
-    async def get_inventory_alerts(
-        self, session: MerchantSessionContext
-    ) -> list[InventoryAlert]:
+    async def get_inventory_alerts(self, session: MerchantSessionContext) -> list[InventoryAlert]:
         data = await self._client.admin_products(limit=50)
         alerts: list[InventoryAlert] = []
         for p in data.get("items", []):
@@ -239,9 +286,7 @@ class AurelMerchant(MerchantBackend):
                 )
         return alerts
 
-    async def get_order_issues(
-        self, session: MerchantSessionContext
-    ) -> list[OrderIssue]:
+    async def get_order_issues(self, session: MerchantSessionContext) -> list[OrderIssue]:
         data = await self._client.admin_orders(status="PENDING", limit=50)
         issues: list[OrderIssue] = []
         for o in data.get("items", []):
@@ -398,63 +443,197 @@ class AurelMerchant(MerchantBackend):
     async def stage_promotion(
         self, session: MerchantSessionContext, promotion: PromotionDraft
     ) -> StagedChange:
-        raise ChangeNotApplicable(
-            "clock (Aurel & Co.) không có hệ thống khuyến mãi theo khung ngày"
+        # Khuyến mãi thật: mỗi listing là 1 price move (before → giá KM),
+        # guardrail max_promotion_discount_pct của ledger kiểm tra cap.
+        # Apply mới tạo Promotion + cập nhật giá SP trong BE.
+        change_items: list[ChangeItem] = []
+        for listing_id in promotion.listing_ids:
+            dto = await self._client.product(listing_id)
+            before = float(dto.get("priceUsd", 0) or 0)
+            after = round(before * (1 - promotion.discount_pct / 100))
+            change_items.append(
+                ChangeItem(
+                    target=listing_id,
+                    field="price",
+                    before=before,
+                    after=float(after),
+                )
+            )
+        change = self._ledger.stage(
+            kind=ChangeKind.PROMOTION,
+            summary=f"Khuyến mãi {promotion.name} ({promotion.discount_pct}% "
+            f"từ {promotion.starts} đến {promotion.ends})",
+            items=change_items,
+            actor=self._actor(session),
+            actor_kind=ActorKind.AGENT,
+            currency="USD",
+            guardrail_notes=[
+                _encode_draft(
+                    "promo",
+                    {
+                        "name": promotion.name,
+                        "listing_ids": list(promotion.listing_ids),
+                        "discount_pct": promotion.discount_pct,
+                        "starts": promotion.starts,
+                        "ends": promotion.ends,
+                    },
+                )
+            ],
         )
+        self._promo_drafts[change.change_id] = {
+            "name": promotion.name,
+            "listing_ids": list(promotion.listing_ids),
+            "discount_pct": promotion.discount_pct,
+            "starts": promotion.starts,
+            "ends": promotion.ends,
+        }
+        return change
 
     async def stage_campaign(
         self, session: MerchantSessionContext, campaign: CampaignDraft
     ) -> StagedChange:
-        raise ChangeNotApplicable(
-            "clock không chạy marketing campaign — không có kênh để áp dụng"
+        # Campaign thật: tạo mới (campaign_id None) hoặc đổi budget/copy/status.
+        # Guardrail max_campaign_budget của ledger kiểm tra budget cap.
+        if campaign.campaign_id:
+            rows = await self._client.admin_campaigns()
+            current = next((r for r in rows if str(r.get("id")) == campaign.campaign_id), None)
+            if current is None:
+                raise ChangeNotApplicable(f"Không thấy campaign {campaign.campaign_id}")
+            items: list[ChangeItem] = []
+            if campaign.budget is not None:
+                items.append(
+                    ChangeItem(
+                        target=campaign.campaign_id,
+                        field="budget",
+                        before=float(current.get("budgetUsd", 0) or 0),
+                        after=float(campaign.budget),
+                    )
+                )
+            if campaign.copy_text is not None:
+                items.append(
+                    ChangeItem(
+                        target=campaign.campaign_id,
+                        field="copy_text",
+                        before=current.get("copyText"),
+                        after=campaign.copy_text,
+                    )
+                )
+            if not items:
+                raise ChangeNotApplicable("Không có thay đổi nào cho campaign")
+            draft = {
+                "campaign_id": campaign.campaign_id,
+                "budget": campaign.budget,
+                "copy_text": campaign.copy_text,
+            }
+            summary = f"Cập nhật campaign {current.get('name', campaign.campaign_id)}"
+        else:
+            items = [
+                ChangeItem(
+                    target="new",
+                    field="budget",
+                    before=0,
+                    after=float(campaign.budget or 0),
+                )
+            ]
+            draft = {
+                "name": campaign.name,
+                "objective": campaign.objective,
+                "audience": campaign.audience,
+                "budget": campaign.budget or 0,
+                "copy_text": campaign.copy_text,
+                "starts": campaign.starts,
+                "ends": campaign.ends,
+            }
+            summary = f"Tạo campaign {campaign.name}"
+        change = self._ledger.stage(
+            kind=ChangeKind.CAMPAIGN,
+            summary=summary,
+            items=items,
+            actor=self._actor(session),
+            actor_kind=ActorKind.AGENT,
+            currency="USD",
+            guardrail_notes=[_encode_draft("campaign", draft)],
         )
+        self._campaign_drafts[change.change_id] = draft
+        return change
 
     # -- Change lifecycle ------------------------------------------------------------
 
-    async def get_pending_changes(
-        self, session: MerchantSessionContext
-    ) -> list[StagedChange]:
+    async def get_pending_changes(self, session: MerchantSessionContext) -> list[StagedChange]:
         return self._ledger.pending()
 
-    async def apply_change(
-        self, session: MerchantSessionContext, change_id: str
-    ) -> StagedChange:
+    async def apply_change(self, session: MerchantSessionContext, change_id: str) -> StagedChange:
         change = self._ledger.get(change_id)
         if change is None or change.status.value != "staged":
             raise ChangeNotApplicable(f"Không có change {change_id} đang staged")
-        # Thực hiện write thật — đây là platform write duy nhất
-        for item in change.items:
-            slug = item.target
-            if item.field == "price":
+        if change.kind == ChangeKind.PROMOTION:
+            draft = self._promo_drafts.get(change_id) or _decode_draft(change, "promo")
+            await self._client.admin_promotion_create(
+                {
+                    "name": draft.get("name", change.summary[:80]),
+                    "listingSlugs": draft.get("listing_ids", [i.target for i in change.items]),
+                    "discountPct": draft.get("discount_pct", 0),
+                    "startsAt": draft.get("starts"),
+                    "endsAt": draft.get("ends"),
+                }
+            )
+            for item in change.items:
                 await self._client.admin_product_update(
-                    slug, {"priceUsd": int(float(item.after))}
+                    item.target, {"priceUsd": int(float(item.after))}
                 )
-            elif item.field == "stock":
-                await self._client.admin_product_update(
-                    slug, {"stock": int(item.after)}
+        elif change.kind == ChangeKind.CAMPAIGN:
+            draft = self._campaign_drafts.get(change_id) or _decode_draft(change, "campaign")
+            if draft.get("campaign_id"):
+                patch: dict[str, Any] = {}
+                if draft.get("budget") is not None:
+                    patch["budgetUsd"] = int(float(draft["budget"]))
+                if draft.get("copy_text") is not None:
+                    patch["copyText"] = str(draft["copy_text"])
+                if patch:
+                    await self._client.admin_campaign_update(str(draft["campaign_id"]), patch)
+            else:
+                await self._client.admin_campaign_create(
+                    {
+                        "name": draft.get("name", change.summary[:80]),
+                        "objective": draft.get("objective"),
+                        "audience": draft.get("audience"),
+                        "budgetUsd": int(float(draft.get("budget") or 0)),
+                        "copyText": draft.get("copy_text"),
+                        "startsAt": draft.get("starts"),
+                        "endsAt": draft.get("ends"),
+                    }
                 )
-            elif item.field == "status":
-                activate = item.after == "active"
-                await self._client.admin_product_update(
-                    slug, {"inBoutique": activate}
-                )
-            elif item.field == "title":
-                await self._client.admin_product_update(slug, {"name": str(item.after)})
-            elif item.field == "short_description":
-                await self._client.admin_product_update(
-                    slug, {"shortDescription": str(item.after)}
-                )
-            elif item.field == "long_description":
-                await self._client.admin_product_update(
-                    slug, {"narrative": str(item.after)}
-                )
-            elif item.field == "labels":
-                value = item.after
-                labels = value if isinstance(value, list) else [str(value)]
-                await self._client.admin_product_update(
-                    slug, {"badges": [str(x) for x in labels]}
-                )
-        return self._ledger.apply(change_id, self._actor(session))
+        else:
+            # Thực hiện write thật cho listing/price/inventory
+            for item in change.items:
+                slug = item.target
+                if item.field == "price":
+                    await self._client.admin_product_update(
+                        slug, {"priceUsd": int(float(item.after))}
+                    )
+                elif item.field == "stock":
+                    await self._client.admin_product_update(slug, {"stock": int(item.after)})
+                elif item.field == "status":
+                    activate = item.after == "active"
+                    await self._client.admin_product_update(slug, {"inBoutique": activate})
+                elif item.field == "title":
+                    await self._client.admin_product_update(slug, {"name": str(item.after)})
+                elif item.field == "short_description":
+                    await self._client.admin_product_update(
+                        slug, {"shortDescription": str(item.after)}
+                    )
+                elif item.field == "long_description":
+                    await self._client.admin_product_update(slug, {"narrative": str(item.after)})
+                elif item.field == "labels":
+                    value = item.after
+                    labels = value if isinstance(value, list) else [str(value)]
+                    await self._client.admin_product_update(
+                        slug, {"badges": [str(x) for x in labels]}
+                    )
+        change = self._ledger.apply(change_id, self._actor(session))
+        self._promo_drafts.pop(change_id, None)
+        self._campaign_drafts.pop(change_id, None)
+        return change
 
     async def discard_change(
         self,
@@ -462,25 +641,22 @@ class AurelMerchant(MerchantBackend):
         change_id: str,
         actor_kind: ActorKind = ActorKind.OPERATOR,
     ) -> StagedChange:
-        return self._ledger.discard(change_id, self._actor(session), actor_kind)
+        change = self._ledger.discard(change_id, self._actor(session), actor_kind)
+        self._promo_drafts.pop(change_id, None)
+        self._campaign_drafts.pop(change_id, None)
+        return change
 
     # -- Merchant context ----------------------------------------------------------------
 
-    async def get_merchant_context(
-        self, session: MerchantSessionContext
-    ) -> dict[str, Any]:
+    async def get_merchant_context(self, session: MerchantSessionContext) -> dict[str, Any]:
         from merchant_agent import DataLimitation
 
         return {
             "brand": "Aurel & Co.",
             "limitations": [
                 DataLimitation(
-                    source="admin stats",
-                    note="Chỉ có tổng lũy kế; không có chuỗi theo ngày/traffic",
-                ),
-                DataLimitation(
-                    source="campaigns",
-                    note="Không có hệ thống khuyến mãi/marketing",
+                    source="traffic",
+                    note="Chưa có analytics traffic — sales/orders có time-series thật",
                 ),
             ],
         }

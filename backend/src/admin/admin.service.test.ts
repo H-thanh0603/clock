@@ -120,3 +120,109 @@ describe('AdminService.updateStatus', () => {
     );
   });
 });
+
+describe('AdminService.promotions', () => {
+  const basePrisma = () => ({
+    promotion: {
+      create: ({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: 'promo-1', ...data }),
+      findMany: () => Promise.resolve([]),
+      update: () => Promise.resolve({ id: 'promo-1', active: false }),
+    },
+  });
+
+  it('tạo promotion hợp lệ', async () => {
+    const svc = new AdminService(basePrisma() as never, {} as never);
+    const r = await svc.createPromotion(
+      {
+        name: 'Mid-season 10%',
+        listingSlugs: ['a', 'b'],
+        discountPct: 10,
+        startsAt: '2026-09-01',
+        endsAt: '2026-09-30',
+      },
+      'admin-1',
+    );
+    expect(r.name).toBe('Mid-season 10%');
+  });
+
+  it('discountPct = 0 hoặc > 90 bị từ chối', async () => {
+    const svc = new AdminService(basePrisma() as never, {} as never);
+    await expect(
+      svc.createPromotion({
+        name: 'x',
+        listingSlugs: ['a'],
+        discountPct: 0,
+        startsAt: '2026-09-01',
+        endsAt: '2026-09-30',
+      }),
+    ).rejects.toThrow(/discountPct/);
+    await expect(
+      svc.createPromotion({
+        name: 'x',
+        listingSlugs: ['a'],
+        discountPct: 95,
+        startsAt: '2026-09-01',
+        endsAt: '2026-09-30',
+      }),
+    ).rejects.toThrow(/discountPct/);
+  });
+
+  it('starts >= ends bị từ chối', async () => {
+    const svc = new AdminService(basePrisma() as never, {} as never);
+    await expect(
+      svc.createPromotion({
+        name: 'x',
+        listingSlugs: ['a'],
+        discountPct: 10,
+        startsAt: '2026-09-30',
+        endsAt: '2026-09-01',
+      }),
+    ).rejects.toThrow(/Khung ngày/);
+  });
+});
+
+describe('AdminService.campaigns', () => {
+  it('tạo campaign + update status hợp lệ', async () => {
+    const prisma = {
+      campaign: {
+        create: ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'c-1', ...data }),
+        update: ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'c-1', ...data }),
+      },
+    };
+    const svc = new AdminService(prisma as never, {} as never);
+    const c = await svc.createCampaign({ name: 'Launch', budgetUsd: 500 }, 'a1');
+    expect(c.status).toBe('draft');
+    const u = await svc.updateCampaign('c-1', { status: 'active' });
+    expect(u.status).toBe('active');
+    await expect(svc.updateCampaign('c-1', { status: 'bogus' })).rejects.toThrow(
+      /Status campaign/,
+    );
+  });
+});
+
+describe('AdminService.metrics', () => {
+  it('sales map rows thành points ngày', async () => {
+    const prisma = {
+      $queryRaw: () =>
+        Promise.resolve([
+          { bucket: new Date('2026-09-10T00:00:00Z'), value: BigInt(1500) },
+          { bucket: new Date('2026-09-11T00:00:00Z'), value: BigInt(200) },
+        ]),
+    };
+    const svc = new AdminService(prisma as never, {} as never);
+    const r = await svc.metrics('sales', 'day', 30);
+    expect(r.points).toEqual([
+      { date: '2026-09-10', value: 1500 },
+      { date: '2026-09-11', value: 200 },
+    ]);
+  });
+
+  it('metric lạ trả points rỗng (không bịa số)', async () => {
+    const svc = new AdminService({} as never, {} as never);
+    const r = await svc.metrics('traffic', 'day', 30);
+    expect(r.points).toEqual([]);
+  });
+});

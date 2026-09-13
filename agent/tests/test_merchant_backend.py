@@ -52,9 +52,7 @@ def make_merchant(respx_mock) -> AurelMerchant:
 def merchant_ctx():
     from merchant_agent import MerchantSessionContext
 
-    return MerchantSessionContext(
-        session_id="m1", merchant_id="aurel", operator="op-test"
-    )
+    return MerchantSessionContext(session_id="m1", merchant_id="aurel", operator="op-test")
 
 
 @pytest.mark.asyncio
@@ -72,12 +70,10 @@ async def test_business_snapshot(respx_mock):
 @pytest.mark.asyncio
 async def test_stage_price_update_and_apply(respx_mock):
     """Stage giá → apply → PATCH /admin/products với priceUsd mới."""
-    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(
-        json=PRODUCT_DTO
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
+    patch = respx_mock.patch(f"{BASE}/admin/products/chronos-tourbillon-no-07").respond(
+        json={"slug": "chronos-tourbillon-no-07"}
     )
-    patch = respx_mock.patch(
-        f"{BASE}/admin/products/chronos-tourbillon-no-07"
-    ).respond(json={"slug": "chronos-tourbillon-no-07"})
     m = make_merchant(respx_mock)
 
     from merchant_agent import PriceUpdateItem
@@ -102,12 +98,10 @@ async def test_stage_price_update_and_apply(respx_mock):
 
 @pytest.mark.asyncio
 async def test_stage_inventory_restock_and_apply(respx_mock):
-    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(
-        json=PRODUCT_DTO
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
+    patch = respx_mock.patch(f"{BASE}/admin/products/chronos-tourbillon-no-07").respond(
+        json={"slug": "x"}
     )
-    patch = respx_mock.patch(
-        f"{BASE}/admin/products/chronos-tourbillon-no-07"
-    ).respond(json={"slug": "x"})
     m = make_merchant(respx_mock)
 
     from merchant_agent import InventoryActionItem
@@ -128,12 +122,10 @@ async def test_stage_inventory_restock_and_apply(respx_mock):
 @pytest.mark.asyncio
 async def test_stage_pause_and_apply(respx_mock):
     """pause → PATCH inBoutique=false (ẩn khỏi boutique)."""
-    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(
-        json=PRODUCT_DTO
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
+    patch = respx_mock.patch(f"{BASE}/admin/products/chronos-tourbillon-no-07").respond(
+        json={"slug": "x"}
     )
-    patch = respx_mock.patch(
-        f"{BASE}/admin/products/chronos-tourbillon-no-07"
-    ).respond(json={"slug": "x"})
     m = make_merchant(respx_mock)
 
     from merchant_agent import InventoryActionItem
@@ -148,23 +140,138 @@ async def test_stage_pause_and_apply(respx_mock):
 
 
 @pytest.mark.asyncio
-async def test_campaign_not_applicable(respx_mock):
-    """clock không có hệ campaign → ChangeNotApplicable."""
+async def test_stage_promotion_and_apply(respx_mock):
+    """Stage KM 10% → apply → POST /admin/promotions + PATCH giá KM."""
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
+    promo = respx_mock.post(f"{BASE}/admin/promotions").respond(json={"id": "promo-1"})
+    patch = respx_mock.patch(f"{BASE}/admin/products/chronos-tourbillon-no-07").respond(
+        json={"slug": "chronos-tourbillon-no-07"}
+    )
     m = make_merchant(respx_mock)
-    from merchant_agent import CampaignDraft, ChangeNotApplicable
+    from merchant_agent import PromotionDraft
 
-    with pytest.raises(ChangeNotApplicable):
-        await m.stage_campaign(
-            merchant_ctx(),
-            CampaignDraft(name="Summer", budget=1000),
-        )
+    change = await m.stage_promotion(
+        merchant_ctx(),
+        PromotionDraft(
+            name="Mid-season 10%",
+            listing_ids=["chronos-tourbillon-no-07"],
+            discount_pct=10,
+            starts="2026-09-01",
+            ends="2026-09-30",
+        ),
+    )
+    assert change.status.value == "staged"
+    assert change.items[0].before == 18500.0
+    assert change.items[0].after == 16650.0  # 18500 * 0.9
+    assert not promo.called and not patch.called
+
+    applied = await m.apply_change(merchant_ctx(), change.change_id)
+    assert applied.status.value == "applied"
+    assert promo.called
+    body = json.loads(promo.calls.last.request.content)
+    assert body["name"] == "Mid-season 10%"
+    assert body["listingSlugs"] == ["chronos-tourbillon-no-07"]
+    price_body = json.loads(patch.calls.last.request.content)
+    assert price_body == {"priceUsd": 16650}
+
+
+@pytest.mark.asyncio
+async def test_stage_campaign_create_and_apply(respx_mock):
+    """Stage campaign mới → apply → POST /admin/campaigns."""
+    created = respx_mock.post(f"{BASE}/admin/campaigns").respond(
+        json={"id": "c-1", "name": "Launch"}
+    )
+    m = make_merchant(respx_mock)
+    from merchant_agent import CampaignDraft
+
+    change = await m.stage_campaign(
+        merchant_ctx(),
+        CampaignDraft(name="Launch", budget=500, objective="ra mắt"),
+    )
+    assert change.status.value == "staged"
+    applied = await m.apply_change(merchant_ctx(), change.change_id)
+    assert applied.status.value == "applied"
+    assert created.called
+    body = json.loads(created.calls.last.request.content)
+    assert body["name"] == "Launch"
+    assert body["budgetUsd"] == 500
+
+
+@pytest.mark.asyncio
+async def test_promotion_survives_restart(respx_mock, tmp_path):
+    """Stage → save ledger → backend mới (mất sidecar) → apply vẫn đủ draft."""
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
+    respx_mock.post(f"{BASE}/admin/promotions").respond(json={"id": "promo-1"})
+    respx_mock.patch(f"{BASE}/admin/products/chronos-tourbillon-no-07").respond(
+        json={"slug": "chronos-tourbillon-no-07"}
+    )
+    m = make_merchant(respx_mock)
+    from merchant_agent import PromotionDraft
+
+    change = await m.stage_promotion(
+        merchant_ctx(),
+        PromotionDraft(
+            name="Restart 10%",
+            listing_ids=["chronos-tourbillon-no-07"],
+            discount_pct=10,
+            starts="2026-09-01",
+            ends="2026-09-30",
+        ),
+    )
+    from aurel_agents.session_pool import load_ledger, save_ledger
+
+    path = tmp_path / "ledger.json"
+    save_ledger(m._ledger, path)
+
+    m2 = make_merchant(respx_mock)
+    assert load_ledger(m2._ledger, path) == 1
+    assert m2._promo_drafts == {}  # sidecar memory mất sau restart
+    applied = await m2.apply_change(merchant_ctx(), change.change_id)
+    assert applied.status.value == "applied"
+
+
+@pytest.mark.asyncio
+async def test_campaign_performance_from_backend(respx_mock):
+    respx_mock.get(f"{BASE}/admin/campaigns").respond(
+        json=[
+            {
+                "id": "c-1",
+                "name": "Launch",
+                "status": "active",
+                "budgetUsd": 500,
+                "spendUsd": None,
+                "revenueUsd": None,
+            }
+        ]
+    )
+    m = make_merchant(respx_mock)
+    campaigns = await m.get_campaign_performance(merchant_ctx())
+    assert len(campaigns) == 1
+    assert campaigns[0].campaign_id == "c-1"
+    assert campaigns[0].spend is None  # chưa báo → None, không phải 0
+
+
+@pytest.mark.asyncio
+async def test_query_metrics_sales_timeseries(respx_mock):
+    respx_mock.get(f"{BASE}/admin/metrics").respond(
+        json={
+            "metric": "sales",
+            "granularity": "day",
+            "points": [{"date": "2026-09-10", "value": 1500}],
+        }
+    )
+    m = make_merchant(respx_mock)
+    series = await m.query_metrics(merchant_ctx(), "sales")
+    assert len(series.points) == 1
+    assert series.points[0].date == "2026-09-10"
+
+    series_unknown = await m.query_metrics(merchant_ctx(), "traffic")
+    assert series_unknown.points == []
 
 
 @pytest.mark.asyncio
 async def test_discard_does_not_write(respx_mock):
-    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(
-        json=PRODUCT_DTO
-    )
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
     patch = respx_mock.patch(f"{BASE}/admin/products/x").respond(json={})
     m = make_merchant(respx_mock)
 
@@ -181,9 +288,7 @@ async def test_discard_does_not_write(respx_mock):
 
 @pytest.mark.asyncio
 async def test_listing_update_maps_fields(respx_mock):
-    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(
-        json=PRODUCT_DTO
-    )
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
     m = make_merchant(respx_mock)
 
     change = await m.stage_listing_update(
@@ -199,9 +304,7 @@ async def test_listing_update_maps_fields(respx_mock):
 @pytest.mark.asyncio
 async def test_listing_update_rejects_price_field(respx_mock):
     """price không được đi qua listing_update — phải qua price update."""
-    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(
-        json=PRODUCT_DTO
-    )
+    respx_mock.get(f"{BASE}/products/chronos-tourbillon-no-07").respond(json=PRODUCT_DTO)
     m = make_merchant(respx_mock)
     from merchant_agent import ChangeNotApplicable
 

@@ -362,4 +362,168 @@ export class AdminService {
       take: 20,
     });
   }
+
+  // -- Promotions (merchant agent: stage_promotion → apply tạo + đổi giá) --
+
+  async listPromotions(active?: boolean) {
+    return this.prisma.promotion.findMany({
+      where: active === undefined ? {} : { active },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async createPromotion(
+    body: {
+      name?: unknown;
+      listingSlugs?: unknown;
+      discountPct?: unknown;
+      startsAt?: unknown;
+      endsAt?: unknown;
+    },
+    byUserId?: string,
+  ) {
+    const name = String(body.name ?? '').trim().slice(0, 80);
+    const slugs = Array.isArray(body.listingSlugs)
+      ? (body.listingSlugs as unknown[]).map((s) => String(s)).filter(Boolean)
+      : [];
+    const discountPct = Number(body.discountPct);
+    const startsAt = new Date(String(body.startsAt ?? ''));
+    const endsAt = new Date(String(body.endsAt ?? ''));
+    if (!name || slugs.length === 0)
+      throw new BadRequestException('Thiếu tên hoặc danh sách sản phẩm');
+    if (!Number.isFinite(discountPct) || discountPct === 0 || Math.abs(discountPct) > 90)
+      throw new BadRequestException('discountPct phải trong [-90, 90] và khác 0');
+    if (Number.isNaN(+startsAt) || Number.isNaN(+endsAt) || startsAt >= endsAt)
+      throw new BadRequestException('Khung ngày không hợp lệ (starts < ends)');
+    const row = await this.prisma.promotion.create({
+      data: {
+        name,
+        listingSlugs: slugs,
+        discountPct,
+        startsAt,
+        endsAt,
+        active: true,
+        createdById: byUserId ?? null,
+      },
+    });
+    return row;
+  }
+
+  async setPromotionActive(id: string, active: boolean) {
+    try {
+      return await this.prisma.promotion.update({ where: { id }, data: { active } });
+    } catch {
+      throw new NotFoundException('Không thấy promotion');
+    }
+  }
+
+  // -- Campaigns (merchant agent: stage_campaign → apply tạo/cập nhật) --
+
+  async listCampaigns(status?: string) {
+    return this.prisma.campaign.findMany({
+      where: status ? { status } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async createCampaign(
+    body: {
+      name?: unknown;
+      objective?: unknown;
+      audience?: unknown;
+      budgetUsd?: unknown;
+      copyText?: unknown;
+      startsAt?: unknown;
+      endsAt?: unknown;
+    },
+    byUserId?: string,
+  ) {
+    const name = String(body.name ?? '').trim().slice(0, 80);
+    if (!name) throw new BadRequestException('Thiếu tên campaign');
+    const budgetUsd = Math.max(0, Math.floor(Number(body.budgetUsd) || 0));
+    const parseOpt = (v: unknown) => {
+      if (v === undefined || v === null || v === '') return null;
+      const d = new Date(String(v));
+      return Number.isNaN(+d) ? null : d;
+    };
+    const row = await this.prisma.campaign.create({
+      data: {
+        name,
+        objective: body.objective ? String(body.objective).slice(0, 200) : null,
+        audience: body.audience ? String(body.audience).slice(0, 300) : null,
+        budgetUsd,
+        copyText: body.copyText ? String(body.copyText).slice(0, 600) : null,
+        status: 'draft',
+        startsAt: parseOpt(body.startsAt),
+        endsAt: parseOpt(body.endsAt),
+        createdById: byUserId ?? null,
+      },
+    });
+    return row;
+  }
+
+  async updateCampaign(id: string, body: Record<string, unknown>) {
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = String(body.name).slice(0, 80);
+    if (body.objective !== undefined)
+      data.objective = body.objective ? String(body.objective).slice(0, 200) : null;
+    if (body.audience !== undefined)
+      data.audience = body.audience ? String(body.audience).slice(0, 300) : null;
+    if (body.copyText !== undefined)
+      data.copyText = body.copyText ? String(body.copyText).slice(0, 600) : null;
+    if (body.budgetUsd !== undefined)
+      data.budgetUsd = Math.max(0, Math.floor(Number(body.budgetUsd) || 0));
+    if (body.status !== undefined) {
+      const s = String(body.status);
+      if (!['draft', 'active', 'paused', 'ended'].includes(s))
+        throw new BadRequestException('Status campaign không hợp lệ');
+      data.status = s;
+    }
+    try {
+      return await this.prisma.campaign.update({ where: { id }, data });
+    } catch {
+      throw new NotFoundException('Không thấy campaign');
+    }
+  }
+
+  // -- Metrics time-series (merchant agent: query_metrics) --
+
+  async metrics(
+    metric: string,
+    granularity: string = 'day',
+    days = 30,
+  ): Promise<{ metric: string; granularity: string; points: { date: string; value: number }[] }> {
+    const gran = ['day', 'week', 'month'].includes(granularity) ? granularity : 'day';
+    const span = Math.min(365, Math.max(1, Math.floor(days) || 30));
+    const trunc = gran === 'day' ? 'day' : gran === 'week' ? 'week' : 'month';
+    if (metric === 'sales') {
+      const rows = await this.prisma.$queryRaw<
+        { bucket: Date; value: bigint }[]
+      >`SELECT date_trunc(${trunc}, "createdAt") AS bucket, COALESCE(SUM("totalUsd"), 0) AS value FROM "Order" WHERE "createdAt" >= NOW() - (${span} * INTERVAL '1 day') AND status IN ('PAID', 'SHIPPED', 'COMPLETED') GROUP BY bucket ORDER BY bucket`;
+      return {
+        metric,
+        granularity: gran,
+        points: rows.map((r) => ({
+          date: new Date(r.bucket).toISOString().slice(0, 10),
+          value: Number(r.value ?? 0),
+        })),
+      };
+    }
+    if (metric === 'orders') {
+      const rows = await this.prisma.$queryRaw<
+        { bucket: Date; value: bigint }[]
+      >`SELECT date_trunc(${trunc}, "createdAt") AS bucket, COUNT(*) AS value FROM "Order" WHERE "createdAt" >= NOW() - (${span} * INTERVAL '1 day') AND status <> 'CANCELLED' GROUP BY bucket ORDER BY bucket`;
+      return {
+        metric,
+        granularity: gran,
+        points: rows.map((r) => ({
+          date: new Date(r.bucket).toISOString().slice(0, 10),
+          value: Number(r.value ?? 0),
+        })),
+      };
+    }
+    return { metric, granularity: gran, points: [] };
+  }
 }
