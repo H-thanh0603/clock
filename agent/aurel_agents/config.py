@@ -17,17 +17,19 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 
 from dotenv import load_dotenv
 
-AGENT_DIR = Path(__file__).resolve().parent.parent
-REPO_ROOT = AGENT_DIR.parent
+from aurel_agents.paths import (
+    AGENT_DIR,
+    MERCHANT_SKILLS,
+    REPO_ROOT,
+    SHOPPING_SKILLS,
+    VENDOR_DIR,
+)
 
-# vendor/ chứa 5 package của commerce-agents (đã pin trong pyproject)
-VENDOR_DIR = AGENT_DIR / "vendor"
-SHOPPING_SKILLS = VENDOR_DIR / "shopping-agent" / "skills"
-MERCHANT_SKILLS = VENDOR_DIR / "merchant-agent" / "skills"
+# Back-compat: các hằng đường dẫn đã chuyển sang aurel_agents.paths
+# (import ở trên để dùng trực tiếp; __all__ giữ tên cho code cũ).
 
 
 def _load_env() -> None:

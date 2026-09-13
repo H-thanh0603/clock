@@ -25,6 +25,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -37,6 +38,7 @@ from aurel_agents.config import (
     build_shopping_config,
     get_settings,
 )
+from aurel_agents.paths import MEMORY_STORE_FILE
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
@@ -58,6 +60,7 @@ _sessions: dict[str, list[dict[str, Any]]] = {}
 
 
 async def _make_shopping_agent():
+    from commerce_common.memory import JsonFileMemoryStore
     from shopping_agent_runtime import ShoppingAgent
 
     from aurel_agents.shopping.backend import AurelStorefront
@@ -75,11 +78,15 @@ async def _make_shopping_agent():
         skills_dir=SHOPPING_SKILLS,
         config=build_shopping_config(settings),
         client=build_anthropic_client(settings),
+        # Memory persistence: shopper demo dùng 1 user_id nên facts sống qua
+        # session và qua restart host (file JSON, agent/data/ gitignored).
+        memory_store=JsonFileMemoryStore(MEMORY_STORE_FILE),
     )
     return agent, client
 
 
 async def _make_merchant_agent():
+    from commerce_common.memory import JsonFileMemoryStore
     from merchant_agent_runtime import MerchantAgent
 
     from aurel_agents.merchant.backend import AurelMerchant
@@ -97,6 +104,10 @@ async def _make_merchant_agent():
         skills_dir=MERCHANT_SKILLS,
         config=build_merchant_config(settings),
         client=build_anthropic_client(settings),
+        # Memory riêng cho merchant (operator) — tách file khỏi shopper
+        memory_store=JsonFileMemoryStore(
+            MEMORY_STORE_FILE.with_name("memory-merchant.json")
+        ),
     )
     return agent, client
 
@@ -130,6 +141,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Aurel & Co. AI Agents", lifespan=lifespan)
+
+# CORS cho FE (Next dev :3100 / prod cùng origin sau proxy). Agent host không
+# có cookie/token riêng — chỉ mở đúng origin của FE cần gọi.
+settings_cors = get_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3100",
+        "http://127.0.0.1:3100",
+        settings_cors.frontend_url,
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["content-type"],
+)
 
 
 # --- helpers ---------------------------------------------------------------------
@@ -165,6 +190,16 @@ async def _run_shopping_turn(agent: Any, message: str, session_id: str):
         logger.exception("Lỗi shopping turn")
         yield _sse({"type": "error", "message": str(error)})
         return
+    # Memory persistence: trích fact sau khi turn xong (không bao giờ raise
+    # — hợp đồng của update_memory; khách bảo "thích mặt 40mm" sẽ được nhớ).
+    try:
+        facts = await agent.update_memory(transcript, context)
+        if facts:
+            yield _sse(
+                {"type": "memory", "facts": [f.model_dump() for f in facts]}
+            )
+    except Exception:
+        logger.exception("update_memory lỗi (bỏ qua, không ảnh hưởng turn)")
     yield _sse({"type": "done"})
 
 
@@ -189,6 +224,15 @@ async def _run_merchant_turn(agent: Any, message: str, session_id: str):
         logger.exception("Lỗi merchant turn")
         yield _sse({"type": "error", "message": str(error)})
         return
+    # Memory persistence cho merchant (merchant_id="aurel")
+    try:
+        facts = await agent.update_memory(transcript, context)
+        if facts:
+            yield _sse(
+                {"type": "memory", "facts": [f.model_dump() for f in facts]}
+            )
+    except Exception:
+        logger.exception("update_memory lỗi (bỏ qua, không ảnh hưởng turn)")
     yield _sse({"type": "done"})
 
 
