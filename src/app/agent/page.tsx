@@ -296,6 +296,20 @@ function UxEvent({ event }: { event: Extract<AgentEvent, { type: "ui" }> }) {
           )}
         </Card>
       );
+    case "watch_confirmed":
+      return (
+        <Card className="border-primary/40">
+          <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+            Đã đặt theo dõi
+          </p>
+          <p className="font-body-md text-body-md text-on-surface mt-1">
+            {event.payload.product_id} — sẽ báo khi {event.payload.confirmed ?? "điều kiện khớp"}.
+          </p>
+          <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/70">
+            Agent kiểm tra nền mỗi vài phút — bạn không cần ở lại đây.
+          </p>
+        </Card>
+      );
     default:
       return null; // host bỏ qua component không biết — đúng hợp đồng upstream
   }
@@ -317,13 +331,83 @@ const SUGGESTIONS: Record<AgentRole, string[]> = {
     "Tôi muốn tourbillon dưới 150k USD",
     "So sánh Chronos Tourbillon và Grand Complication",
     "Kế hoạch mua đồng hồ first-class trong 2 tháng",
+    "Báo tôi khi chiếc Chronos Tourbillon về lại hàng",
+    "Tôi khiếu nại đơn AC-2025-000001 — đồng hồ bị trầy",
   ],
   merchant: [
     "Tình hình kinh doanh tháng này thế nào?",
+    "Vẽ doanh số 30 ngày qua theo ngày",
     "SP nào sắp hết tồn kho?",
     "Đơn nào đang PENDING cần xử lý?",
+    "Tạo khuyến mãi 10% cho Chronos tháng này",
+    "Tạo campaign ra mắt bộ sưu tập mới budget 500 USD",
   ],
 };
+
+type AlertRow = {
+  alert_id: string;
+  kind: string;
+  title: string;
+  detail: string;
+  created_at: number;
+};
+
+function AlertFeed({ refreshKey }: { refreshKey: number }) {
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [lastRun, setLastRun] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`${AGENT_HOST}/alerts?limit=20`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setAlerts(data.alerts ?? []);
+      setLastRun(data.monitor_last_run ?? null);
+    } catch {
+      // host chưa chạy — im lặng
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 30_000); // poll 30s
+    return () => clearInterval(t);
+  }, [load, refreshKey]);
+
+  if (!alerts.length) return null;
+  return (
+    <section className="mt-space-lg border border-outline-variant/25 bg-surface-container/30 p-space-md">
+      <div className="flex items-center justify-between gap-space-md">
+        <p className="font-label-spec text-label-spec uppercase tracking-[0.25em] text-primary">
+          Agent tự phát hiện (proactive)
+        </p>
+        <button
+          onClick={load}
+          className="font-body-sm text-body-sm text-on-surface-variant underline hover:text-primary"
+        >
+          làm mới
+        </button>
+      </div>
+      <ul className="mt-space-md space-y-space-sm">
+        {alerts.map((a) => (
+          <li key={a.alert_id} className="border-t border-outline-variant/15 pt-space-sm">
+            <p className="font-body-sm text-body-sm text-on-surface">
+              <span className="text-primary">{a.kind === "ticket" ? "ticket" : a.kind}</span>
+              {" · "}
+              {a.title}
+            </p>
+            <p className="font-body-sm text-body-sm text-on-surface-variant/70">{a.detail}</p>
+          </li>
+        ))}
+      </ul>
+      {lastRun && (
+        <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/50">
+          Vòng quét gần nhất: {new Date(lastRun * 1000).toLocaleTimeString("vi-VN")}
+        </p>
+      )}
+    </section>
+  );
+}
 
 export default function AgentChatPage() {
   const [role, setRole] = useState<AgentRole>("shop");
@@ -438,6 +522,27 @@ export default function AgentChatPage() {
                 patch((b) => ({
                   ...b,
                   ux: [...b.ux, { id: uxSeq++, node: <StagedChangeCard change={ev.change} /> }],
+                }));
+                break;
+              case "handoff":
+                patch((b) => ({
+                  ...b,
+                  ux: [
+                    ...b.ux,
+                    {
+                      id: uxSeq++,
+                      node: (
+                        <Card className="border-primary/40">
+                          <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+                            Đã chuyển cho vận hành · {ev.ticket_id}
+                          </p>
+                          <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                            {ev.message}
+                          </p>
+                        </Card>
+                      ),
+                    },
+                  ],
                 }));
                 break;
               case "error":
@@ -566,6 +671,8 @@ export default function AgentChatPage() {
             Gửi
           </button>
         </form>
+
+        <AlertFeed refreshKey={messages.length} />
       </div>
     </main>
   );

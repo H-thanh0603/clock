@@ -8,7 +8,35 @@ Hai agent chạy trên dữ liệu **thật** của backend NestJS:
 | Agent | Dành cho | Làm gì |
 |---|---|---|
 | **Shopping** (concierge) | Khách hàng | Tìm kiếm, so sánh, tư vấn đồng hồ, tự điền giỏ hàng, tra cứu đơn theo mã `AC-…`, trả lời chính sách (đổi trả, khiếu nại, vận chuyển) |
-| **Merchant** (trợ lý vận hành) | Admin | Số liệu dashboard, alert tồn kho thấp, đơn PENDING, **đề xuất thay đổi giá/tồn kho/hiển thị** theo mô hình staged change (propose → preview → approve → apply) |
+| **Merchant** (trợ lý vận hành) | Admin | Số liệu dashboard + time-series (`/admin/metrics`), alert tồn kho thấp, đơn PENDING, **đề xuất thay đổi giá/tồn kho/hiển thị/khuyến mãi/campaign** theo mô hình staged change (propose → preview → approve → apply, duyệt qua chat hoặc `POST /merchant/changes/{id}/approve`) |
+
+## Tính năng agent-only (chatbot không làm được)
+
+Chatbot chỉ tồn tại khi có user message — 4 tính năng dưới cần **tiến trình
+dài hạn + loop nền + tool ghi trạng thái**, thứ chatbot không có:
+
+1. **Proactive monitoring** — merchant agent TỰ chạy mỗi
+   `AGENT_MONITOR_INTERVAL_S` giây (mặc định 300) mà không ai hỏi: quét
+   tồn kho thấp, đơn PENDING tích tụ, publish alert ra feed (`GET /alerts`).
+   FE poll feed → admin thấy ngay không cần mở chat.
+2. **Watch "báo tôi khi về hàng/giảm giá"** — khách nói "báo tôi khi
+   chiếc X về lại hàng / giảm 10%"; shopping agent lưu qua tool `set_watch`
+   (PresentationExtension — đúng seam upstream, không sửa vendor), loop nền
+   kiểm tra định kỳ và thông báo khi khớp. Watch persist qua restart.
+3. **Task tự trị multi-step** — loop tool của agent (search → details →
+   so sánh → điền giỏ) đã chạy tự trị theo mục tiêu; watch mở rộng thành
+   task chạy **sau khi user rời đi** (deferred task).
+4. **Cross-agent handoff** — khách khiếu nại với concierge ( heuristic từ
+   khoá "khiếu nại/bị trầy/chưa nhận được...") → tự mở ticket vào
+   `data/tickets.json` + alert cho merchant agent; merchant scan vòng sau
+   đọc ticket và đề xuất xử lý. 2 agent cộng tác, chatbot đơn không có
+   khái niệm này.
+
+Endpoints mới: `GET /alerts`, `GET /shop/watches?session_id=`,
+`POST /shop/watches/{id}/cancel`, `POST /shop/monitor/run` (chạy 1 vòng
+ngay — demo). Data: `data/{alerts,watches,tickets}.json`. Event SSE mới:
+`handoff` (concierge xác nhận đã ghi ticket). UI component mới:
+`watch_confirmed` (card xác nhận watch cho FE).
 
 Không có đơn hàng nào được đặt tự động: giỏ hàng được agent điền, khách bấm
 checkout như bình thường (`/checkout` của FE). Mọi ghi của merchant agent đều
@@ -48,11 +76,11 @@ Ba lớp trách nhiệm:
      `/orders/mine`, `/orders/by-code/{code}` lên `StorefrontBackend`. Policies
      là nội dung tĩnh đồng bộ `src/app/legal/` (clock không có API policy).
      Checkout handoff trỏ về `/checkout` của FE — model không bao giờ thấy URL.
-   - `merchant/backend.py`: map `/admin/stats`, `/admin/products`, `/admin/orders`
-     lên `MerchantBackend`. Staged change dùng `ChangeLedger` của upstream;
-     `apply_change` là nơi duy nhất ghi thật (`PATCH /admin/products/{slug}`).
-     Campaign/promotion → `ChangeNotApplicable` (clock không có hệ thống này —
-     model sẽ nói rõ với operator thay vì giả vờ làm).
+    - `merchant/backend.py`: map `/admin/stats`, `/admin/products`, `/admin/orders`,
+      `/admin/metrics`, `/admin/promotions`, `/admin/campaigns` lên `MerchantBackend`.
+      Staged change dùng `ChangeLedger` của upstream (persist `data/ledger-merchant.json`);
+      `apply_change` là nơi duy nhất ghi thật (`PATCH /admin/products/{slug}`,
+      `POST /admin/promotions` + giá KM, `POST/PATCH /admin/campaigns`).
    - `config.py`: provider trừu tượng. `AsyncAnthropic(base_url=…)` trỏ tới
      **bất kỳ gateway tương thích Anthropic Messages API** — z.ai, OpenRouter,
      LiteLLM, Bedrock/Vertex proxy... Không phụ thuộc key Anthropic trực tiếp.
@@ -66,6 +94,7 @@ provider qua `AGENT_BASE_URL` (đã verify header thực tế cho từng bên):
 
 | Provider | `AGENT_BASE_URL` | `AGENT_AUTH_HEADER` | `AGENT_MODEL` |
 |---|---|---|---|
+| TokenRouter (đã test E2E) | `https://api.tokenrouter.com` (**không** `/v1` — SDK tự thêm) | `bearer` | `z-ai/glm-5.3-free` (+ `AGENT_MAX_TOKENS=8192`) |
 | DeepSeek (Anthropic API gốc) | `https://api.deepseek.com/anthropic` | `x-api-key` (mặc định) | `deepseek-chat`, `deepseek-reasoner` |
 | OpenRouter | `https://openrouter.ai/api/v1` | `bearer` | `anthropic/claude-*`, `deepseek/deepseek-chat`, ... |
 | LiteLLM proxy | URL proxy của bạn | `x-api-key` | tùy deployment |
@@ -106,12 +135,33 @@ Trả về là stream SSE: `session` → (`text_delta` | `tool_call` | `ui` | `c
 | `change_update`) → `done`. Event `ui` chứa component (product carousel, plan
 checklist, staged-change card...) render được trong FE nếu muốn tích hợp sâu.
 
+## Ba đường chạy (3 runtimes của upstream)
+
+Cùng prompt/skills/tools, khác vòng loop:
+
+| Path | Lệnh | Ghi chú |
+|---|---|---|
+| **Messages API** (mặc định) | `uvicorn aurel_agents.host:app --port 8100` (hoặc service `agent` trong compose) | host ở đây, grounding + memory đầy đủ |
+| **Agent SDK** | `python -m aurel_agents.sdk_console shop --once "..."` / `... merchant --once "..."` (REPL nếu bỏ `--once`) | loop do SDK chạy, backend vẫn Aurel thật |
+| **Managed Agents (MCP)** | `python -m aurel_agents.mcp shop` (`:8200/mcp`) / `python -m aurel_agents.mcp merchant` (`:8201/mcp`) | hosted agent trỏ vào; merchant path set `require_host_approval=False` (approval là platform `always_ask`) |
+
+## Prod-hardening của host
+
+- **Transcript persist**: `data/sessions/{session_id}.json` (cap 200 msg) — restart không mất hội thoại.
+- **Giỏ isolate theo session**: mỗi chat session có shopper riêng (`shop+<prefix>@...`, tự register) — không dùng chung giỏ như trước. Merchant giữ 1 admin client chung, audit theo `operator:{session}`.
+- **Ledger persist**: `data/ledger-merchant.json` — pending changes + audit trail sống qua restart.
+- **Approve trực tiếp** (không cần chat): `GET /merchant/changes`, `POST /merchant/changes/{id}/approve|discard` — FE có thể gắn nút Duyệt/Bỏ.
+- **Auth merchant**: đặt `AGENT_MERCHANT_TOKEN` thì `/merchant/*` yêu cầu header `x-agent-token`.
+- **Rate-limit**: `AGENT_CHAT_RATE_LIMIT_PER_MIN` (mặc định 60 req/phút/IP, `0` = tắt).
+- **Docker**: `agent/Dockerfile` + service `agent` trong `docker-compose.yml` (dev `:8100`) và `docker-compose.prod.yml` (Caddy route `/agent/*`, FE prod dùng cùng origin).
+
 ## Test
 
 ```bash
 cd agent && source .venv/bin/activate
-pytest            # 24 test adapter (CSRF, login/register, retry 401, mapping,
-                   # staged-change lifecycle, guardrail, ChangeNotApplicable, provider headers)
+pytest            # 39 test adapter (CSRF, login/register, retry 401, mapping,
+                   # staged-change lifecycle, guardrail, promotion/campaign thật,
+                   # restart-recovery, transcript/ledger/rate-limit/multi-user...)
 pytest tests/upstream   # 150 test cross-package của Anthropic — nguyên bản, chỉ sửa
                    # 2 dòng path (REPO_ROOT → vendor/)
 ruff check .      # lint sạch (vendor/ + tests/upstream/ được exclude)
@@ -133,6 +183,8 @@ hợp đồng upstream ("run it once the reply has streamed"). Agent giờ **nh�
 qua session và qua restart** ("khách thích mặt 40mm" được trích thành fact, lọc
 sensitve qua `MemoryWriteFilter`, feed lại vào turn sau qua tier-one facts).
 Event `memory` (nếu có fact mới) cũng được emit cuối stream.
+Transcript chat persist riêng (`data/sessions/{id}.json`), ledger persist
+(`data/ledger-merchant.json`) — xem "Prod-hardening của host" ở trên.
 
 ## FE trang /agent
 

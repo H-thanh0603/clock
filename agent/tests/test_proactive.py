@@ -1,0 +1,360 @@
+# Copyright 2026 — Aurel & Co. đồ án clock
+# SPDX-License-Identifier: MIT
+"""Test tính năng agent-only: watch store, alert feed, handoff ticket,
+proactive monitor (check logic thuần + endpoint, respx mock BE)."""
+
+from __future__ import annotations
+
+import time
+
+import pytest
+
+
+def _mk_stores(tmp_path):
+    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+
+    return (
+        WatchStore(tmp_path / "watches.json"),
+        AlertFeed(tmp_path / "alerts.json"),
+        TicketStore(tmp_path / "tickets.json"),
+    )
+
+
+# --- WatchStore ----------------------------------------------------------------------
+
+
+def test_watch_store_add_and_dedupe(tmp_path):
+    watches, _, _ = _mk_stores(tmp_path)
+    w = watches.add("u1", "chrono-x", "restock")
+    assert w.active is True
+    with pytest.raises(ValueError, match="đã nhờ"):
+        watches.add("u1", "chrono-x", "restock")
+    # khác kind → vẫn thêm được
+    w2 = watches.add("u1", "chrono-x", "price_drop", price_drop_pct=10)
+    assert w2.watch_id != w.watch_id
+    assert len(watches.for_user("u1")) == 2
+    # khác user → không ảnh hưởng
+    watches.add("u2", "chrono-x", "restock")
+
+
+def test_watch_store_cap_per_user(tmp_path):
+    watches, _, _ = _mk_stores(tmp_path)
+    for i in range(20):
+        watches.add("u1", f"p{i}", "restock")
+    with pytest.raises(ValueError, match="quá nhiều"):
+        watches.add("u1", "p-new", "restock")
+
+
+def test_watch_store_persist_roundtrip(tmp_path):
+    watches, _, _ = _mk_stores(tmp_path)
+    watches.add("u1", "chrono-x", "price_drop", price_drop_pct=15, baseline_price=99000)
+    watches2, _, _ = _mk_stores(tmp_path)
+    loaded = watches2.for_user("u1")
+    assert len(loaded) == 1
+    assert loaded[0].baseline_price == 99000
+    assert loaded[0].price_drop_pct == 15
+
+
+def test_watch_store_deactivate(tmp_path):
+    watches, _, _ = _mk_stores(tmp_path)
+    w = watches.add("u1", "chrono-x", "restock")
+    assert watches.deactivate(w.watch_id) is not None
+    assert watches.active() == []
+    assert watches.deactivate(w.watch_id) is None  # idempotent
+
+
+# --- AlertFeed + TicketStore -----------------------------------------------------------
+
+
+def test_alert_feed_recent_order_desc(tmp_path):
+    _, alerts, _ = _mk_stores(tmp_path)
+    alerts.publish("low_stock", "T1", "D1")
+    time.sleep(0.01)
+    alerts.publish("restock", "T2", "D2")
+    recent = alerts.recent(10)
+    assert [a.kind for a in recent] == ["restock", "low_stock"]
+
+
+def test_ticket_store_open_dedupe_and_resolve(tmp_path):
+    _, _, tickets = _mk_stores(tmp_path)
+    t1 = tickets.open("u1", "đồng hồ bị trầy", order_id="AC-2026-000001")
+    t2 = tickets.open("u1", "nhắc lại", order_id="AC-2026-000001")
+    assert t1.ticket_id == t2.ticket_id  # dedupe cùng user + đơn
+    assert len(tickets.open_tickets()) == 1
+    assert tickets.resolve(t1.ticket_id) is not None
+    assert tickets.open_tickets() == []
+    # sau khi resolve, cùng user+đơn mở được ticket mới
+    t3 = tickets.open("u1", "vấn đề mới", order_id="AC-2026-000001")
+    assert t3.ticket_id != t1.ticket_id
+
+
+# --- check_watches: logic đối chiếu thuần ----------------------------------------------
+
+
+def _product(stock=0, price=99000, in_boutique=True, name="Chrono X"):
+    return {"stock": stock, "priceUsd": price, "inBoutique": in_boutique, "name": name}
+
+
+def test_check_watches_restock_fires_when_back_in_stock(tmp_path):
+
+    watches, _, _ = _mk_stores(tmp_path)
+    w = watches.add("u1", "chrono-x", "restock")
+    fired = []
+    from aurel_agents.proactive import check_watches
+
+    # hết hàng: không alert
+    assert check_watches([w], {"chrono-x": _product(stock=0)}) == []
+    # về hàng: alert
+    fired = check_watches([w], {"chrono-x": _product(stock=2)})
+    assert len(fired) == 1
+    assert fired[0].kind == "restock"
+    assert "Chrono X" in fired[0].title
+    # ẩn khỏi boutique: coi như chưa về
+    assert check_watches([w], {"chrono-x": _product(stock=2, in_boutique=False)}) == []
+
+
+def test_check_watches_price_drop_threshold(tmp_path):
+    watches, _, _ = _mk_stores(tmp_path)
+    w = watches.add("u1", "chrono-x", "price_drop", price_drop_pct=10, baseline_price=100000)
+    from aurel_agents.proactive import check_watches
+
+    # giảm 5%: dưới ngưỡng → không alert
+    assert check_watches([w], {"chrono-x": _product(stock=1, price=95000)}) == []
+    # giảm 12%: khớp
+    fired = check_watches([w], {"chrono-x": _product(stock=1, price=88000)})
+    assert len(fired) == 1
+    assert fired[0].kind == "price_drop"
+    assert "12" in fired[0].title
+    # tăng giá: không bao giờ alert
+    assert check_watches([w], {"chrono-x": _product(stock=1, price=120000)}) == []
+
+
+def test_check_watches_unknown_product_ignored(tmp_path):
+    watches, _, _ = _mk_stores(tmp_path)
+    w = watches.add("u1", "khong-ton-tai", "restock")
+    from aurel_agents.proactive import check_watches
+
+    assert check_watches([w], {}) == []
+
+
+# --- check_merchant_snapshot ------------------------------------------------------------
+
+
+def test_check_merchant_snapshot_low_stock_and_pending():
+    from aurel_agents.proactive import check_merchant_snapshot
+
+    inv = [
+        {"listing_id": "a", "title": "A", "stock": 1},
+        {"listing_id": "b", "title": "B", "stock": 2},
+        {"listing_id": "c", "title": "C", "stock": 9},  # ok, không alert
+    ]
+    alerts = check_merchant_snapshot({"pendingOrders": 7}, inv)
+    kinds = {a.kind for a in alerts}
+    assert kinds == {"low_stock", "pending_orders"}
+    low = next(a for a in alerts if a.kind == "low_stock")
+    assert low.data["count"] == 2
+
+    # dưới ngưỡng PENDING → chỉ tồn kho
+    alerts = check_merchant_snapshot({"pendingOrders": 2}, inv)
+    assert [a.kind for a in alerts] == ["low_stock"]
+
+    # sạch → không alert
+    assert check_merchant_snapshot({"pendingOrders": 0}, []) == []
+
+
+# --- watch tool (presentation extension) -------------------------------------------------
+
+
+def test_watch_tool_enrich_gates_on_provenance(tmp_path):
+    """product_id chưa từng thấy trong session → ValueError (fence)."""
+    from aurel_agents.shopping.watch_tool import build_watch_extension
+
+    watches, _, _ = _mk_stores(tmp_path)
+    ext = build_watch_extension(watches)
+
+    class _State:
+        seen_products = {}  # chưa có gì
+
+    class _Ctx:
+        session = type("S", (), {"user_id": "shopper:abc"})()
+        state = _State()
+
+    import asyncio
+
+    async def call():
+        from aurel_agents.shopping.watch_tool import SetWatchPayload
+
+        return await ext.enrich(
+            SetWatchPayload(product_id="chrono-x", kind="restock"), _Ctx()
+        )
+
+    with pytest.raises(ValueError, match="chưa từng được tìm"):
+        asyncio.run(call())
+
+
+def test_watch_tool_enrich_creates_watch(tmp_path):
+    from aurel_agents.shopping.watch_tool import build_watch_extension
+
+    watches, _, _ = _mk_stores(tmp_path)
+    ext = build_watch_extension(watches)
+
+    from shopping_agent import Product
+
+    product = Product(
+        product_id="chrono-x", title="Chrono X", price=99000.0, currency="USD"
+    )
+
+    class _State:
+        seen_products = {"chrono-x": product}
+
+    class _Ctx:
+        session = type("S", (), {"user_id": "shopper:abc"})()
+        state = _State()
+
+    import asyncio
+
+    async def call():
+        from aurel_agents.shopping.watch_tool import SetWatchPayload
+
+        return await ext.enrich(
+            SetWatchPayload(
+                product_id="chrono-x", kind="price_drop", price_drop_pct=10
+            ),
+            _Ctx(),
+        )
+
+    enriched = asyncio.run(call())
+    assert enriched["confirmed"] is not None
+    assert enriched["baseline_price"] == 99000.0
+    # watch thật sự được ghi
+    active = watches.for_user("shopper:abc")
+    assert len(active) == 1
+    assert active[0].baseline_price == 99000.0
+
+
+def test_watch_tool_definition_shape(tmp_path):
+    """Extension đúng shape PresentationExtension: tên, schema, required."""
+    from aurel_agents.shopping.watch_tool import build_watch_extension
+
+    watches, _, _ = _mk_stores(tmp_path)
+    ext = build_watch_extension(watches)
+    assert ext.name == "set_watch"
+    tool = ext.tool_definition()
+    assert tool["input_schema"]["required"] == ["product_id", "kind"]
+    assert set(tool["input_schema"]["properties"]) == {
+        "product_id",
+        "kind",
+        "price_drop_pct",
+        "note",
+    }
+
+
+# --- handoff heuristic -------------------------------------------------------------------
+
+
+def test_handoff_ticket_opens_on_complaint(tmp_path, monkeypatch):
+    import aurel_agents.host as host
+
+    # reset stores dùng tmp_path cho test này
+    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+
+    host._watch_store = WatchStore(tmp_path / "w.json")
+    host._alert_feed = AlertFeed(tmp_path / "a.json")
+    host._ticket_store = TicketStore(tmp_path / "t.json")
+
+    ticket = host._maybe_handoff_ticket(
+        "Tôi khiếu nại đơn AC-2026-000123 — đồng hồ bị trầy khi nhận", "sess-1"
+    )
+    assert ticket is not None
+    assert ticket.order_id == "AC-2026-000123"
+    assert len(host._ticket_store.open_tickets()) == 1
+    # alert cũng publish cho feed
+    assert any(a.kind == "ticket" for a in host._alert_feed.recent(10))
+
+    # dedupe: nhắc lại cùng đơn → ticket cũ
+    again = host._maybe_handoff_ticket("nhắc lại khiếu nại đơn AC-2026-000123", "sess-1")
+    assert again.ticket_id == ticket.ticket_id
+
+
+def test_handoff_ticket_ignores_normal_message(tmp_path):
+    import aurel_agents.host as host
+    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+
+    host._watch_store = WatchStore(tmp_path / "w.json")
+    host._alert_feed = AlertFeed(tmp_path / "a.json")
+    host._ticket_store = TicketStore(tmp_path / "t.json")
+
+    assert host._maybe_handoff_ticket("cho tôi xem tourbillon dưới 150k", "s") is None
+    assert host._ticket_store.open_tickets() == []
+
+
+# --- ProactiveMonitor: vòng check watch với respx mock BE -------------------------------
+
+
+def test_monitor_run_once_watch_fires_alert(tmp_path, monkeypatch):
+    import respx
+    from httpx import Response
+
+    import aurel_agents.host as host
+    from aurel_agents.config import Settings
+    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+
+    # stores tmp + monitor cầm settings giả
+    watch_store = WatchStore(tmp_path / "w.json")
+    alert_feed = AlertFeed(tmp_path / "a.json")
+    ticket_store = TicketStore(tmp_path / "t.json")
+    host._watch_store = watch_store
+    host._alert_feed = alert_feed
+    host._ticket_store = ticket_store
+
+    settings = Settings(backend_url="http://be.test")
+    watch_store.add("shopper:abc12345", "chrono-x", "restock")
+
+    base = "http://be.test"
+
+    @respx.mock
+    async def scenario():
+        # shopper login flow
+        respx.post(f"{base}/auth/login").mock(
+            return_value=Response(
+                200, json={"accessToken": "t", "user": {"id": "u1", "role": "CUSTOMER"}}
+            )
+        )
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        # sp đã về hàng
+        respx.get(f"{base}/products/chrono-x").mock(
+            return_value=Response(
+                200,
+                json={"slug": "chrono-x", "name": "Chrono X", "stock": 3, "priceUsd": 99000, "inBoutique": True},
+            )
+        )
+        # merchant flow — monitor cũng scan merchant
+        respx.get(f"{base}/admin/stats").mock(
+            return_value=Response(200, json={"pendingOrders": 0})
+        )
+        respx.get(f"{base}/admin/products").mock(
+            return_value=Response(200, json={"items": []})
+        )
+
+        from aurel_agents.proactive import ProactiveMonitor
+
+        monitor = ProactiveMonitor(
+            watch_store=watch_store,
+            alert_feed=alert_feed,
+            ticket_store=ticket_store,
+            settings=settings,
+        )
+        counts = await monitor.run_once()
+        return counts
+
+    import asyncio
+
+    counts = asyncio.run(scenario())
+    assert counts["watches"] == 1
+    fired = [a for a in alert_feed.recent(10) if a.kind == "restock"]
+    assert len(fired) == 1
+    assert "Chrono X" in fired[0].title
+    # watch bị tắt sau khi khớp — không lặp vòng sau
+    assert watch_store.active() == []

@@ -62,6 +62,20 @@ class Settings:
     host: str = "127.0.0.1"
     port: int = 8100
 
+    # prod-hardening (optional, bỏ trống = tắt để tương thích dev cũ)
+    # AGENT_MERCHANT_TOKEN: nếu đặt, /merchant/* yêu cầu header x-agent-token.
+    merchant_token: str | None = None
+    # Rate limit chat: số request/phút/IP (0 = tắt).
+    chat_rate_limit_per_min: int = 60
+    # Budget model mỗi round (upstream mặc định 2048 — thinking + reply chung).
+    # Model suy luận dài (reasoning) qua gateway nên đặt 8192+.
+    max_tokens: int = 2048
+    request_timeout_s: float = 120.0
+
+    # Proactive monitor: interval vòng quét nền (giây, 0 = tắt).
+    # Watch khách + merchant scan + ticket handoff chạy trên vòng này.
+    monitor_interval_s: int = 300
+
     @classmethod
     def from_env(cls) -> Settings:
         _load_env()
@@ -78,6 +92,11 @@ class Settings:
             admin_password=os.getenv("AGENT_ADMIN_PASSWORD") or "Admin123!",
             host=os.getenv("AGENT_HOST") or "127.0.0.1",
             port=int(os.getenv("AGENT_PORT") or 8100),
+            merchant_token=os.getenv("AGENT_MERCHANT_TOKEN") or None,
+            chat_rate_limit_per_min=int(os.getenv("AGENT_CHAT_RATE_LIMIT_PER_MIN") or 60),
+            max_tokens=int(os.getenv("AGENT_MAX_TOKENS") or 2048),
+            request_timeout_s=float(os.getenv("AGENT_REQUEST_TIMEOUT_S") or 120.0),
+            monitor_interval_s=int(os.getenv("AGENT_MONITOR_INTERVAL_S") or 300),
         )
 
 
@@ -124,6 +143,8 @@ def build_shopping_config(settings: Settings | None = None):
         assistant_name="Concierge Aurel",
         brand_voice="warm, concise, plain about trade-offs; answers in Vietnamese unless the customer writes another language",
         model=s.model,
+        max_tokens=s.max_tokens,
+        request_timeout_s=s.request_timeout_s,
         domain_search_notes=(
             "Domain: đồng hồ cơ cao cấp. Filter dimensions: collection "
             "(Chronos, Meridian, ...) qua filters.category; material qua "
@@ -148,6 +169,8 @@ def build_merchant_config(settings: Settings | None = None):
     return MerchantAgentConfig(
         brand_name="Aurel & Co.",
         model=s.model,
+        max_tokens=s.max_tokens,
+        request_timeout_s=s.request_timeout_s,
     )
 
 

@@ -18,6 +18,7 @@ export type AgentEvent =
   | { type: "cart_update"; cart: CartSnapshot }
   | { type: "change_update"; change: StagedChangeSnapshot }
   | { type: "memory"; facts: { fact: string }[] }
+  | { type: "handoff"; ticket_id: string; message: string }
   | { type: "turn_complete"; stop_reason: string; usage?: unknown }
   | { type: "error"; message: string }
   | { type: "done" };
@@ -54,6 +55,12 @@ export type UxPayload = {
   headline?: string;
   note?: string;
   suggestions?: string[];
+  /** watch_confirmed (set_watch): card xác nhận watch */
+  watch_id?: string;
+  confirmed?: string;
+  baseline_price?: number | null;
+  /** watch_confirmed / dùng chung cho các component khác */
+  product_id?: string;
 };
 
 /**
@@ -120,6 +127,7 @@ export type TurnAccumulator = {
   ui: { component: string; payload: UxPayload }[];
   cart: CartSnapshot | null;
   change: StagedChangeSnapshot | null;
+  handoff: { ticket_id: string; message: string } | null;
   errors: string[];
   done: boolean;
   memoryFacts: string[];
@@ -133,6 +141,7 @@ export function emptyAccumulator(): TurnAccumulator {
     ui: [],
     cart: null,
     change: null,
+    handoff: null,
     errors: [],
     done: false,
     memoryFacts: [],
@@ -160,6 +169,8 @@ export function applyEvent(acc: TurnAccumulator, ev: AgentEvent | null): TurnAcc
       return { ...acc, change: ev.change };
     case "memory":
       return { ...acc, memoryFacts: [...acc.memoryFacts, ...ev.facts.map((f) => f.fact)] };
+    case "handoff":
+      return { ...acc, handoff: { ticket_id: ev.ticket_id, message: ev.message } };
     case "error":
       return { ...acc, errors: [...acc.errors, ev.message] };
     case "turn_complete":

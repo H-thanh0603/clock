@@ -83,6 +83,27 @@ describe("applyEvent — vòng đời 1 turn", () => {
     expect(acc.done).toBe(false);
     expect(acc.errors).toEqual(["503"]);
   });
+
+  it("handoff event (shopping → merchant) ghi ticket", () => {
+    let acc = emptyAccumulator();
+    acc = applyEvent(
+      acc,
+      parseAgentEvent('{"type":"handoff","ticket_id":"t-123-0001","message":"Đã ghi nhận"}')!,
+    );
+    expect(acc.handoff).toEqual({ ticket_id: "t-123-0001", message: "Đã ghi nhận" });
+  });
+
+  it("ui watch_confirmed stack như component thường", () => {
+    let acc = emptyAccumulator();
+    acc = applyEvent(
+      acc,
+      parseAgentEvent(
+        '{"type":"ui","component":"watch_confirmed","payload":{"product_id":"chrono-x","watch_id":"w-1","confirmed":"sản phẩm về lại hàng"}}',
+      )!,
+    );
+    expect(acc.ui[0].component).toBe("watch_confirmed");
+    expect(acc.ui[0].payload.watch_id).toBe("w-1");
+  });
 });
 
 describe("agentPrice", () => {

@@ -14,7 +14,7 @@ Caddy: TLS tự động, reverse proxy FE + /backend/* (prod)
 ```
 
 - **Frontend** (`src/`): Next.js App Router, Tailwind. Server components gọi BE qua `lib/api`; client components qua `lib/api-client` (kèm CSRF double-submit).
-- **Backend** (`backend/`): NestJS modular monolith — auth (JWT + tokenVersion), products, cart, wishlist, orders (conditional update chống oversell), payments (VNPay HMAC + idempotent settle trong 1 transaction), inquiries, invoices, notify (Telegram/SMTP), admin. Prisma schema: `backend/prisma/schema.prisma`.
+- **Backend** (`backend/`): NestJS modular monolith — auth (JWT + tokenVersion), products, cart, wishlist, orders (conditional update chống oversell), payments (VNPay HMAC + idempotent settle trong 1 transaction), inquiries, invoices, notify (Telegram/SMTP), admin (stats, products, orders, users, **promotions/campaigns theo khung ngày, metrics time-series cho merchant agent**). Prisma schema: `backend/prisma/schema.prisma`.
 - **AI Agents** (`agent/`): shopping agent (concierge tư vấn + điền giỏ) và merchant agent (dashboard + staged changes cho admin) chạy trên [anthropics/commerce-agents](https://github.com/anthropics/commerce-agents) (vendor tại `agent/vendor/`, Apache-2.0), adapter gọi thẳng REST API backend. Có memory persistence (nhớ preference khách qua session/restart) và trang chat FE **`/agent`** (generative UI: product carousel, bảng so sánh, plan checklist, staged-change card). Xem [`agent/README.md`](agent/README.md).
 - **Dev**: docker compose (Postgres + backend), FE chạy `next dev` ngoài compose.
 - **Prod**: `docker-compose.prod.yml` (db + db-backup + backend + frontend + caddy).
@@ -47,8 +47,8 @@ Chạy test:
 
 ```bash
 npm test                        # FE (vitest)
-cd backend && npm test          # BE — 97 test: tiền, auth, csrf, expire...
-cd agent && pytest              # AI agents — 24 test adapter + 150 test upstream
+cd backend && npm test          # BE — 112 test: tiền, auth, csrf, expire, promotions/campaigns/metrics...
+cd agent && pytest              # AI agents — 39 test adapter + 150 test upstream
 npx tsc --noEmit                 # typecheck FE
 cd backend && npx tsc --noEmit -p tsconfig.json   # typecheck BE
 ```

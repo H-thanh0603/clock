@@ -15,6 +15,13 @@ REPO_ROOT = AGENT_DIR.parent
 # Nơi memory store + dữ liệu runtime sống. agent/data/ đã .gitignore.
 DATA_DIR = AGENT_DIR / "data"
 MEMORY_STORE_FILE = DATA_DIR / "memory-store.json"
+# Transcript chat theo session + staged-change ledger (persist qua restart).
+SESSIONS_DIR = DATA_DIR / "sessions"
+LEDGER_FILE = DATA_DIR / "ledger-merchant.json"
+# Proactive: alert feed + watch khách + handoff tickets.
+ALERTS_FILE = DATA_DIR / "alerts.json"
+WATCHES_FILE = DATA_DIR / "watches.json"
+TICKETS_FILE = DATA_DIR / "tickets.json"
 
 # vendor/ chứa 5 package của commerce-agents (đã pin trong requirements)
 VENDOR_DIR = AGENT_DIR / "vendor"
@@ -26,6 +33,11 @@ __all__ = [
     "REPO_ROOT",
     "DATA_DIR",
     "MEMORY_STORE_FILE",
+    "SESSIONS_DIR",
+    "LEDGER_FILE",
+    "ALERTS_FILE",
+    "WATCHES_FILE",
+    "TICKETS_FILE",
     "VENDOR_DIR",
     "SHOPPING_SKILLS",
     "MERCHANT_SKILLS",
