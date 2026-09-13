@@ -19,6 +19,7 @@ export type AgentEvent =
   | { type: "change_update"; change: StagedChangeSnapshot }
   | { type: "memory"; facts: { fact: string }[] }
   | { type: "handoff"; ticket_id: string; message: string }
+  | { type: "delegation_expired"; message: string }
   | { type: "turn_complete"; stop_reason: string; usage?: unknown }
   | { type: "error"; message: string }
   | { type: "done" };

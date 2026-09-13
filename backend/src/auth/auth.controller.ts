@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Patch,
@@ -20,6 +21,7 @@ import { OptionalSessionGuard, RequiredAuthGuard } from '../common/guards';
 import { CSRF_COOKIE, newCsrfToken } from '../common/csrf.middleware';
 import { CurrentUser } from '../common/current-user.decorator';
 import type { SessionUser } from '../common/session';
+import { signDelegation } from '../common/session';
 
 @Controller('auth')
 export class AuthController {
@@ -77,6 +79,23 @@ export class AuthController {
   async me(@CurrentUser() session: SessionUser | null) {
     if (!session) return { user: null };
     return { user: await this.auth.me(session.id) };
+  }
+
+  /**
+   * Delegation: cấp JWT ngắn hạn (30 phút, aud agent) cho AI concierge
+   * hành động thay user đã đăng nhập — agentic web "act on behalf of".
+   * Chỉ CUSTOMER; token trở về qua FE → agent host (body), không set cookie.
+   */
+  @Post('delegation')
+  @HttpCode(200)
+  @UseGuards(RequiredAuthGuard)
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  async delegation(@CurrentUser() user: SessionUser) {
+    if (user.role === 'ADMIN') {
+      throw new ForbiddenException('Admin không delegate cho agent shopping');
+    }
+    const token = await signDelegation(user);
+    return { token, expires_in: 30 * 60, scope: 'shop-on-behalf' };
   }
 
   /** Cấp CSRF token (cookie readable + body) cho double-submit. */

@@ -86,6 +86,12 @@ logger = logging.getLogger("aurel-agents")
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    # Delegation JWT (BE /auth/delegation cấp) — agent hành động thay user
+    # thật: giỏ/đơn/wishlist là của user, không phải shopper demo.
+    delegation_token: str | None = None
+    # Trang FE đang xem (agentic web: agent biết context người dùng).
+    page_type: str | None = None
+    product_id: str | None = None
 
 
 # --- state khởi động -----------------------------------------------------------
@@ -280,17 +286,33 @@ def _sse(payload: dict[str, Any] | str) -> str:
     return f"data: {body}\n\n"
 
 
-async def _run_shopping_turn(agent: Any, message: str, session_id: str):
-    """1 turn shopping agent: transcript persist theo session."""
+async def _run_shopping_turn(
+    agent: Any,
+    message: str,
+    session_id: str,
+    page_type: str = "other",
+    product_id: str | None = None,
+):
+    """1 turn shopping agent: transcript persist theo session.
+
+    ``page_type``/``product_id``: context trang FE đang xem (agentic web) —
+    agent biết user đứng ở đâu, câu trả lời bám đúng sản phẩm đang mở.
+    """
     from shopping_agent import PageContext, ShoppingSessionContext, ShoppingSessionState
 
     sid = sanitize_session_id(session_id)
     transcript = _transcripts.load(sid)
     transcript.append({"role": "user", "content": message})
+    valid_pages = {"home", "search", "product", "cart", "orders", "other"}
+    page = PageContext(
+        page_type=page_type if page_type in valid_pages else "other",
+        product_id=product_id,
+        query=message[:80],
+    )
     context = ShoppingSessionContext(
         session_id=sid,
         user_id=f"shopper:{sid[:8]}",
-        page=PageContext(page_type="other", query=message[:80]),
+        page=page,
     )
     state = ShoppingSessionState()
 
@@ -299,8 +321,20 @@ async def _run_shopping_turn(agent: Any, message: str, session_id: str):
         async for event in agent.stream_turn(transcript, context, state):
             yield _sse(event)
     except Exception as error:
-        logger.exception("Lỗi shopping turn")
-        yield _sse({"type": "error", "message": str(error)})
+        # Token delegation hết hạn giữa chừng → event riêng để FE xin lại
+        # (người dùng cấp lại quyền cho agent) rồi xin user retry.
+        from aurel_agents.clock_client import ClockDelegationError
+
+        if isinstance(error, ClockDelegationError):
+            yield _sse(
+                {
+                    "type": "delegation_expired",
+                    "message": "Quyền hành động hộ đã hết hạn — bấm 'Dùng tài khoản của tôi' để cấp lại.",
+                }
+            )
+        else:
+            logger.exception("Lỗi shopping turn")
+            yield _sse({"type": "error", "message": str(error)})
         return
     finally:
         _transcripts.save(sid)
@@ -504,8 +538,19 @@ async def shop_chat(req: ChatRequest, request: Request):
     session_id = sanitize_session_id(req.session_id or _new_session_id())
     _check_budget(session_id, get_settings().chat_turns_per_day)
     agent = _require_agent("shopping")
+    pool = _state.get("shop_pool")
+    if req.delegation_token:
+        if pool is None:
+            raise HTTPException(status_code=503, detail="Pool shopper chưa sẵn sàng")
+        pool.bind_delegation(session_id, req.delegation_token)
     return StreamingResponse(
-        _run_shopping_turn(agent, req.message, session_id),
+        _run_shopping_turn(
+            agent,
+            req.message,
+            session_id,
+            page_type=req.page_type or "other",
+            product_id=req.product_id,
+        ),
         media_type="text/event-stream",
     )
 

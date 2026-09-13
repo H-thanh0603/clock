@@ -9,7 +9,9 @@ import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SESSION_COOKIE,
+  DELEGATION_COOKIE,
   verifySessionToken,
+  verifyDelegationToken,
   type SessionUser,
 } from './session';
 
@@ -19,8 +21,15 @@ declare module 'express' {
   }
 }
 
+/**
+ * Session của request: cookie session JWT, HOẶC cookie delegation JWT
+ * (AI concierge hành động thay user — aud 'aurel-agent', TTL 30 phút).
+ * Hai loại token không lẫn được nhau: verify có check aud/scope.
+ */
 async function readSession(req: Request): Promise<SessionUser | null> {
-  return verifySessionToken(req.cookies?.[SESSION_COOKIE]);
+  const session = await verifySessionToken(req.cookies?.[SESSION_COOKIE]);
+  if (session) return session;
+  return verifyDelegationToken(req.cookies?.[DELEGATION_COOKIE]);
 }
 
 /**

@@ -7,6 +7,13 @@ import { SignJWT, jwtVerify } from 'jose';
  */
 export const SESSION_COOKIE = 'aurel_session';
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 ngày
+/** Delegation token: AI agent hành động thay user — ngắn hạn, aud riêng. */
+export const DELEGATION_MAX_AGE = 60 * 30; // 30 phút
+/**
+ * Cookie mà agent host gắn khi gọi BE thay user. Tên khác session cookie
+ * (không bao giờ bị browser FE set — agent host là client server-side).
+ */
+export const DELEGATION_COOKIE = 'aurel_delegation';
 
 export type SessionUser = {
   id: string;
@@ -32,6 +39,53 @@ export async function signSession(user: SessionUser): Promise<string> {
     .sign(sessionSecret());
 }
 
+/**
+ * Delegation JWT: AI agent concierge hành động thay user (agentic web —
+ * "act on behalf of"). Khác session: aud='aurel-agent' (agent host verify
+ * được), TTL 30 phút, và chỉ cấp cho CUSTOMER (admin không delegate cho
+ * agent shopping — tách quyền).
+ */
+export async function signDelegation(user: SessionUser): Promise<string> {
+  return new SignJWT({
+    email: user.email,
+    role: user.role,
+    v: user.v ?? 0,
+    scope: 'shop-on-behalf',
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(user.id)
+    .setIssuedAt()
+    .setIssuer('aurel-backend')
+    .setAudience('aurel-agent')
+    .setExpirationTime(`${DELEGATION_MAX_AGE}s`)
+    .sign(sessionSecret());
+}
+
+/** Verify delegation token (aud agent). Sai/hết hạn → null. */
+export async function verifyDelegationToken(
+  token?: string | null,
+): Promise<SessionUser | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, sessionSecret(), {
+      algorithms: ['HS256'],
+      issuer: 'aurel-backend',
+      audience: 'aurel-agent',
+    });
+    if (typeof payload.sub !== 'string' || typeof payload.email !== 'string')
+      return null;
+    if (payload.scope !== 'shop-on-behalf') return null;
+    return {
+      id: payload.sub,
+      email: payload.email,
+      role: (payload.role as string) ?? 'CUSTOMER',
+      v: typeof payload.v === 'number' ? payload.v : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Xác thực token → SessionUser | null. Token rỗng/sai/hết hạn → null. */
 export async function verifySessionToken(
   token?: string | null,
@@ -42,6 +96,9 @@ export async function verifySessionToken(
       algorithms: ['HS256'],
       issuer: 'aurel-backend',
     });
+    // Session cookie KHÔNG được có aud/scope — nếu có thì đó là token
+    // loại khác (delegation), dùng làm session = leo thang quyền.
+    if (payload.aud !== undefined || payload.scope !== undefined) return null;
     if (typeof payload.sub !== 'string' || typeof payload.email !== 'string')
       return null;
     return {

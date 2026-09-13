@@ -24,6 +24,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 SESSION_COOKIE = "aurel_session"
+DELEGATION_COOKIE = "aurel_delegation"
 CSRF_COOKIE = "aurel_csrf"
 CSRF_HEADER = "x-csrf-token"
 
@@ -45,6 +46,10 @@ class ClockAuthError(RuntimeError):
     """Login/register đều thất bại — không thể thiết lập phiên."""
 
 
+class ClockDelegationError(RuntimeError):
+    """Delegation token không hợp lệ/hết hạn — user cần xin lại."""
+
+
 class ClockClient:
     """Async client cho 1 user của backend clock.
 
@@ -54,6 +59,10 @@ class ClockClient:
         register_if_new: nếu True, email chưa có thì register (dùng cho
             agent shopper — tạo tài khoản demo lần đầu chạy). Admin nên
             để False: tài khoản admin đã có từ seed.
+        delegation_token: nếu set, client hành động THAY user (agentic
+            delegation): cookie = JWT ngắn hạn aud-agent do BE cấp, không
+            login/register, không password. Hết hạn → 401 → raise
+            ClockDelegationError (FE xin token mới rồi retry 1 lần).
     """
 
     def __init__(
@@ -63,12 +72,14 @@ class ClockClient:
         password: str,
         *,
         register_if_new: bool = True,
+        delegation_token: str | None = None,
         timeout: float = 15.0,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._email = email
         self._password = password
         self._register_if_new = register_if_new
+        self._delegation_token = delegation_token
         self._user: dict[str, Any] | None = None
         self._csrf_token: str | None = None
         self._http = httpx.AsyncClient(
@@ -76,6 +87,18 @@ class ClockClient:
             timeout=timeout,
             cookies={},
         )
+        if delegation_token:
+            # On-behalf-of: cookie riêng aurel_delegation — BE guard đọc cả
+            # session lẫn delegation (verify phân biệt qua aud/scope).
+            self._http.cookies.set(DELEGATION_COOKIE, delegation_token)
+
+    @property
+    def delegated(self) -> bool:
+        return self._delegation_token is not None
+
+    @property
+    def delegation_token(self) -> str | None:
+        return self._delegation_token
 
     # -- Phiên ------------------------------------------------------------------
 
@@ -114,6 +137,20 @@ class ClockClient:
 
     async def ensure_session(self) -> dict[str, Any]:
         """Đảm bảo có session hợp lệ; trả về ``{user}`` của /auth/me."""
+        if self.delegated:
+            # On-behalf-of: KHÔNG login (không có password). Xác nhận token
+            # sống qua /auth/me; hết hạn → ClockDelegationError để FE xin
+            # token mới (agent không tự gia hạn — user là người cấp).
+            resp = await self._http.get("/auth/me")
+            if resp.status_code == 401:
+                raise ClockDelegationError(
+                    "Delegation token hết hạn hoặc không hợp lệ — xin lại từ BE"
+                )
+            resp.raise_for_status()
+            user = resp.json()
+            self._user = user.get("user") or user
+            await self._fetch_csrf()
+            return self._user
         # Đăng nhập mới ngay — đơn giản, đúng chủ đích service account
         # (không cố kế thừa cookie cũ có thể đã hết hạn).
         body = {"email": self._email, "password": self._password}
@@ -159,8 +196,14 @@ class ClockClient:
 
         resp = await self._http.request(method, path, json=json, params=params, headers=headers)
 
-        # Token hết hạn / tokenVersion đổi → thiết lập lại phiên 1 lần
+        # Token hết hạn / tokenVersion đổi → thiết lập lại phiên 1 lần.
+        # Delegated: KHÔNG tự login lại (agent không giữ password user) —
+        # raise để host báo FE xin token mới.
         if resp.status_code == 401 and retries_left > 0:
+            if self.delegated:
+                raise ClockDelegationError(
+                    f"Delegation token bị từ chối ở {path} — cần xin token mới"
+                )
             logger.info("401 ở %s — đăng nhập lại rồi retry", path)
             self._user = None
             self._csrf_token = None

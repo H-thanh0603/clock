@@ -824,3 +824,101 @@ def test_single_instance_lock(tmp_path):
     # nhả lock rồi thì lấy lại được
     handle2 = acquire_single_instance_lock(lock_path)
     handle2.close()
+
+
+# --- delegation: agent hành động thay user (agentic web) -------------------------------
+
+
+def test_delegated_client_no_login_flow(tmp_path):
+    """Delegated ClockClient: không login, cookie delegation, 401 → error riêng."""
+    import asyncio
+
+    import respx
+    from httpx import Response
+
+    from aurel_agents.clock_client import ClockClient, ClockDelegationError
+
+    base = "http://be.test"
+
+    @respx.mock
+    async def scenario():
+        respx.get(f"{base}/auth/me").mock(
+            return_value=Response(200, json={"user": {"id": "real-u1", "role": "CUSTOMER"}})
+        )
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        client = ClockClient(
+            base, "delegated", "", register_if_new=False,
+            delegation_token="tok-xyz",
+        )
+        # cookie đúng loại (aurel_delegation, không đụng session)
+        assert client.delegated is True
+        assert client.delegation_token == "tok-xyz"
+        user = await client.ensure_session()  # KHÔNG gọi /auth/login
+        assert user["id"] == "real-u1"
+        assert respx.calls.call_count == 2  # me + csrf, không login
+        await client.aclose()
+
+    asyncio.run(scenario())
+
+    @respx.mock
+    async def expired():
+        respx.get(f"{base}/auth/me").mock(return_value=Response(401, json={}))
+        client = ClockClient(
+            base, "delegated", "", register_if_new=False,
+            delegation_token="het-han",
+        )
+        try:
+            await client.ensure_session()
+            raise AssertionError("phải raise ClockDelegationError")
+        except ClockDelegationError:
+            pass
+        finally:
+            await client.aclose()
+
+    asyncio.run(expired())
+
+
+def test_pooled_storefront_delegation_binding(tmp_path):
+    """bind_delegation → _backend_for trả delegated backend (user thật)."""
+    import asyncio
+
+    import respx
+    from httpx import Response
+
+    from aurel_agents.config import Settings
+    from aurel_agents.session_pool import PooledStorefront
+
+    base = "http://be.test"
+    settings = Settings(backend_url=base)
+    pool = PooledStorefront(settings)
+
+    @respx.mock
+    async def scenario():
+        respx.get(f"{base}/auth/me").mock(
+            return_value=Response(200, json={"user": {"id": "real-u1", "role": "CUSTOMER"}})
+        )
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        pool.bind_delegation("sess-1", "tok-a")
+        backend = await pool._backend_for("sess-1")
+        # delegated backend (không phải shopper pool)
+        assert backend is not None
+        assert "sess-1" in pool._delegated
+        # client user là user thật
+        client = pool._delegated["sess-1"][0]
+        assert client.user["id"] == "real-u1"
+        # đổi token → client mới (FE gia hạn sau 30 phút)
+        pool.bind_delegation("sess-1", "tok-b")
+        backend2 = await pool._backend_for("sess-1")
+        assert pool._delegated["sess-1"][0].delegation_token == "tok-b"
+        assert backend2 is not None
+        # unbind → session quay lại shopper rác (nhưng không test — cần
+        # BE mock login; chỉ assert state sạch)
+        pool.bind_delegation("sess-1", "")
+        assert "sess-1" not in pool._delegation_tokens
+        await pool.aclose()
+
+    asyncio.run(scenario())

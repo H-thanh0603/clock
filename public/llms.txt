@@ -12,8 +12,14 @@
 ## API công khai (JSON, không cần auth)
 - GET /backend/products?page=1&limit=50&sort=newest — danh sách sản phẩm đang bán: tên, slug, giá USD/VND, tồn kho, ảnh, bộ sưu tập. Hỗ trợ filter collection/movement/material/size.
 - GET /backend/products/{slug} — chi tiết 1 sản phẩm (mô tả, thông số, giá, tồn kho)
-- GET /backend/products?q={tu-khoa} — tìm kiếm theo tên/mã tham chiếu
+- GET /backend/products?q={tu-khoa} — tìm kiếm (Meilisearch typo-tolerance: sai chính tả 1-2 ký tự vẫn ra kết quả)
+- GET /backend/orders/by-code/{AC-YYYY-NNNNNN} — tra cứu đơn công khai theo mã
 - GET /backend/health — trạng thái dịch vụ
+
+## AI Agents (agentic commerce)
+- **MCP server** (agent ngoài tích hợp): `python -m aurel_agents.mcp shop` — toolset tìm kiếm/so sánh/tra cứu đơn của Aurel (xem agent/README.md mục "Managed Agents (MCP)").
+- **Delegation** ("act on behalf of"): người dùng đã đăng nhập có thể cấp quyền cho AI concierge hành động hộ (giỏ/đơn/wishlist thật) qua JWT ngắn hạn 30 phút — session tôn trọng quyền này như quyền của chính người dùng.
+- Chat trực tiếp: `/agent` (shopping concierge cho khách, merchant assistant cho vận hành).
 
 ## Số liệu & quy ước
 - Giá: USD là gốc; VND = USD × 25.200 (suất quy đổi nội bộ hiển thị liền)

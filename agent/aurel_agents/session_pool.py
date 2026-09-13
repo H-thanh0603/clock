@@ -77,12 +77,18 @@ class PooledStorefront:
     Mỗi ``session.session_id`` map tới 1 ``AurelStorefront`` + ``ClockClient``
     riêng (email suy ra ``shop+<prefix>@domain``, tự register lần đầu).
 
+    Delegation (agentic web — "act on behalf of"): khi request chat mang
+    delegation token, backend dùng shopper LÀ CHÍNH user đó (giỏ/đơn/wishlist
+    thật), không phải shopper rác. Token TTL 30 phút nên delegated client
+    không cache dài hạn — giữ tối đa DELEGATED_TTL_S rồi drop.
+
     Evict in-memory sau 12h không dùng (client httpx giữ connection + RAM);
     session cũ quay lại thì register lại shopper đã có (email prefix giữ
     nguyên) — không mất gì vì giỏ BE lưu theo user, không phải theo pool.
     """
 
     IDLE_EVICT_S = 12 * 3600
+    DELEGATED_TTL_S = 30 * 60  # token delegation BE cấp TTL 30 phút
 
     def __init__(self, settings) -> None:
         self._settings = settings
@@ -90,6 +96,74 @@ class PooledStorefront:
         self._clients: dict[str, Any] = {}
         self._locks: dict[str, Any] = {}
         self._last_used: dict[str, float] = {}
+        # Delegated: session_id → (client, backend, created_at). Không vào
+        # _backends (vòng đời ngắn theo token, không theo session).
+        self._delegated: dict[str, tuple[Any, Any, float]] = {}
+        # Token delegation mới nhất mỗi session — FE gửi kèm mỗi request
+        # chat; _backend_for đọc binding này (giỏ thật của user thay vì
+        # shopper rác).
+        self._delegation_tokens: dict[str, str] = {}
+
+    def bind_delegation(self, session_id: str, token: str) -> None:
+        """Gắn delegation token cho session (mỗi turn chat cập nhật)."""
+        sid = sanitize_session_id(session_id)
+        if token:
+            self._delegation_tokens[sid] = token
+        else:
+            self._delegation_tokens.pop(sid, None)
+            entry = self._delegated.pop(sid, None)
+            if entry is not None:
+                # fire-and-forget close — caller không await được từ sync
+                import asyncio
+
+                try:
+                    asyncio.get_running_loop().create_task(entry[0].aclose())
+                except RuntimeError:
+                    pass
+
+    async def delegated_backend(self, session_id: str, token: str):
+        """AurelStorefront chạy trên behalf-of user (delegation token).
+
+        Client theo session nhưng tái tạo khi token đổi (FE xin token mới
+        sau 30 phút) hoặc qua TTL. Đồng bộ caller: 1 session 1 delegated
+        client tại một thời điểm.
+        """
+        import asyncio
+
+        sid = sanitize_session_id(session_id)
+        existing = self._delegated.get(sid)
+        if existing is not None:
+            client, backend, created = existing
+            if (
+                time.monotonic() - created < self.DELEGATED_TTL_S
+                and client.delegation_token == token
+            ):
+                return backend
+        lock = self._locks.setdefault(f"delegated:{sid}", asyncio.Lock())
+        async with lock:
+            existing = self._delegated.get(sid)
+            if existing is not None and existing[0].delegation_token == token:
+                return existing[1]
+            # Token mới/TTL quá → drop client cũ, tạo mới
+            if existing is not None:
+                try:
+                    await existing[0].aclose()
+                except Exception:
+                    pass
+            from aurel_agents.clock_client import ClockClient
+            from aurel_agents.shopping.backend import AurelStorefront
+
+            client = ClockClient(
+                self._settings.backend_url,
+                "delegated",  # email chỉ để log — không dùng login
+                "",
+                register_if_new=False,
+                delegation_token=token,
+            )
+            await client.ensure_session()
+            backend = AurelStorefront(client)
+            self._delegated[sid] = (client, backend, time.monotonic())
+            return backend
 
     def _email_for(self, session_id: str) -> str:
         base = self._settings.shopper_email
@@ -127,6 +201,11 @@ class PooledStorefront:
         if len(self._backends) > 16:
             await self._evict_idle()
         self._last_used[sid] = time.monotonic()
+        # Delegated binding (agentic web): request chat gắn token →
+        # backend là chính user (giỏ/đơn/wishlist thật), bỏ qua shopper rác.
+        token = self._delegation_tokens.get(sid)
+        if token:
+            return await self.delegated_backend(sid, token)
         backend = self._backends.get(sid)
         if backend is not None:
             return backend
@@ -160,6 +239,12 @@ class PooledStorefront:
                 pass
         self._clients.clear()
         self._backends.clear()
+        for entry in self._delegated.values():
+            try:
+                await entry[0].aclose()
+            except Exception:
+                pass
+        self._delegated.clear()
 
     # -- StorefrontBackend delegate (mỗi method lấy backend theo session) --
     async def search_products(self, session, query, filters=None, limit=8):

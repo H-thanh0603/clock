@@ -21,16 +21,39 @@ dài hạn + loop nền + tool ghi trạng thái**, thứ chatbot không có:
    FE poll feed → admin thấy ngay không cần mở chat.
 2. **Watch "báo tôi khi về hàng/giảm giá"** — khách nói "báo tôi khi
    chiếc X về lại hàng / giảm 10%"; shopping agent lưu qua tool `set_watch`
-   (PresentationExtension — đúng seam upstream, không sửa vendor), loop nền
+   (PresentationExtension — đúng seam upstream, không sửa vendor, có
+   provenance gate: chỉ watch id đã thấy trong session), loop nền
    kiểm tra định kỳ và thông báo khi khớp. Watch persist qua restart.
 3. **Task tự trị multi-step** — loop tool của agent (search → details →
    so sánh → điền giỏ) đã chạy tự trị theo mục tiêu; watch mở rộng thành
    task chạy **sau khi user rời đi** (deferred task).
-4. **Cross-agent handoff** — khách khiếu nại với concierge ( heuristic từ
-   khoá "khiếu nại/bị trầy/chưa nhận được...") → tự mở ticket vào
-   `data/tickets.json` + alert cho merchant agent; merchant scan vòng sau
-   đọc ticket và đề xuất xử lý. 2 agent cộng tác, chatbot đơn không có
-   khái niệm này.
+4. **Cross-agent handoff** — khách khiếu nại với concierge (heuristic từ
+   khoá "khiếu nại/bị trầy/chưa nhận được...", bỏ qua câu hỏi chính sách)
+   → tự mở ticket vào `data/tickets.json` + alert cho merchant agent; merchant
+   scan vòng sau đọc ticket và đề xuất xử lý.
+
+## Delegation — agent hành động thay user (agentic web)
+
+Pattern "act on behalf of" chuẩn agentic commerce:
+
+1. User đã đăng nhập (session cookie BE) bật **"Dùng tài khoản của tôi"**
+   ở trang `/agent` → FE gọi `POST /auth/delegation` (Throttle 6/phút,
+   không set cookie) → nhận JWT delegation TTL **30 phút**, aud
+   `aurel-agent`, scope `shop-on-behalf`, chỉ cấp cho CUSTOMER (admin
+   không delegate).
+2. FE đưa token trong body mỗi request chat (`delegation_token`) → host
+   `bind_delegation(session, token)` → PooledStorefront dùng shopper
+   **là chính user đó**: giỏ/đơn/wishlist thật, không còn shopper rác.
+3. Token hết hạn giữa turn → SSE event `delegation_expired` → FE hiện
+   nút cấp lại (user là người gia hạn quyền — agent không tự gia hạn).
+4. An toàn: `verifySessionToken` reject token mang aud/scope (delegation
+   không dùng làm session được) và ngược lại `verifyDelegationToken`
+   check aud — 2 loại token không lẫn nhau. Giỏ vẫn qua gated writes
+   (provenance) như mọi path.
+
+Agent dính vào site: nút **"Hỏi AI Concierge"** trên trang sản phẩm
+deep-link `/agent?q=…&product=…` — turn đầu chạy với PageContext
+`product` nên agent trả lời đúng chiếc đang xem.
 
 Endpoints mới: `GET /alerts`, `GET /shop/watches?session_id=`,
 `POST /shop/watches/{id}/cancel`, `POST /shop/monitor/run` (chạy 1 vòng

@@ -10,7 +10,9 @@
  * change_update (staged change), turn_complete.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { csrfFetch } from "@/lib/api-client";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -416,15 +418,81 @@ function AlertFeed({ refreshKey }: { refreshKey: number }) {
   );
 }
 
+function DeepLinkLauncher({
+  onAsk,
+  onProduct,
+  busy,
+}: {
+  onAsk: (q: string) => void;
+  onProduct: (slug: string) => void;
+  busy: boolean;
+}) {
+  /** Đọc ?q= + ?product= (nút "Hỏi concierge" từ trang detail). */
+  const search = useSearchParams();
+  const fired = useRef(false);
+  useEffect(() => {
+    if (fired.current) return;
+    const q = search.get("q");
+    const product = search.get("product");
+    if (!q) return;
+    fired.current = true;
+    if (product) onProduct(product);
+    onAsk(q);
+  }, [search, onAsk, onProduct, busy]);
+  return null;
+}
+
 export default function AgentChatPage() {
   const [role, setRole] = useState<AgentRole>("shop");
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [statusLine, setStatusLine] = useState<string | null>(null);
+  // Delegation (agentic web): agent hành động THAY user — giỏ/đơn/wishlist
+  // thật. Bật = xin JWT ngắn hạn (30 phút) từ BE /auth/delegation.
+  const [actAsMe, setActAsMe] = useState(false);
+  const [me, setMe] = useState<{ name?: string } | null>(null);
+  const delegationRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Sản phẩm user đang xem (deep-link từ trang detail) — feed PageContext.
+  const pageProductRef = useRef<string | null>(null);
 
+  // Đã đăng nhập FE (session cookie BE) → hiện nút "act on behalf of".
+  useEffect(() => {
+    csrfFetch("/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setMe(d?.user ?? null))
+      .catch(() => setMe(null));
+  }, []);
+
+  // Bật delegation → xin token ngay (nếu 401 → user chưa đăng nhập).
+  const toggleDelegation = useCallback(async () => {
+    if (actAsMe) {
+      setActAsMe(false);
+      delegationRef.current = null;
+      return;
+    }
+    const res = await csrfFetch("/auth/delegation", { method: "POST" });
+    if (!res.ok) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          text: "Cần đăng nhập trước khi cho concierge hành động hộ bạn.",
+          ux: [],
+          done: true,
+        },
+      ]);
+      return;
+    }
+    const data = (await res.json()) as { token: string };
+    delegationRef.current = data.token;
+    setActAsMe(true);
+  }, [actAsMe]);
+
+  // Token TTL 30 phút — xin lại trước khi gửi nếu sắp hết (đơn giản: xin
+  // lại mỗi khi bật trạng thái còn 0 event).
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, statusLine]);
@@ -446,7 +514,13 @@ export default function AgentChatPage() {
         const res = await fetch(`${AGENT_HOST}/${role}/chat`, {
           method: "POST",
           headers: { "content-type": "application/json", ...agentHeaders() },
-          body: JSON.stringify({ message: text, session_id: sessionIdRef.current }),
+          body: JSON.stringify({
+            message: text,
+            session_id: sessionIdRef.current,
+            delegation_token: role === "shop" ? delegationRef.current : undefined,
+            product_id: role === "shop" ? pageProductRef.current ?? undefined : undefined,
+            page_type: role === "shop" && pageProductRef.current ? "product" : "other",
+          }),
           signal: controller.signal,
         });
         if (!res.ok || !res.body) {
@@ -555,6 +629,32 @@ export default function AgentChatPage() {
               case "error":
                 patch((b) => ({ ...b, text: b.text + `\n\n⚠ ${ev.message}` }));
                 break;
+              case "delegation_expired":
+                // Token delegation hết hạn giữa turn — xin lại + báo user.
+                setActAsMe(false);
+                delegationRef.current = null;
+                patch((b) => ({
+                  ...b,
+                  done: true,
+                  text:
+                    b.text +
+                    `\n\n⚠ ${ev.message}`,
+                  ux: [
+                    ...b.ux,
+                    {
+                      id: uxSeq++,
+                      node: (
+                        <button
+                          onClick={toggleDelegation}
+                          className="border border-primary/50 px-3 py-1.5 font-body-sm text-body-sm text-primary underline"
+                        >
+                          Cấp lại quyền hành động hộ
+                        </button>
+                      ),
+                    },
+                  ],
+                }));
+                break;
               case "turn_complete":
               case "done":
                 patch((b) => ({ ...b, done: true }));
@@ -586,6 +686,16 @@ export default function AgentChatPage() {
 
   return (
     <main className="min-h-screen bg-surface text-on-surface">
+      {/* Deep-link từ nút "Hỏi concierge" trên trang sản phẩm */}
+      <Suspense fallback={null}>
+        <DeepLinkLauncher
+          onAsk={send}
+          onProduct={(slug) => {
+            pageProductRef.current = slug;
+          }}
+          busy={busy}
+        />
+      </Suspense>
       <div className="mx-auto max-w-4xl px-space-lg py-space-lg">
         <header className="mb-space-lg">
           <p className="font-label-spec text-label-spec uppercase tracking-[0.25em] text-on-surface-variant">
@@ -599,7 +709,7 @@ export default function AgentChatPage() {
             catalog và vận hành Aurel. Shopping agent tư vấn và điền giỏ; merchant agent
             báo cáo và đề xuất thay đổi (staged — luôn chờ người duyệt).
           </p>
-          <div className="mt-space-md flex gap-2">
+          <div className="mt-space-md flex flex-wrap items-center gap-2">
             {(["shop", "merchant"] as const).map((r) => (
               <button
                 key={r}
@@ -617,6 +727,19 @@ export default function AgentChatPage() {
                 {r === "shop" ? "Khách hàng" : "Vận hành"}
               </button>
             ))}
+            {role === "shop" && me && (
+              <button
+                onClick={toggleDelegation}
+                title="Concierge sẽ dùng giỏ/đơn/wishlist thật của bạn (quyền tự hết hạn sau 30 phút)"
+                className={`ml-auto px-4 py-2 font-label-spec text-label-spec uppercase tracking-wider transition-colors ${
+                  actAsMe
+                    ? "border border-primary bg-primary/10 text-primary"
+                    : "border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary"
+                }`}
+              >
+                {actAsMe ? "● Đang hành động hộ bạn" : "Dùng tài khoản của tôi"}
+              </button>
+            )}
           </div>
         </header>
 
