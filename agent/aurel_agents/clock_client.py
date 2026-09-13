@@ -297,6 +297,18 @@ class ClockClient:
             params["q"] = q
         return await self.request("GET", "/admin/products", params=params)
 
+    async def admin_product_row(self, slug: str) -> dict[str, Any]:
+        """1 ProductDto admin (thấy cả SP ẩn) — đọc drift check của apply_change.
+
+        Dùng search q=slug (admin list trả row đầy đủ) thay vì GET public
+        /products/{slug} vì public ẩn SP inBoutique=false.
+        """
+        data = await self.admin_products(q=slug, limit=5)
+        for row in data.get("items", []):
+            if row.get("slug") == slug:
+                return row
+        raise ClockApiError(404, f"Không tìm thấy sp {slug} (admin)", data)
+
     async def admin_product_update(self, slug: str, patch: dict[str, Any]) -> dict[str, Any]:
         """PATCH /admin/products/{slug} — đổi giá/tồn kho/mô tả... có ProductEvent."""
         return await self.request("PATCH", f"/admin/products/{slug}", json=patch)

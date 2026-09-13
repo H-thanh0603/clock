@@ -478,3 +478,201 @@ def test_monitor_run_once_watch_fires_alert(tmp_path, monkeypatch):
     assert "Chrono X" in fired[0].title
     # watch bị tắt sau khi khớp — không lặp vòng sau
     assert watch_store.active() == []
+
+
+# --- fix 6: monitor tái dùng ClockClient qua các vòng ------------------------------------
+
+
+def test_monitor_reuses_clients_across_cycles(tmp_path):
+    """2 vòng quét → chỉ login shopper 1 lần (login spam đã từng là bug)."""
+    import asyncio
+
+    import respx
+    from httpx import Response
+
+    from aurel_agents.config import Settings
+    from aurel_agents.proactive import AlertFeed, ProactiveMonitor, TicketStore, WatchStore
+
+    watch_store = WatchStore(tmp_path / "w.json")
+    alert_feed = AlertFeed(tmp_path / "a.json")
+    ticket_store = TicketStore(tmp_path / "t.json")
+    watch_store.add("shopper:abc12345", "chrono-x", "restock")
+    settings = Settings(backend_url="http://be.test")
+    base = "http://be.test"
+    login_calls = []
+
+    @respx.mock
+    async def scenario():
+        def login_route(request):
+            login_calls.append(request.headers.get("host", ""))
+            return Response(
+                200,
+                json={
+                    "accessToken": "t",
+                    "user": {"id": "u1", "role": "CUSTOMER" if len(login_calls) == 1 else "ADMIN"},
+                },
+            )
+
+        respx.post(f"{base}/auth/login").mock(side_effect=login_route)
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        # vòng 1: hết hàng; vòng 2: về hàng → alert
+        state = {"stock": 0}
+        respx.get(f"{base}/products/chrono-x").mock(
+            side_effect=lambda: Response(
+                200,
+                json={"slug": "chrono-x", "name": "Chrono X", "stock": state["stock"], "priceUsd": 99000, "inBoutique": True},
+            )
+        )
+        respx.get(f"{base}/admin/stats").mock(
+            return_value=Response(200, json={"pendingOrders": 0})
+        )
+        respx.get(f"{base}/admin/products").mock(
+            return_value=Response(200, json={"items": []})
+        )
+
+        monitor = ProactiveMonitor(
+            watch_store=watch_store,
+            alert_feed=alert_feed,
+            ticket_store=ticket_store,
+            settings=settings,
+        )
+        await monitor.run_once()  # vòng 1
+        state["stock"] = 3
+        await monitor.run_once()  # vòng 2 — watch khớp
+        await monitor.stop()
+        return None
+
+    asyncio.run(scenario())
+    # shopper 1 login (vòng 1) + admin 1 login (vòng 1) = 2; vòng 2 reuse 0
+    assert len(login_calls) == 2, f"login spam: {len(login_calls)}"
+
+
+# --- fix 5: apply_change chặn lost update -----------------------------------------------
+
+
+def test_apply_change_rejects_drift(tmp_path):
+    """Giá đổi giữa lúc stage và apply → từ chối, không ghi đè."""
+    import asyncio
+
+    import respx
+    from httpx import Response
+    from merchant_agent import ActorKind, ChangeItem, ChangeKind, MerchantSessionContext
+    from merchant_agent.changes import ChangeLedger
+    from merchant_agent.config import MerchantAgentConfig
+
+    from aurel_agents.clock_client import ClockClient
+    from aurel_agents.merchant.backend import AurelMerchant
+
+    ledger = ChangeLedger(MerchantAgentConfig(brand_name="Aurel & Co."))
+    change = ledger.stage(
+        kind=ChangeKind.PRICE_UPDATE,
+        summary="Tăng giá chrono-x",
+        items=[ChangeItem(target="chrono-x", field="price", before=99000.0, after=105000.0)],
+        actor="op",
+        actor_kind=ActorKind.AGENT,
+        currency="USD",
+    )
+    base = "http://be.test"
+
+    @respx.mock
+    async def scenario():
+        respx.post(f"{base}/auth/login").mock(
+            return_value=Response(
+                200, json={"accessToken": "t", "user": {"id": "a1", "role": "ADMIN"}}
+            )
+        )
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        # BE trả giá ĐÃ ĐỔI (operator sửa trực tiếp ở giữa)
+        respx.get(f"{base}/admin/products").mock(
+            return_value=Response(
+                200,
+                json={"items": [{"slug": "chrono-x", "name": "Chrono X", "priceUsd": 99999, "stock": 2, "inBoutique": True}]},
+            )
+        )
+        client = ClockClient(base, "admin@x", "pw", register_if_new=False)
+        await client.ensure_session()
+        merchant = AurelMerchant(client, ledger=ledger)
+        session = MerchantSessionContext(
+            session_id="t", merchant_id="aurel", operator="operator:t"
+        )
+        from merchant_agent import ChangeNotApplicable
+
+        try:
+            await merchant.apply_change(session, change.change_id)
+            return "APPLIED (sai)"
+        except ChangeNotApplicable as e:
+            return str(e)
+        finally:
+            await client.aclose()
+
+    msg = asyncio.run(scenario())
+    assert "đã đổi từ lúc đề xuất" in msg
+    assert "99999" in msg
+    # change vẫn staged — operator xem lại rồi stage lại
+    assert ledger.get(change.change_id) is not None
+
+
+def test_apply_change_allows_when_no_drift(tmp_path):
+    """Giá chưa đổi → apply chạy bình thường (không chặn nhầm)."""
+    import asyncio
+
+    import respx
+    from httpx import Response
+    from merchant_agent import ActorKind, ChangeItem, ChangeKind, MerchantSessionContext
+    from merchant_agent.changes import ChangeLedger
+    from merchant_agent.config import MerchantAgentConfig
+
+    from aurel_agents.clock_client import ClockClient
+    from aurel_agents.merchant.backend import AurelMerchant
+
+    ledger = ChangeLedger(MerchantAgentConfig(brand_name="Aurel & Co."))
+    change = ledger.stage(
+        kind=ChangeKind.PRICE_UPDATE,
+        summary="Tăng giá chrono-x",
+        items=[ChangeItem(target="chrono-x", field="price", before=99000.0, after=105000.0)],
+        actor="op",
+        actor_kind=ActorKind.AGENT,
+        currency="USD",
+    )
+    base = "http://be.test"
+    patched = []
+
+    @respx.mock
+    async def scenario():
+        respx.post(f"{base}/auth/login").mock(
+            return_value=Response(
+                200, json={"accessToken": "t", "user": {"id": "a1", "role": "ADMIN"}}
+            )
+        )
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        respx.get(f"{base}/admin/products").mock(
+            return_value=Response(
+                200,
+                json={"items": [{"slug": "chrono-x", "name": "Chrono X", "priceUsd": 99000, "stock": 2, "inBoutique": True}]},
+            )
+        )
+        respx.patch(f"{base}/admin/products/chrono-x").mock(
+            side_effect=lambda request: (
+                patched.append(1),
+                Response(200, json={"slug": "chrono-x"}),
+            )[-1]
+        )
+        client = ClockClient(base, "admin@x", "pw", register_if_new=False)
+        await client.ensure_session()
+        merchant = AurelMerchant(client, ledger=ledger)
+        session = MerchantSessionContext(
+            session_id="t", merchant_id="aurel", operator="operator:t"
+        )
+        applied = await merchant.apply_change(session, change.change_id)
+        await client.aclose()
+        return applied
+
+    applied = asyncio.run(scenario())
+    assert applied.status.value == "applied"
+    assert len(patched) == 1

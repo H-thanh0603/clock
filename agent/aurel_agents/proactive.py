@@ -364,6 +364,9 @@ class ProactiveMonitor:
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
         self.last_run: float | None = None
+        # Client dài hạn tái dùng qua các vòng quét (đăng nhập lại chỉ khi 401).
+        self._shopper: Any | None = None
+        self._admin: Any | None = None
         # Dedupe alert merchant: fingerprint → timestamp lần cuối publish.
         # Không có cái này, 1 tình trạng tồn kho thấp lặp lại mỗi vòng quét.
         self._alert_seen: dict[str, float] = {}
@@ -384,6 +387,14 @@ class ProactiveMonitor:
                 await asyncio.wait_for(self._task, timeout=10)
             except (TimeoutError, asyncio.CancelledError):
                 self._task.cancel()
+        for client in (self._shopper, self._admin):
+            if client is not None:
+                try:
+                    await client.aclose()
+                except Exception:
+                    pass
+        self._shopper = None
+        self._admin = None
 
     def _publish_once(self, kind: str, title: str, detail: str, data: dict[str, Any]) -> bool:
         """Publish alert merchant-scan đúng 1 lần cho 1 tình trạng.
@@ -423,40 +434,63 @@ class ProactiveMonitor:
         counts.update(await self._scan_merchant())
         return counts
 
-    async def _check_watches(self) -> dict[str, int]:
+    async def _shopper_client(self):
+        """ClockClient shopper dài hạn — tạo 1 lần, tái dùng qua các vòng.
+
+        ensure_session() login MỚI mỗi lần gọi (thiết kế cho turn chat),
+        nên monitor chỉ gọi khi chưa có user. Hết hạn phiên thì request
+        trả 401 → ClockClient tự login lại rồi retry (request đã có sẵn).
+        """
         from aurel_agents.clock_client import ClockClient
 
+        if self._shopper is None:
+            self._shopper = ClockClient(
+                self._settings.backend_url,
+                self._settings.shopper_email,
+                self._settings.shopper_password,
+                register_if_new=True,
+            )
+        if not self._shopper.user:
+            await self._shopper.ensure_session()
+        return self._shopper
+
+    async def _admin_client(self):
+        from aurel_agents.clock_client import ClockClient
+
+        if self._admin is None:
+            self._admin = ClockClient(
+                self._settings.backend_url,
+                self._settings.admin_email,
+                self._settings.admin_password,
+                register_if_new=False,
+            )
+        if not self._admin.user:
+            await self._admin.ensure_session()
+        return self._admin
+
+    async def _check_watches(self) -> dict[str, int]:
         watches = self._watches.active()
         if not watches:
             return {}
-        client = ClockClient(
-            self._settings.backend_url,
-            self._settings.shopper_email,
-            self._settings.shopper_password,
-            register_if_new=True,
-        )
+        client = await self._shopper_client()
         published = 0
-        try:
-            await client.ensure_session()
-            products: dict[str, dict[str, Any]] = {}
-            for pid in {w.product_id for w in watches}:
-                try:
-                    products[pid] = await client.product(pid)
-                except Exception:
-                    logger.debug("watch product %s không đọc được", pid)
-            fired: set[tuple[str, str]] = set()
-            for alert in check_watches(watches, products):
-                self._alerts.publish(alert.kind, alert.title, alert.detail, alert.data)
-                # watch đã khớp → tắt để không lặp lại mỗi vòng
-                key = (str(alert.data.get("product_id")), alert.kind)
-                if key not in fired:
-                    for w in watches:
-                        if w.product_id == key[0] and w.kind == key[1]:
-                            self._watches.deactivate(w.watch_id)
-                    fired.add(key)
-                published += 1
-        finally:
-            await client.aclose()
+        products: dict[str, dict[str, Any]] = {}
+        for pid in {w.product_id for w in watches}:
+            try:
+                products[pid] = await client.product(pid)
+            except Exception:
+                logger.debug("watch product %s không đọc được", pid)
+        fired: set[tuple[str, str]] = set()
+        for alert in check_watches(watches, products):
+            self._alerts.publish(alert.kind, alert.title, alert.detail, alert.data)
+            # watch đã khớp → tắt để không lặp lại mỗi vòng
+            key = (str(alert.data.get("product_id")), alert.kind)
+            if key not in fired:
+                for w in watches:
+                    if w.product_id == key[0] and w.kind == key[1]:
+                        self._watches.deactivate(w.watch_id)
+                fired.add(key)
+            published += 1
         return {"watches": published}
 
     async def _scan_merchant(self) -> dict[str, int]:
@@ -468,19 +502,12 @@ class ProactiveMonitor:
         """
         from merchant_agent import MerchantSessionContext
 
-        from aurel_agents.clock_client import ClockClient
         from aurel_agents.merchant.backend import AurelMerchant
 
-        client = ClockClient(
-            self._settings.backend_url,
-            self._settings.admin_email,
-            self._settings.admin_password,
-            register_if_new=False,
-        )
+        client = await self._admin_client()
         published = 0
         open_tickets = len(self._tickets.open_tickets())
         try:
-            await client.ensure_session()
             merchant = AurelMerchant(client)
             session = MerchantSessionContext(
                 session_id="monitor", merchant_id="aurel", operator="operator:monitor"
@@ -497,8 +524,6 @@ class ProactiveMonitor:
                     published += 1
         except Exception:
             logger.exception("merchant scan lỗi — bỏ qua vòng này")
-        finally:
-            await client.aclose()
         return {"merchant": published, "open_tickets": open_tickets}
 
 

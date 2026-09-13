@@ -61,6 +61,16 @@ _LISTING_FIELDS = {
     "status",
 }
 
+# Optimistic-drift check: field agent → getter lấy giá trị hiện tại từ
+# ProductDto (admin view). Field không map (mô tả dài) → không check.
+_DRIFT_FIELD_MAP: dict[str, Any] = {
+    "price": lambda row: float(row.get("priceUsd") or 0),
+    "stock": lambda row: int(row.get("stock") or 0),
+    "status": lambda row: ("active" if row.get("inBoutique", True) else "paused"),
+    "title": lambda row: str(row.get("name") or ""),
+    "labels": lambda row: [str(x) for x in (row.get("badges") or [])],
+}
+
 
 def _listing_from_clock(p: dict[str, Any]) -> Listing:
     """ProductDto (admin view, gồm cả SP ẩn) → merchant Listing (plain shape)."""
@@ -559,6 +569,30 @@ class AurelMerchant(MerchantBackend):
 
     # -- Change lifecycle ------------------------------------------------------------
 
+    async def _assert_no_drift(self, change: Any) -> None:
+        """Mỗi item của change: giá hiện tại BE phải còn khớp ``before``.
+
+        Chỉ check field có nguồn đọc được (price/stock/inBoutique/name/
+        badges — map từ field agent); field mô tả dài bỏ qua (so sánh text
+        tốn mà đổi ý là chuyện thường). Drift → ChangeNotApplicable với
+        message nêu rõ field nào trượt, operator xem lại rồi stage lại.
+        """
+        for item in change.items:
+            getter = _DRIFT_FIELD_MAP.get(str(item.field))
+            if getter is None or item.before is None:
+                continue
+            try:
+                row = await self._client.admin_product_row(item.target)
+            except Exception as error:
+                logger.debug("drift check %s không đọc được: %s", item.target, error)
+                continue  # không đọc được → để PATCH tự báo lỗi phía BE
+            current = getter(row)
+            if current is not None and current != item.before:
+                raise ChangeNotApplicable(
+                    f"{item.target}: trường '{item.field}' đã đổi từ lúc đề xuất "
+                    f"({item.before!r} → {current!r}) — hãy xem lại rồi đề xuất lại"
+                )
+
     async def get_pending_changes(self, session: MerchantSessionContext) -> list[StagedChange]:
         return self._ledger.pending()
 
@@ -566,6 +600,10 @@ class AurelMerchant(MerchantBackend):
         change = self._ledger.get(change_id)
         if change is None or change.status.value != "staged":
             raise ChangeNotApplicable(f"Không có change {change_id} đang staged")
+        # Optimistic concurrency: giá trị khi stage (item.before) phải còn
+        # đúng lúc apply. Operator/admin sửa trực tiếp ở giữa → từ chối
+        # cả change thay vì ghi đè âm thầm (lost update).
+        await self._assert_no_drift(change)
         if change.kind == ChangeKind.PROMOTION:
             draft = self._promo_drafts.get(change_id) or _decode_draft(change, "promo")
             await self._client.admin_promotion_create(

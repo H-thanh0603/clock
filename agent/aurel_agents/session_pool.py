@@ -76,13 +76,20 @@ class PooledStorefront:
 
     Mỗi ``session.session_id`` map tới 1 ``AurelStorefront`` + ``ClockClient``
     riêng (email suy ra ``shop+<prefix>@domain``, tự register lần đầu).
+
+    Evict in-memory sau 12h không dùng (client httpx giữ connection + RAM);
+    session cũ quay lại thì register lại shopper đã có (email prefix giữ
+    nguyên) — không mất gì vì giỏ BE lưu theo user, không phải theo pool.
     """
+
+    IDLE_EVICT_S = 12 * 3600
 
     def __init__(self, settings) -> None:
         self._settings = settings
         self._backends: dict[str, Any] = {}
         self._clients: dict[str, Any] = {}
         self._locks: dict[str, Any] = {}
+        self._last_used: dict[str, float] = {}
 
     def _email_for(self, session_id: str) -> str:
         base = self._settings.shopper_email
@@ -90,11 +97,36 @@ class PooledStorefront:
         prefix = sanitize_session_id(session_id)[:8] or "default"
         return f"{local}+{prefix}@{domain}" if domain else f"{local}+{prefix}"
 
+    async def _evict_idle(self) -> None:
+        """Evict session không dùng quá IDLE_EVICT_S (giải phóng RAM + socket)."""
+        now = time.monotonic()
+        stale = []
+        for sid, ts in self._last_used.items():
+            if now - ts <= self.IDLE_EVICT_S:
+                continue
+            lock = self._locks.get(sid)
+            if lock is not None and lock.locked():
+                continue  # đang tạo backend — chờ vòng sau
+            stale.append(sid)
+        for sid in stale:
+            self._last_used.pop(sid, None)
+            self._locks.pop(sid, None)
+            self._backends.pop(sid, None)
+            client = self._clients.pop(sid, None)
+            if client is not None:
+                try:
+                    await client.aclose()
+                except Exception:
+                    pass
+
     async def _backend_for(self, session_id: str):
         from aurel_agents.clock_client import ClockClient
         from aurel_agents.shopping.backend import AurelStorefront
 
         sid = sanitize_session_id(session_id)
+        if len(self._backends) > 16:
+            await self._evict_idle()
+        self._last_used[sid] = time.monotonic()
         backend = self._backends.get(sid)
         if backend is not None:
             return backend
