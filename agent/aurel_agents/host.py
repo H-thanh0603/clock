@@ -68,6 +68,7 @@ from aurel_agents.proactive import (
     Ticket,
     TicketStore,
     WatchStore,
+    acquire_single_instance_lock,
 )
 from aurel_agents.session_pool import (
     PooledStorefront,
@@ -103,7 +104,36 @@ _monitor = ProactiveMonitor(
     alert_feed=_alert_feed,
     ticket_store=_ticket_store,
     settings=None,  # set trong lifespan (settings cần env)
+    sessions_dir=SESSIONS_DIR,  # retention sweep dọn transcript cũ
 )
+
+# Budget guard: đếm turn mỗi (session, ngày UTC). 1 turn = tối đa
+# max_tool_iterations vòng model call (mỗi vòng tốn thinking + output
+# tokens) — chatbot billing không kiểm soát sẽ cháy tiền khi bị script
+# dập. Reset theo ngày UTC (đơn giản, không cron).
+_turn_counts: dict[tuple[str, str], int] = {}
+
+
+def _budget_key(session_id: str) -> tuple[str, str]:
+    from datetime import UTC, datetime
+
+    return (sanitize_session_id(session_id), datetime.now(UTC).strftime("%Y-%m-%d"))
+
+
+def _check_budget(session_id: str, per_day: int) -> None:
+    """Turn count mỗi session/ngày vượt cap → 429 (giống rate limit)."""
+    if per_day <= 0:
+        return
+    key = _budget_key(session_id)
+    if _turn_counts.get(key, 0) >= per_day:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Phiên chat đã dùng hết {per_day} lượt/ngày — quay lại ngày mai "
+                "hoặc mở phiên mới (mỗi phiên có cap riêng)."
+            ),
+        )
+    _turn_counts[key] = _turn_counts.get(key, 0) + 1
 
 
 def _new_session_id() -> str:
@@ -191,6 +221,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Agent host: backend=%s model=%s", settings.backend_url, settings.model)
     _monitor._settings = settings  # noqa: SLF001 — wire settings khi startup
+    # Single-instance guard: store JSON là single-writer — instance thứ 2
+    # phải fail ngay thay vì đè dữ liệu instance 1.
+    lock = acquire_single_instance_lock(DATA_DIR / "host.lock")
     pool = PooledStorefront(settings)
     _state["shop_pool"] = pool
     try:
@@ -214,6 +247,7 @@ async def lifespan(app: FastAPI):
     finally:
         await _monitor.stop()
     _persist_merchant_ledger()
+    lock.close()  # nhả single-instance lock
     pool = _state.pop("shop_pool", None)
     if pool:
         await pool.aclose()
@@ -467,8 +501,9 @@ async def health() -> dict:
 @app.post("/shop/chat")
 async def shop_chat(req: ChatRequest, request: Request):
     _check_rate(request, get_settings().chat_rate_limit_per_min)
-    agent = _require_agent("shopping")
     session_id = sanitize_session_id(req.session_id or _new_session_id())
+    _check_budget(session_id, get_settings().chat_turns_per_day)
+    agent = _require_agent("shopping")
     return StreamingResponse(
         _run_shopping_turn(agent, req.message, session_id),
         media_type="text/event-stream",
@@ -481,6 +516,7 @@ async def merchant_chat(req: ChatRequest, request: Request):
     _check_merchant_auth(request)
     agent = _require_agent("merchant")
     session_id = sanitize_session_id(req.session_id or _new_session_id())
+    _check_budget(session_id, get_settings().chat_turns_per_day)
     return StreamingResponse(
         _run_merchant_turn(agent, req.message, session_id),
         media_type="text/event-stream",

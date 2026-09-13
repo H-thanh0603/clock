@@ -32,6 +32,30 @@ async function main() {
     },
   });
   console.log(`Admin sẵn sàng: ${adminEmail}`);
+
+  // Service account cho AI merchant agent (tách khỏi admin thật — mọi
+  // thao tác agent ghi audit under account riêng, truy vết được).
+  // AGENT_ADMIN_EMAIL để trống = dùng chung admin thật (chỉ demo).
+  const agentEmail = process.env.AGENT_ADMIN_EMAIL ?? "";
+  if (agentEmail) {
+    const agentPassword = process.env.AGENT_ADMIN_PASSWORD ?? "";
+    if (!agentPassword) {
+      throw new Error(
+        "AGENT_ADMIN_PASSWORD bắt buộc khi đặt AGENT_ADMIN_EMAIL (service account không được phép mật khẩu mặc định)",
+      );
+    }
+    await prisma.user.upsert({
+      where: { email: agentEmail },
+      update: {},
+      create: {
+        email: agentEmail,
+        name: "AI Merchant Agent (service)",
+        passwordHash: await bcrypt.hash(agentPassword, 12),
+        role: "ADMIN",
+      },
+    });
+    console.log(`Service account agent sẵn sàng: ${agentEmail}`);
+  }
   for (const p of products) {
     await prisma.product.upsert({
       where: { slug: p.slug },

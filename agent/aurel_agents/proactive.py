@@ -35,6 +35,9 @@ MAX_OPEN_TICKETS = 100
 # Alert merchant-scan (low_stock/pending/ticket) lặp mỗi vòng — chỉ publish
 # lại sau khoảng này để feed không spam cùng 1 tình trạng.
 ALERT_REPEAT_AFTER_S = 6 * 3600
+# Backoff vòng quét khi BE chết: interval × 2^failures, cap ở đây
+# (30 phút — alert BE-down đã lên feed, không cần dập BE thêm).
+MAX_BACKOFF_S = 30 * 60
 
 
 # --- mô hình dữ liệu -----------------------------------------------------------------
@@ -117,6 +120,28 @@ class _JsonListStore:
 
     def all(self) -> list[BaseModel]:
         return list(self._items)
+
+    def remove(self, item_id: str, id_field: str) -> bool:
+        """Xóa 1 item theo id. Trả True nếu xóa được."""
+        before = len(self._items)
+        self._items = [
+            x for x in self._items if getattr(x, id_field, None) != item_id
+        ]
+        changed = len(self._items) < before
+        if changed:
+            self.save()
+        return changed
+
+    def trim_before(self, cutoff: float, ts_field: str = "created_at") -> int:
+        """Xóa item timestamp cũ hơn cutoff. Trả số item xóa."""
+        before = len(self._items)
+        self._items = [
+            x for x in self._items if float(getattr(x, ts_field, 0) or 0) >= cutoff
+        ]
+        removed = before - len(self._items)
+        if removed:
+            self.save()
+        return removed
 
     def _add(self, item: BaseModel) -> None:
         self._items.append(item)
@@ -339,6 +364,97 @@ def check_merchant_snapshot(snapshot: dict[str, Any], inventory: list[dict[str, 
     return alerts
 
 
+def cleanup_expired(
+    sessions_dir: Path,
+    watch_store: WatchStore,
+    ticket_store: TicketStore,
+    alert_feed: AlertFeed,
+    retention_days: int,
+) -> dict[str, int]:
+    """Dọn dữ liệu cá nhân cũ hơn TTL (transcript/watch/ticket/alert).
+
+    GDPR-ish: hội thoại khách không nằm vô hạn trên disk. Transcript
+    không watch active → xóa file. Watch active nhưng cũ thì vẫn giữ
+    (khách còn đang chờ báo). Gọi mỗi vòng monitor; trả về số item dọn.
+    """
+    if retention_days <= 0:
+        return {}
+    cutoff = time.time() - retention_days * 86400
+    removed = {"transcripts": 0, "watches": 0, "tickets": 0, "alerts": 0}
+
+    # 1) Transcript: file cũ + user không còn watch active nào → xóa.
+    active_watch_users = {w.user_id for w in watch_store.active()}
+    if sessions_dir.is_dir():
+        for path in sessions_dir.glob("*.json"):
+            try:
+                if path.stat().st_mtime > cutoff:
+                    continue
+                # user của session = shopper:<8 prefix đầu file name>
+                sid = path.stem
+                user_id = f"shopper:{sid[:8]}"
+                if user_id in active_watch_users:
+                    continue  # còn watch chờ báo — giữ transcript
+                path.unlink(missing_ok=True)
+                removed["transcripts"] += 1
+            except Exception:
+                pass
+
+    # 2) Ticket resolved cũ + open quá cũ (không ai xử lý 30 ngày → dọn).
+    for t in ticket_store.all():
+        if not isinstance(t, Ticket):
+            continue
+        if t.status == "resolved" and t.created_at < cutoff:
+            ticket_store.remove(t.ticket_id, "ticket_id")
+            removed["tickets"] += 1
+
+    # 3) Watch inactive cũ (đã khớp/hủy — chỉ còn làm data rác).
+    for w in watch_store.all():
+        if isinstance(w, Watch) and not w.active and w.created_at < cutoff:
+            watch_store.remove(w.watch_id, "watch_id")
+            removed["watches"] += 1
+
+    # 4) Alert feed tự cap 500 (MAX_ALERTS) — chỉ trim thêm theo TTL.
+    trimmed = alert_feed.trim_before(cutoff)
+    removed["alerts"] = trimmed
+
+    total = sum(removed.values())
+    if total:
+        logger.info("retention dọn %s (TTL %dd)", removed, retention_days)
+    return removed
+
+
+
+
+# --- single-instance lock ---------------------------------------------------------------
+
+
+def acquire_single_instance_lock(lock_path: Path) -> Any:
+    """File-lock fcntl: chống 2 process agent host chạy song song.
+
+    Các store JSON (transcript/watch/alert/ticket/ledger) giả định
+    single-writer — 2 replica cùng ghi sẽ đè mất update của nhau. Lock
+    giữ sống trong lifespan của host (giữ handle, không close). Trả về
+    file handle (giữ tham chiếu!) hoặc raise RuntimeError nếu có
+    instance khác đang giữ.
+    """
+    import fcntl
+
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(lock_path, "w")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        handle.close()
+        raise RuntimeError(
+            "Một instance agent host khác đang chạy (lock "
+            f"{lock_path}). Các store JSON giả định single-writer — "
+            "muốn chạy nhiều replica thì chuyển store sang DB."
+        ) from error
+    handle.write(str(time.time()))
+    handle.flush()
+    return handle
+
+
 # --- background loop -------------------------------------------------------------------
 
 
@@ -356,11 +472,13 @@ class ProactiveMonitor:
         alert_feed: AlertFeed,
         ticket_store: TicketStore,
         settings,
+        sessions_dir: Path | None = None,
     ) -> None:
         self._watches = watch_store
         self._alerts = alert_feed
         self._tickets = ticket_store
         self._settings = settings
+        self._sessions_dir = sessions_dir if sessions_dir is not None else Path("/dev/null")
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
         self.last_run: float | None = None
@@ -411,27 +529,93 @@ class ProactiveMonitor:
         return True
 
     async def _run(self) -> None:
+        """Vòng lặp chính: interval cố định khi khỏe, backoff khi BE chết.
+
+        BE down 1 ngày không nên tạo 288 stack trace + 288 vòng login vô
+        ích: sau mỗi lần fail liên tiếp, interval nhân đôi (cap
+        MAX_BACKOFF_S). Vào trạng thái down → 1 alert "agent không nối
+        được BE"; phục hồi → 1 alert "đã phục hồi" — operator nhìn feed là
+        biết, không cần đọc log.
+        """
+        failures = 0
+        was_down = False
         while not self._stop.is_set():
             try:
                 await asyncio.wait_for(
-                    self._stop.wait(), timeout=self._settings.monitor_interval_s
+                    self._stop.wait(), timeout=self._current_delay(failures)
                 )
                 break  # stop() được gọi
             except TimeoutError:
                 pass
             try:
                 await self.run_once()
+                failures = 0
+                if was_down:
+                    was_down = False
+                    self._publish_once(
+                        "be_status",
+                        "Backend đã nối lại",
+                        "Vòng quét agent chạy lại bình thường sau gián đoạn.",
+                        {"status": "up"},
+                    )
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logger.exception("vòng monitor lỗi — bỏ qua, chạy tiếp")
+                failures += 1
+                if not was_down:
+                    was_down = True
+                    self._publish_once(
+                        "be_status",
+                        "Agent không nối được backend",
+                        f"Vòng quét fail liên tục — thử lại sau backoff "
+                        f"(tối đa {MAX_BACKOFF_S}s). Kiểm tra backend "
+                        f"{self._settings.backend_url}.",
+                        {"status": "down"},
+                    )
+                logger.exception("vòng monitor lỗi (lần %d) — backoff", failures)
+
+    def _current_delay(self, failures: int) -> int:
+        """Interval hiện tại: base khi khỏe, nhân đôi mỗi lần fail (cap)."""
+        if failures <= 0:
+            return self._settings.monitor_interval_s
+
+        backoff = self._settings.monitor_interval_s * (2**failures)
+        return min(backoff, MAX_BACKOFF_S)
 
     async def run_once(self) -> dict[str, int]:
-        """1 vòng: check watches + merchant scan. Trả về số alert mới."""
+        """1 vòng: check watches + merchant scan. Trả về số alert mới.
+
+        Raise khi BE không trả lời được ở KHÔCẢ HAI scan — vòng loop cha
+        dùng để backoff. 1 scan sống (BE vẫn nâng cao được) coi như
+        vòng thành công.
+        """
         self.last_run = time.time()
         counts = {"restock": 0, "price_drop": 0, "merchant": 0, "tickets": 0}
-        counts.update(await self._check_watches())
-        counts.update(await self._scan_merchant())
+        watch_error: Exception | None = None
+        merchant_error: Exception | None = None
+        try:
+            counts.update(await self._check_watches())
+        except Exception as error:  # noqa: BLE001 — quyết định down ở dưới
+            watch_error = error
+        try:
+            counts.update(await self._scan_merchant())
+        except Exception as error:  # noqa: BLE001
+            merchant_error = error
+        if watch_error is not None and merchant_error is not None:
+            raise RuntimeError(
+                f"cả 2 scan fail: watches={watch_error}, merchant={merchant_error}"
+            ) from watch_error
+        # Retention sweep — không bao giờ làm fail vòng quét.
+        try:
+            cleanup_expired(
+                sessions_dir=self._sessions_dir,
+                watch_store=self._watches,
+                ticket_store=self._tickets,
+                alert_feed=self._alerts,
+                retention_days=self._settings.retention_days,
+            )
+        except Exception:
+            logger.exception("retention sweep lỗi (bỏ qua)")
         return counts
 
     async def _shopper_client(self):
@@ -499,31 +683,30 @@ class ProactiveMonitor:
         Turn LLM chỉ chạy khi có alert/ticket — operator hỏi tiếp qua chat.
         Ticket đã publish 1 lần khi mở (handoff) — vòng scan chỉ đếm,
         không publish lại, tránh spam feed mỗi 5 phút.
+        Lỗi kết nối (login/stats) raise lên để vòng cha backoff; lỗi
+        phân tích chỉ log một vòng bỏ qua.
         """
         from merchant_agent import MerchantSessionContext
 
         from aurel_agents.merchant.backend import AurelMerchant
 
-        client = await self._admin_client()
+        client = await self._admin_client()  # login fail → raise (backoff)
         published = 0
         open_tickets = len(self._tickets.open_tickets())
-        try:
-            merchant = AurelMerchant(client)
-            session = MerchantSessionContext(
-                session_id="monitor", merchant_id="aurel", operator="operator:monitor"
-            )
-            snapshot = await client.admin_stats()
-            inventory = [
-                a.model_dump(mode="json")
-                for a in await merchant.get_inventory_alerts(session)
-            ]
-            for alert in check_merchant_snapshot(snapshot, inventory):
-                if self._publish_once(
-                    alert.kind, alert.title, alert.detail, alert.data
-                ):
-                    published += 1
-        except Exception:
-            logger.exception("merchant scan lỗi — bỏ qua vòng này")
+        merchant = AurelMerchant(client)
+        session = MerchantSessionContext(
+            session_id="monitor", merchant_id="aurel", operator="operator:monitor"
+        )
+        snapshot = await client.admin_stats()
+        inventory = [
+            a.model_dump(mode="json")
+            for a in await merchant.get_inventory_alerts(session)
+        ]
+        for alert in check_merchant_snapshot(snapshot, inventory):
+            if self._publish_once(
+                alert.kind, alert.title, alert.detail, alert.data
+            ):
+                published += 1
         return {"merchant": published, "open_tickets": open_tickets}
 
 

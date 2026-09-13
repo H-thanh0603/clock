@@ -155,6 +155,31 @@ Cùng prompt/skills/tools, khác vòng loop:
 - **Rate-limit**: `AGENT_CHAT_RATE_LIMIT_PER_MIN` (mặc định 60 req/phút/IP, `0` = tắt).
 - **Docker**: `agent/Dockerfile` + service `agent` trong `docker-compose.yml` (dev `:8100`) và `docker-compose.prod.yml` (Caddy route `/agent/*`, FE prod dùng cùng origin).
 
+## Vận hành thực tế (prod checklist)
+
+- **Single instance**: các store JSON giả định single-writer — host giữ
+  `data/host.lock` (fcntl); instance thứ 2 fail ngay khi khởi động. Muốn
+  chạy nhiều replica: chuyển transcript/ledger/watch/alert sang Postgres
+  (store đã tách interface, chỉ thay lớp persist).
+- **Service account admin**: đặt `AGENT_ADMIN_EMAIL` + `AGENT_ADMIN_PASSWORD`
+  → seed tạo account ADMIN riêng cho agent, tách khỏi admin thật (audit BE
+  thấy "ai" thật sự thao tác, không trộn lẫn). Không đặt = dùng chung
+  admin (chỉ nên ở demo).
+- **Budget token**: `AGENT_CHAT_TURNS_PER_DAY` (mặc định 100) — mỗi session
+  được N turn/ngày (UTC reset). 1 turn ≤ 8 vòng model call nên cap này cũng
+  là cap tiền ước tính. `0` = tắt.
+- **Retention dữ liệu cá nhân**: `AGENT_RETENTION_DAYS` (mặc định 30) —
+  monitor mỗi vòng dọn transcript/watches/tickets/alerts cũ hơn TTL
+  (transcript của user còn watch active thì giữ). `0` = giữ vĩnh viễn.
+- **Backoff khi BE chết**: vòng quét fail liên tục → interval nhân đôi
+  (cap 30 phút) + đúng 1 alert "BE down" lên feed; phục hồi → 1 alert
+  "đã nối lại". Không còn 288 stack trace/ngày.
+- **Shopper rác BE dọn**: cron BE `AgentShopperCleanupService` mỗi 6h xóa
+  user `shop+…@` tuổi >24h (`AGENT_SHOPPER_TTL_HOURS`) không có đơn.
+- **Model fuzz adversarial** (upstream khuyến cáo khi đổi model/gateway):
+  `pytest -m fuzz` — tốn token thật, kiểm fencing chống prompt-injection.
+  Mặc định deselected; CI không chạy.
+
 ## Test
 
 ```bash

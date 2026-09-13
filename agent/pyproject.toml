@@ -32,6 +32,10 @@ packages = ["aurel_agents", "aurel_agents.shopping", "aurel_agents.merchant"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# fuzz: adversarial gọi LLM thật (tốn token) — chạy thủ công:
+#   pytest -m fuzz ; mặc định deselect (addopts).
+markers = ["fuzz: adversarial model test — tốn token thật, chạy manual"]
+addopts = "-m 'not fuzz'"
 
 [tool.ruff]
 line-length = 100

@@ -75,6 +75,13 @@ class Settings:
     # Proactive monitor: interval vòng quét nền (giây, 0 = tắt).
     # Watch khách + merchant scan + ticket handoff chạy trên vòng này.
     monitor_interval_s: int = 300
+    # Retention: transcript/watches/tickets cũ hơn (giây) bị dọn mỗi vòng
+    # quét — 0 = giữ vĩnh viễn (khuyến nghị đặt ở prod: hội thoại khách
+    # là dữ liệu cá nhân, không nên nằm vô hạn trên disk).
+    retention_days: int = 30
+    # Budget chat: số turn mỗi chat-session/ngày (midnight reset, 0 = tắt).
+    # Chống 1 user/cú script đốt token LLM qua vòng tool-call 8 lần/turn.
+    chat_turns_per_day: int = 100
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -97,6 +104,8 @@ class Settings:
             max_tokens=int(os.getenv("AGENT_MAX_TOKENS") or 2048),
             request_timeout_s=float(os.getenv("AGENT_REQUEST_TIMEOUT_S") or 120.0),
             monitor_interval_s=int(os.getenv("AGENT_MONITOR_INTERVAL_S") or 300),
+            retention_days=int(os.getenv("AGENT_RETENTION_DAYS") or 30),
+            chat_turns_per_day=int(os.getenv("AGENT_CHAT_TURNS_PER_DAY") or 100),
         )
 
 

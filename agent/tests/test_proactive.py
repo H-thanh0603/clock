@@ -676,3 +676,151 @@ def test_apply_change_allows_when_no_drift(tmp_path):
     applied = asyncio.run(scenario())
     assert applied.status.value == "applied"
     assert len(patched) == 1
+
+
+# --- nhóm 7-12: backoff, retention, budget, single-instance lock ------------------------
+
+
+def test_backoff_delay_doubles_and_caps():
+    """Interval nhân đôi mỗi lần fail liên tiếp, cap MAX_BACKOFF_S."""
+    from aurel_agents.config import Settings
+    from aurel_agents.proactive import MAX_BACKOFF_S, ProactiveMonitor
+
+    settings = Settings(backend_url="http://be", monitor_interval_s=300)
+    monitor = ProactiveMonitor(
+        watch_store=None,  # type: ignore[arg-type]
+        alert_feed=None,  # type: ignore[arg-type]
+        ticket_store=None,  # type: ignore[arg-type]
+        settings=settings,
+    )
+    assert monitor._current_delay(0) == 300  # khỏe: interval gốc
+    assert monitor._current_delay(1) == 600
+    assert monitor._current_delay(2) == 1200
+    # cap 30 phút: 300×2^3=2400 > 1800 → cap từ failures=3
+    assert monitor._current_delay(3) == MAX_BACKOFF_S
+    assert monitor._current_delay(5) == MAX_BACKOFF_S
+    assert monitor._current_delay(20) == MAX_BACKOFF_S
+
+
+def test_run_once_raises_when_both_scans_fail():
+    """Cả 2 scan chết (BE down) → run_once raise để vòng cha backoff."""
+    import asyncio
+
+    from aurel_agents.config import Settings
+    from aurel_agents.proactive import ProactiveMonitor
+
+    settings = Settings(backend_url="http://be")
+    monitor = ProactiveMonitor(
+        watch_store=None,  # type: ignore[arg-type]
+        alert_feed=None,  # type: ignore[arg-type]
+        ticket_store=None,  # type: ignore[arg-type]
+        settings=settings,
+    )
+
+    async def both_fail(*_a, **_k):
+        raise ConnectionError("BE chết")
+
+    monitor._check_watches = both_fail  # type: ignore[method-assign]
+    monitor._scan_merchant = both_fail  # type: ignore[method-assign]
+    try:
+        asyncio.run(monitor.run_once())
+        raise AssertionError("phải raise")
+    except RuntimeError as e:
+        assert "cả 2 scan fail" in str(e)
+
+
+def test_retention_cleanup_transcripts_and_stores(tmp_path):
+    """TTL dọn: transcript cũ (không watch) xóa file; resolved ticket xóa."""
+    import os
+    import time as _time
+
+    from aurel_agents.proactive import (
+        AlertFeed,
+        TicketStore,
+        WatchStore,
+        cleanup_expired,
+    )
+
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    old_ts = _time.time() - 40 * 86400  # 40 ngày trước
+
+    # transcript cũ của session không có watch
+    f1 = sessions / "abcd1111.json"
+    f1.write_text("[]", encoding="utf-8")
+    os.utime(f1, (old_ts, old_ts))
+    # transcript cũ nhưng user CÒN watch active → giữ
+    f2 = sessions / "keep2222.json"
+    f2.write_text("[]", encoding="utf-8")
+    os.utime(f2, (old_ts, old_ts))
+
+    watches = WatchStore(tmp_path / "w.json")
+    alerts = AlertFeed(tmp_path / "a.json")
+    tickets = TicketStore(tmp_path / "t.json")
+    watches.add("shopper:keep2222", "chrono-x", "restock")  # active → giữ transcript
+    t = tickets.open("u1", "đã xử lý xong")
+    tickets.resolve(t.ticket_id)  # resolved cũ
+
+    # fake created_at cũ cho ticket resolved
+    for item in tickets._items:
+        if item.ticket_id == t.ticket_id:
+            item.created_at = old_ts
+    tickets.save()
+
+    removed = cleanup_expired(
+        sessions_dir=sessions,
+        watch_store=watches,
+        ticket_store=tickets,
+        alert_feed=alerts,
+        retention_days=30,
+    )
+    assert removed["transcripts"] == 1  # chỉ f1
+    assert not f1.exists()
+    assert f2.exists()  # còn watch active
+    assert removed["tickets"] == 1
+    assert tickets.open_tickets() == []
+
+
+def test_budget_guard_caps_turns_per_session(monkeypatch):
+    """Vượt AGENT_CHAT_TURNS_PER_DAY → 429; session khác không bị ảnh hưởng."""
+
+    import aurel_agents.host as host
+    from aurel_agents.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_CHAT_TURNS_PER_DAY", "3")
+    get_settings.cache_clear()
+    host._turn_counts.clear()
+    try:
+        assert host._check_budget("s1", 3) is None  # turn 1
+        host._check_budget("s1", 3)  # 2
+        host._check_budget("s1", 3)  # 3
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            host._check_budget("s1", 3)  # 4 → 429
+        assert exc.value.status_code == 429
+        # session khác có cap riêng
+        assert host._check_budget("s2", 3) is None
+        # per_day=0 = tắt
+        assert host._check_budget("s1", 0) is None
+    finally:
+        monkeypatch.delenv("AGENT_CHAT_TURNS_PER_DAY", raising=False)
+        host._turn_counts.clear()
+        get_settings.cache_clear()
+
+
+def test_single_instance_lock(tmp_path):
+    """Instance 2 giữ lock fail → RuntimeError."""
+    from aurel_agents.proactive import acquire_single_instance_lock
+
+    lock_path = tmp_path / "host.lock"
+    handle = acquire_single_instance_lock(lock_path)
+    try:
+        with pytest.raises(RuntimeError, match="instance agent host khác"):
+            acquire_single_instance_lock(lock_path)
+    finally:
+        handle.close()
+    # nhả lock rồi thì lấy lại được
+    handle2 = acquire_single_instance_lock(lock_path)
+    handle2.close()
