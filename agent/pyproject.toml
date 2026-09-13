@@ -36,6 +36,9 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# tests/upstream = code của Anthropic vendor nguyên vẹn (chỉ sửa 2 dòng path)
+# — không lint, giữ đúng upstream
+extend-exclude = ["tests/upstream", "vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

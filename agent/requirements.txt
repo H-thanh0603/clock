@@ -9,8 +9,10 @@
 -e ./vendor/commerce-common
 -e ./vendor/shopping-agent/core
 -e ./vendor/shopping-agent/runtime-messages-api
+-e ./vendor/shopping-agent/runtime-agent-sdk
 -e ./vendor/merchant-agent/core
 -e ./vendor/merchant-agent/runtime-messages-api
+-e ./vendor/merchant-agent/runtime-agent-sdk
 
 # --- runtime deps của aurel_agents ---
 httpx>=0.28
@@ -45,3 +47,7 @@ pytest>=8.0
 pytest-asyncio>=0.24
 respx>=0.22
 ruff>=0.6
+
+# --- upstream cross-tests + runtime-agent-sdk cần thêm ---
+claude-agent-sdk>=0.2.139
+mcp>=1.2,<2  # upstream viết cho FastMCP 1.x (mcp 2 đổi API)
