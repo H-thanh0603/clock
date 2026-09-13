@@ -110,12 +110,46 @@ checklist, staged-change card...) render được trong FE nếu muốn tích h�
 
 ```bash
 cd agent && source .venv/bin/activate
-pytest            # 21 test: CSRF, login/register, retry 401, mapping 2 adapter,
-                   # staged-change lifecycle, guardrail, ChangeNotApplicable
-ruff check .      # lint sạch
+pytest            # 24 test adapter (CSRF, login/register, retry 401, mapping,
+                   # staged-change lifecycle, guardrail, ChangeNotApplicable, provider headers)
+pytest tests/upstream   # 150 test cross-package của Anthropic — nguyên bản, chỉ sửa
+                   # 2 dòng path (REPO_ROOT → vendor/)
+ruff check .      # lint sạch (vendor/ + tests/upstream/ được exclude)
 ```
 
-Test dùng `respx` mock toàn bộ HTTP — không cần BE thật, không cần API key.
+- Test adapter dùng `respx` mock toàn bộ HTTP — không cần BE thật, không cần API key.
+- `tests/upstream/` là 6 suites cross-package của upstream (turn loop, consumption
+  paths, system switches, search envelope, role registries, platform seams) —
+  chứng minh agent loop vendor hoạt động đúng thiết kế gốc. Để chạy được, repo
+  vendor đủ cả 3 đường: `runtime-agent-sdk` + `managed-agents` (MCP servers) +
+  `examples/` (mock backend theo upstream). Khác biệt duy nhất với upstream:
+  `REPO_ROOT` trỏ vào `vendor/` và `mcp` pin `<2` (upstream viết cho FastMCP 1.x).
+
+## Memory persistence
+
+Host tạo `JsonFileMemoryStore` (file JSON trong `agent/data/`, đã gitignore) cho
+từng role và gọi `agent.update_memory(...)` ngay sau khi turn stream xong — đúng
+hợp đồng upstream ("run it once the reply has streamed"). Agent giờ **nhớ preference
+qua session và qua restart** ("khách thích mặt 40mm" được trích thành fact, lọc
+sensitve qua `MemoryWriteFilter`, feed lại vào turn sau qua tier-one facts).
+Event `memory` (nếu có fact mới) cũng được emit cuối stream.
+
+## FE trang /agent
+
+`src/app/agent/page.tsx` — chat UI (2 tab: Khách hàng / Vận hành) consume đúng
+event vocabulary phía trên:
+- `text_delta` ghép dần; `tool_call`/`progress` hiện status line khi agent gọi tool
+- `ui` render **generative components** theo design system Obsidian & Champagne:
+  `present_products` → grid card sản phẩm (link sang trang chi tiết), `present_comparison`
+  → bảng so sánh (đánh dấu ★ đề xuất, spec map theo label), `present_plan`/`present_guide`
+  → checklist, `present_metrics` → tiles số liệu (▲▼ %), `present_change_preview` +
+  `change_update` → staged-change card (before → after, "chờ duyệt/applied/discarded")
+- `cart_update` → card giỏ hàng + link checkout; `memory` fact được lưu thông suốt
+- Cấu hình: `NEXT_PUBLIC_AGENT_URL` (mặc định `http://127.0.0.1:8100`); CORS đã mở
+  trong host cho FE dev ở `localhost:3100`
+
+Logic stream tách trong `src/lib/agent-events.ts` (parser + reducer thuần,
+test được bằng vitest node-environment — 8 test riêng).
 
 ## Ghi chú tích hợp & thay đổi ngoài agent/
 
@@ -128,6 +162,8 @@ Test dùng `respx` mock toàn bộ HTTP — không cần BE thật, không cần
   làm Nest DI lỗi khi khởi động (`UnknownDependenciesException`).
 - `docker-compose.yml`: mount pgdata theo chuẩn Postgres 18 (`/var/lib/postgresql`
   thay vì `/var/lib/postgresql/data` — image 18+ từ chối mount cũ).
+- `src/app/agent/page.tsx` + `src/lib/agent-events.ts`: trang chat FE; thêm mục
+  nav "AI Concierge" trong `src/components/Header.tsx`.
 
 ## Đạo đức & an toàn kế thừa từ upstream
 

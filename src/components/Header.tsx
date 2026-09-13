@@ -14,6 +14,7 @@ const links = [
   { href: "/collections", label: "Bộ Sưu Tập" },
   { href: "/products/chronos-tourbillon-no-07", label: "Chi Tiết Sản Phẩm" },
   { href: "/atelier", label: "Atelier & Di Sản" },
+  { href: "/agent", label: "AI Concierge" },
   { href: "/cart", label: "Giỏ Hàng & Concierge" },
 ];
 
