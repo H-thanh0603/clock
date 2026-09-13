@@ -1,4 +1,25 @@
 services:
+  # Meilisearch — typo-tolerance search cho catalog (optional: backend
+  # fallback Prisma contains khi MEILI_HOST trống/service chết).
+  meilisearch:
+    image: getmeili/meilisearch:v1.53.2
+    container_name: aurel-meili
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dev-meili-key-0123456789}
+      MEILI_ENV: development
+    volumes:
+      - meili_data:/var/lib/meilisearch
+    ports:
+      - "7700:7700"
+    healthcheck:
+      # /health không cần auth (luôn public kể cả khi có master key).
+      test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   db:
     image: postgres:18-alpine
     container_name: aurel-postgres
@@ -29,6 +50,7 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+      - meilisearch
     environment:
       PORT: 4000
       FRONTEND_URL: "http://localhost:3000"
@@ -37,6 +59,8 @@ services:
       JWT_SECRET: "thay-bang-chuoi-ngau-nhien-64-ky-tu"
       VNPAY_TMN_CODE: ""
       VNPAY_HASH_SECRET: ""
+      MEILI_HOST: "http://meilisearch:7700"
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dev-meili-key-0123456789}
     ports:
       - "4000:4000"
 
@@ -66,3 +90,4 @@ services:
 
 volumes:
   pgdata:
+  meili_data:

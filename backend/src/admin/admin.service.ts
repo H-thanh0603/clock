@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { serializeOrder } from '../orders/orders.service';
 import { linePrice } from '../common/pricing';
 import { ProductsService } from '../products/products.service';
+import { MeiliService } from '../search/meili.service';
 
 const STATUSES = [
   'PENDING',
@@ -27,6 +28,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly products: ProductsService,
+    private readonly meili: MeiliService,
   ) {}
 
   async list(status?: string, page = 1, limit = 20) {
@@ -297,6 +299,7 @@ export class AdminService {
         summary: `${name} • $${priceUsd.toLocaleString()}`,
       },
     });
+    await this.meili.upsertProduct(row as unknown as Record<string, unknown>);
     return { slug: row.slug };
   }
 
@@ -352,6 +355,9 @@ export class AdminService {
         summary: changed || 'no-change',
       },
     });
+    // Đồng bộ Meili: row đã update đủ field index cần (merge exists+data
+    // cho field không đổi vẫn đúng vì update trả row đầy đủ).
+    await this.meili.upsertProduct(row as unknown as Record<string, unknown>);
     return { slug: row.slug };
   }
 

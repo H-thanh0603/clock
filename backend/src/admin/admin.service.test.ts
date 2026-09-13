@@ -65,7 +65,7 @@ function makePrisma(initialStatus: string) {
 describe('AdminService.updateStatus', () => {
   it('PENDING → CANCELLED: hoàn tồn kho + ghi event', async () => {
     const { prisma, restocked, events } = makePrisma('PENDING');
-    const svc = new AdminService(prisma, {} as never);
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
     const r = await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
     expect(r.status).toBe('CANCELLED');
     expect(restocked.get('vip-1')).toBe(2);
@@ -74,21 +74,21 @@ describe('AdminService.updateStatus', () => {
 
   it('CONFIRMED → CANCELLED: vẫn hoàn tồn kho (trước đây bị rò)', async () => {
     const { prisma, restocked } = makePrisma('CONFIRMED');
-    const svc = new AdminService(prisma, {} as never);
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
     await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
     expect(restocked.get('vip-1')).toBe(2);
   });
 
   it('PAID → CANCELLED: KHÔNG hoàn tồn kho (đã thu tiền, xử lý hoàn riêng)', async () => {
     const { prisma, restocked } = makePrisma('PAID');
-    const svc = new AdminService(prisma, {} as never);
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
     await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
     expect(restocked.size).toBe(0);
   });
 
   it('hai admin đua nhau → đúng 1 bên thắng, không ghi event đúp', async () => {
     const { prisma, events } = makePrisma('PENDING');
-    const svc = new AdminService(prisma, {} as never);
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
     // Cả hai đều đọc thấy PENDING (race thật), DB conditional update phân thắng.
     const order = {
       id: 'ord-1',
@@ -114,7 +114,7 @@ describe('AdminService.updateStatus', () => {
 
   it('PENDING → COMPLETED: chặn nhảy cóc trạng thái', async () => {
     const { prisma } = makePrisma('PENDING');
-    const svc = new AdminService(prisma, {} as never);
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
     await expect(svc.updateStatus('ord-1', 'COMPLETED')).rejects.toThrow(
       /Không thể chuyển/,
     );
@@ -132,7 +132,7 @@ describe('AdminService.promotions', () => {
   });
 
   it('tạo promotion hợp lệ', async () => {
-    const svc = new AdminService(basePrisma() as never, {} as never);
+    const svc = new AdminService(basePrisma() as never, {} as never, { upsertProduct: async () => {} } as never);
     const r = await svc.createPromotion(
       {
         name: 'Mid-season 10%',
@@ -147,7 +147,7 @@ describe('AdminService.promotions', () => {
   });
 
   it('discountPct = 0 hoặc > 90 bị từ chối', async () => {
-    const svc = new AdminService(basePrisma() as never, {} as never);
+    const svc = new AdminService(basePrisma() as never, {} as never, { upsertProduct: async () => {} } as never);
     await expect(
       svc.createPromotion({
         name: 'x',
@@ -169,7 +169,7 @@ describe('AdminService.promotions', () => {
   });
 
   it('starts >= ends bị từ chối', async () => {
-    const svc = new AdminService(basePrisma() as never, {} as never);
+    const svc = new AdminService(basePrisma() as never, {} as never, { upsertProduct: async () => {} } as never);
     await expect(
       svc.createPromotion({
         name: 'x',
@@ -192,7 +192,7 @@ describe('AdminService.campaigns', () => {
           Promise.resolve({ id: 'c-1', ...data }),
       },
     };
-    const svc = new AdminService(prisma as never, {} as never);
+    const svc = new AdminService(prisma as never, {} as never, { upsertProduct: async () => {} } as never);
     const c = await svc.createCampaign({ name: 'Launch', budgetUsd: 500 }, 'a1');
     expect(c.status).toBe('draft');
     const u = await svc.updateCampaign('c-1', { status: 'active' });
@@ -212,7 +212,7 @@ describe('AdminService.metrics', () => {
           { bucket: new Date('2026-09-11T00:00:00Z'), value: BigInt(200) },
         ]),
     };
-    const svc = new AdminService(prisma as never, {} as never);
+    const svc = new AdminService(prisma as never, {} as never, { upsertProduct: async () => {} } as never);
     const r = await svc.metrics('sales', 'day', 30);
     expect(r.points).toEqual([
       { date: '2026-09-10', value: 1500 },
@@ -221,7 +221,7 @@ describe('AdminService.metrics', () => {
   });
 
   it('metric lạ trả points rỗng (không bịa số)', async () => {
-    const svc = new AdminService({} as never, {} as never);
+    const svc = new AdminService({} as never, {} as never, { upsertProduct: async () => {} } as never);
     const r = await svc.metrics('traffic', 'day', 30);
     expect(r.points).toEqual([]);
   });

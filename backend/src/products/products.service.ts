@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MeiliService } from '../search/meili.service';
 
 /** Shape sản phẩm trả client (priceVnd number — BigInt không serialize JSON được). */
 export type ProductDto = {
@@ -138,7 +139,10 @@ const MAX_LIMIT = 50;
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly meili: MeiliService,
+  ) {}
 
   async list(
     query: ProductQuery,
@@ -158,6 +162,12 @@ export class ProductsService {
     );
     const page = Math.max(1, Math.floor(Number(query.page) || 1));
     const and: Record<string, unknown>[] = [];
+    const hasFilters = Boolean(
+      query.movements?.length ||
+        (query.material && MATERIAL_WHERE[query.material]) ||
+        (query.size && SIZE_WHERE[query.size]) ||
+        query.complications?.length,
+    );
     // Catalog public chỉ hiện SP đang trưng bày — admin tắt inBoutique
     // nghĩa là "ẩn khỏi cửa hàng" (audit P3: trước đây vẫn hiện).
     // Backoffice gọi kèm includeHidden để vẫn thấy + sửa được SP ẩn.
@@ -177,12 +187,37 @@ export class ProductsService {
       if (ors.length) and.push({ OR: ors });
     }
     if (q) {
-      and.push({
-        OR: [
-          { name: { contains: q, mode: 'insensitive' } },
-          { reference: { contains: q, mode: 'insensitive' } },
-        ],
-      });
+      // Full-text qua Meilisearch (typo-tolerance: "tourbillan" vẫn ra).
+      // Meili chỉ trả slug theo relevance — Prisma vẫn là nguồn dữ liệu +
+      // nơi áp filter/sort/pagination. Meili chết → Prisma contains cũ.
+      let slugs: string[] | null = null;
+      if (this.meili.enabled) {
+        try {
+          // includeHidden: backoffice tìm được cả SP ẩn để sửa — catalog
+          // public thì Meili lọc inBoutique=true sẵn.
+          slugs = await this.meili.searchSlugs(q, 200, Boolean(opts.includeHidden));
+        } catch {
+          slugs = null; // fallback bên dưới
+        }
+      }
+      if (slugs !== null) {
+        if (!slugs.length) {
+          // Meili nói không có kết quả — tin luôn (khỏi quét DB)
+          return { items: [], total: 0, page, limit };
+        }
+        and.push({ slug: { in: slugs } });
+        // Sort theo relevance của Meili: lấy slug theo thứ tự rồi map lại
+        if (sort === 'featured' && !collection && !hasFilters) {
+          return this.listBySlugs(slugs, page, limit, opts);
+        }
+      } else {
+        and.push({
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { reference: { contains: q, mode: 'insensitive' } },
+          ],
+        });
+      }
     }
     // Prisma AND-thêm chuỗi điều kiện; where rỗng = lấy tất cả.
     const where: Record<string, unknown> = and.length ? { AND: and } : {};
@@ -225,6 +260,29 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
     return { items: rows.map(toDto), total, page, limit };
+  }
+
+  /** Relevance path: Meili đã xếp hạng slug — fetch theo thứ tự đó. */
+  private async listBySlugs(
+    slugs: string[],
+    page: number,
+    limit: number,
+    opts: { includeHidden?: boolean },
+  ) {
+    const pageSlugs = slugs.slice((page - 1) * limit, page * limit);
+    if (!pageSlugs.length) return { items: [], total: slugs.length, page, limit };
+    const rows = await this.prisma.product.findMany({
+      where: {
+        slug: { in: pageSlugs },
+        ...(opts.includeHidden ? {} : { inBoutique: true }),
+      },
+    });
+    const bySlug = new Map(rows.map((r) => [r.slug, r]));
+    const items = pageSlugs
+      .map((s) => bySlug.get(s))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r))
+      .map(toDto);
+    return { items, total: slugs.length, page, limit };
   }
 
   async bySlug(slug: string): Promise<ProductDto> {

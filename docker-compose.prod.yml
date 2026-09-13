@@ -26,6 +26,29 @@ services:
       timeout: 5s
       retries: 5
 
+  # Meilisearch — typo-tolerance search cho catalog. Backend fallback
+  # Prisma nếu service chết, nên không critical-path.
+  meilisearch:
+    image: getmeili/meilisearch:v1.53.2
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY chưa đặt}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili_data:/var/lib/meilisearch
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   backend:
     build: ./backend
     restart: unless-stopped
@@ -39,6 +62,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      meilisearch:
+        condition: service_started
     environment:
       PORT: 4000
       NODE_ENV: production
@@ -58,6 +83,8 @@ services:
       # Giới hạn đơn PENDING (giờ) cho cron expire — gợi ý prod: 2-6h.
       ORDER_PENDING_TTL_HOURS: ${ORDER_PENDING_TTL_HOURS:-6}
       UPLOADS_DIR: /app/uploads
+      MEILI_HOST: "http://meilisearch:7700"
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY chưa đặt}
       # --- Ảnh upload S3 (bỏ trống = disk volume) ---
       S3_BUCKET: ${S3_BUCKET:-}
       S3_REGION: ${S3_REGION:-auto}
@@ -229,5 +256,6 @@ volumes:
   pgdata:
   uploads:
   agent-data:
+  meili_data:
   caddy_data:
   caddy_config:

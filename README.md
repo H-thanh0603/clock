@@ -10,11 +10,12 @@ Next.js 16 (frontend + BFF-ish) · NestJS 11 + Prisma 7 (backend) · PostgreSQL 
 Browser → Next.js (FE :3000, /backend/* rewrite → BE)
        → NestJS (BE :4000, REST + cookie JWT session)
        → PostgreSQL (:5432)
+       → Meilisearch (:7700, typo-tolerance search cho catalog — optional)
 Caddy: TLS tự động, reverse proxy FE + /backend/* (prod)
 ```
 
 - **Frontend** (`src/`): Next.js App Router, Tailwind. Server components gọi BE qua `lib/api`; client components qua `lib/api-client` (kèm CSRF double-submit).
-- **Backend** (`backend/`): NestJS modular monolith — auth (JWT + tokenVersion), products, cart, wishlist, orders (conditional update chống oversell), payments (VNPay HMAC + idempotent settle trong 1 transaction), inquiries, invoices, notify (Telegram/SMTP), admin (stats, products, orders, users, **promotions/campaigns theo khung ngày, metrics time-series cho merchant agent**). Prisma schema: `backend/prisma/schema.prisma`.
+- **Backend** (`backend/`): NestJS modular monolith — auth (JWT + tokenVersion), products, cart, wishlist, orders (conditional update chống oversell), payments (VNPay HMAC + idempotent settle trong 1 transaction), inquiries, invoices, notify (Telegram/SMTP), admin (stats, products, orders, users, **promotions/campaigns theo khung ngày, metrics time-series cho merchant agent**). Prisma schema: `backend/prisma/schema.prisma`. **Search**: `?q=` chạy qua [Meilisearch](https://github.com/meilisearch/meilisearch) (service `meilisearch` trong compose) — typo-tolerance (khách gõ "tourbillan" vẫn ra), Meili chỉ xếp hạng slug còn Prisma giữ filter/sort/pagination; `MEILI_HOST` trống hoặc Meili chết → tự fallback Prisma `contains` (search không bao giờ fail vì engine). Index sync khi app start + sau mỗi admin write.
 - **AI Agents** (`agent/`): shopping agent (concierge tư vấn + điền giỏ) và merchant agent (dashboard + staged changes cho admin) chạy trên [anthropics/commerce-agents](https://github.com/anthropics/commerce-agents) (vendor tại `agent/vendor/`, Apache-2.0), adapter gọi thẳng REST API backend. Có memory persistence (nhớ preference khách qua session/restart) và trang chat FE **`/agent`** (generative UI: product carousel, bảng so sánh, plan checklist, staged-change card). Xem [`agent/README.md`](agent/README.md).
 - **Dev**: docker compose (Postgres + backend), FE chạy `next dev` ngoài compose.
 - **Prod**: `docker-compose.prod.yml` (db + db-backup + backend + frontend + caddy).
@@ -47,7 +48,7 @@ Chạy test:
 
 ```bash
 npm test                        # FE (vitest)
-cd backend && npm test          # BE — 112 test: tiền, auth, csrf, expire, promotions/campaigns/metrics...
+cd backend && npm test          # BE — 125 test: tiền, auth, csrf, expire, promotions/campaigns/metrics, meili search...
 cd agent && pytest              # AI agents — 39 test adapter + 150 test upstream
 npx tsc --noEmit                 # typecheck FE
 cd backend && npx tsc --noEmit -p tsconfig.json   # typecheck BE

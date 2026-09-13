@@ -102,5 +102,13 @@ mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
 - **Form đặt hẹn / bespoke**: lưu table `Inquiry`, xem ở
   `GET /inquiries` (admin token) — concierge xử lý theo trạng thái
   NEW → CONTACTED → CLOSED.
+- **Meilisearch (search catalog)**: service `meilisearch` trong compose prod
+  (image pin `v1.53.2`, volume `meili_data`). `MEILI_MASTER_KEY` trong
+  `.env.prod` là **bắt buộc** (compose fail-fast khi thiếu) — sinh bằng
+  `openssl rand -hex 16`. Backend index toàn bộ catalog lúc start + upsert
+  sau mỗi admin write; nếu service chết, search tự fallback Prisma `contains`
+  (catalog vẫn dùng được bình thường). Muốn verify:
+  `docker compose -f docker-compose.prod.yml ps meilisearch` (status healthy)
+  và test search có dấu lỗi chính tả trên trang catalog.
 - **Uptime monitor ngoài**: trỏ 1 dịch vụ (UptimeRobot...) vào
   `https://<DOMAIN>/backend/health` mỗi 5 phút — cảnh báo khi backend/DB xuống.

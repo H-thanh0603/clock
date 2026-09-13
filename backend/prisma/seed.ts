@@ -78,6 +78,48 @@ async function main() {
   }
   const count = await prisma.product.count();
   console.log(`Seeded ${products.length} products (total in DB: ${count})`);
+
+  // Sync Meilisearch (optional — bỏ qua khi MEILI_HOST trống/Meili chưa lên).
+  const meiliHost = (process.env.MEILI_HOST ?? '').replace(/\/$/, '');
+  if (meiliHost) {
+    try {
+      const key = process.env.MEILI_MASTER_KEY ?? '';
+      const call = async (method: string, path: string, body?: unknown) => {
+        const res = await fetch(`${meiliHost}${path}`, {
+          method,
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${key}`,
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        if (!res.ok && !(method === 'POST' && path === '/indexes' && res.status === 409)) {
+          throw new Error(`Meili ${method} ${path} → ${res.status}`);
+        }
+      };
+      await call('POST', '/indexes', { uid: 'products', primaryKey: 'slug' });
+      const rows = await prisma.product.findMany();
+      // BigInt (priceVnd) không JSON-serialize được — Meili chỉ cần priceUsd.
+      const docs = rows.map((r) => ({
+        slug: r.slug,
+        name: r.name,
+        reference: r.reference,
+        collection: r.collection,
+        shortDescription: r.shortDescription,
+        calibre: r.calibre,
+        caseMaterial: r.caseMaterial,
+        complications: r.complications,
+        priceUsd: r.priceUsd,
+        diameterMm: r.diameterMm,
+        stock: r.stock,
+        inBoutique: r.inBoutique,
+      }));
+      await call('POST', '/indexes/products/documents', docs);
+      console.log(`Meili sync: ${rows.length} documents`);
+    } catch (e) {
+      console.warn(`Meili sync bị bỏ qua: ${String(e)}`);
+    }
+  }
 }
 
 main()
