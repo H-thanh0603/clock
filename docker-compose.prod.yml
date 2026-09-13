@@ -148,6 +148,7 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         NEXT_PUBLIC_BACKEND_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/backend"
+        NEXT_PUBLIC_AGENT_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/agent"
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
         NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-prod-vps}
         SITE_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
@@ -174,12 +175,46 @@ services:
       retries: 3
       start_period: 20s
 
+  agent:
+    build: ./agent
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      AUREL_BACKEND_URL: "http://backend:4000"
+      AUREL_FRONTEND_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
+      AGENT_BASE_URL: ${AGENT_BASE_URL:-}
+      AGENT_API_KEY: ${AGENT_API_KEY:-}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5}
+      AGENT_AUTH_HEADER: ${AGENT_AUTH_HEADER:-x-api-key}
+      AGENT_MERCHANT_TOKEN: ${AGENT_MERCHANT_TOKEN:-}
+      AGENT_CHAT_RATE_LIMIT_PER_MIN: ${AGENT_CHAT_RATE_LIMIT_PER_MIN:-60}
+      AGENT_SHOPPER_EMAIL: ${AGENT_SHOPPER_EMAIL:-agent-shopper@aurel.local}
+      AGENT_SHOPPER_PASSWORD: ${AGENT_SHOPPER_PASSWORD:-}
+      AGENT_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@aurel.local}
+      AGENT_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - agent-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     depends_on:
       - frontend
       - backend
+      - agent
     environment:
       DOMAIN: ${DOMAIN:?DOMAIN chưa đặt trong .env.prod}
     ports:
@@ -193,5 +228,6 @@ services:
 volumes:
   pgdata:
   uploads:
+  agent-data:
   caddy_data:
   caddy_config:

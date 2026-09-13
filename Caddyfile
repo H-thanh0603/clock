@@ -16,6 +16,11 @@
 		reverse_proxy backend:4000
 	}
 
+	# AI agents (cùng origin để tránh CORS prod): FE gọi /agent/* → host :8100.
+	handle_path /agent/* {
+		reverse_proxy agent:8100
+	}
+
 	encode gzip
 	log {
 		output stdout

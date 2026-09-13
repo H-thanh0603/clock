@@ -9,9 +9,12 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Backend URL embed vào client bundle lúc build (NEXT_PUBLIC_*).
-ARG NEXT_PUBLIC_BACKEND_URL
-ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+  # Backend URL embed vào client bundle lúc build (NEXT_PUBLIC_*).
+  ARG NEXT_PUBLIC_BACKEND_URL
+  ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+  # Agent host URL (FE /agent gọi SSE) — prod là cùng origin /agent qua Caddy.
+  ARG NEXT_PUBLIC_AGENT_URL
+  ENV NEXT_PUBLIC_AGENT_URL=$NEXT_PUBLIC_AGENT_URL
 # Sentry DSN cho client bundle (optional — empty = noop).
 ARG NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN

@@ -40,5 +40,29 @@ services:
     ports:
       - "4000:4000"
 
+  agent:
+    # AI agents (FastAPI :8100) — vendor commerce-agents + adapter REST clock.
+    # Chưa có AGENT_API_KEY thì /health vẫn OK, chat trả 503 hướng dẫn.
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: aurel-agent
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      AUREL_BACKEND_URL: "http://backend:4000"
+      AUREL_FRONTEND_URL: "http://localhost:3100"
+      AGENT_BASE_URL: ${AGENT_BASE_URL:-}
+      AGENT_API_KEY: ${AGENT_API_KEY:-}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5}
+      AGENT_AUTH_HEADER: ${AGENT_AUTH_HEADER:-x-api-key}
+      AGENT_MERCHANT_TOKEN: ${AGENT_MERCHANT_TOKEN:-}
+      AGENT_CHAT_RATE_LIMIT_PER_MIN: ${AGENT_CHAT_RATE_LIMIT_PER_MIN:-60}
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./agent/data:/app/data
+
 volumes:
   pgdata:
