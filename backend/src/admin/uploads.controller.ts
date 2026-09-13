@@ -14,7 +14,19 @@ import { AdminGuard } from '../common/guards';
 import { StorageService } from '../common/storage.service';
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Chuẩn hóa extension từ tên file gốc. Mimetype client gửi lên giả được
+ * nên phải check cả ext — không whitelist thì file .html/.svg (JS bên
+ * trong) sẽ lưu và serve từ /uploads/ → stored XSS trên origin backend.
+ * Trả null nếu ext không cho phép.
+ */
+export function resolveUploadExt(originalname: string): string | null {
+  const ext = extname(originalname ?? '').toLowerCase();
+  return ALLOWED_EXT.has(ext) ? ext : null;
+}
 
 /**
  * Upload ảnh sản phẩm cho admin. StorageService tự chọn S3-compatible
@@ -44,7 +56,12 @@ export class UploadsController {
   )
   async upload(@UploadedFile() file?: Express.Multer.File) {
     if (!file?.buffer) throw new BadRequestException('Thiếu file ảnh');
-    const ext = extname(file.originalname).toLowerCase() || '.jpg';
+    const ext = resolveUploadExt(file.originalname);
+    if (!ext) {
+      throw new BadRequestException(
+        'Đuôi file không hợp lệ (chỉ .jpg/.jpeg/.png/.webp)',
+      );
+    }
     const key = `${Date.now()}-${randomBytes(8).toString('hex')}${ext}`;
     const stored = await this.storage.put(key, file.buffer, file.mimetype);
     return { url: stored.url, storage: stored.storage };
