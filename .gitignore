@@ -38,3 +38,11 @@ next-env.d.ts
 # agent/index tooling local
 .codegraph/
 .zcode/
+
+# python (agent/)
+agent/.venv/
+agent/**/__pycache__/
+agent/.pytest_cache/
+agent/.ruff_cache/
+agent/data/
+*.egg-info/
