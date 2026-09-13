@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
@@ -374,12 +375,35 @@ _COMPLAINT_TERMS = (
     "bị móp",
 )
 
+# Mẫu câu HỎI chính sách ("chính sách hoàn tiền thế nào?", "làm sao để khiếu
+# nại?") — khách đang hỏi thông tin, không phải báo sự cố. Mở ticket cho câu
+# này sẽ spam vận hành bằng ticket rác.
+_POLICY_QUESTION_PATTERNS = (
+    re.compile(r"chính sách"),
+    re.compile(r"làm (sao|thế nào) (để|khi|nếu)"),
+    re.compile(r"(có|được) (hoàn|đổi|trả) (không|ko)\??"),
+    re.compile(r"thế nào|bao lâu|bao nhiêu ngày|quy trình"),
+    re.compile(r"giới thiệu|hướng dẫn|cần những gì"),
+)
+
+
+def _is_policy_question(message: str) -> bool:
+    text = message.lower().strip()
+    return any(p.search(text) for p in _POLICY_QUESTION_PATTERNS)
+
 
 def _maybe_handoff_ticket(message: str, session_id: str) -> Ticket | None:
-    """User message có dấu hiệu khiếu nại → mở ticket cho merchant agent."""
-    if not any(term in message.lower() for term in _COMPLAINT_TERMS):
+    """User message có dấu hiệu khiếu nại → mở ticket cho merchant agent.
+
+    Câu hỏi chính sách (chứa từ khoá khiếu nại nhưng là hỏi "thế nào/ bao
+    lâu") KHÔNG mở ticket — concierge vẫn trả lời qua search_policies như
+    thường; chỉ sự cố thật (kể chuyện, kèm/ không kèm mã đơn) mới chuyển.
+    """
+    text = message.lower()
+    if not any(term in text for term in _COMPLAINT_TERMS):
         return None
-    import re
+    if _is_policy_question(message):
+        return None
 
     # Mã đơn AC-YYYY-NNNNNN nếu khách nhắc
     match = re.search(r"AC-\d{4}-\d{6}", message)
@@ -501,8 +525,13 @@ async def merchant_discard(change_id: str, request: Request) -> dict:
 
 
 @app.get("/alerts")
-async def alerts(limit: int = 50) -> dict:
-    """Alert feed: agent tự phát hiện (watch khách, tồn kho, PENDING, ticket)."""
+async def alerts(limit: int = 50, request: Request = None) -> dict:  # noqa: B008 — FastAPI inject
+    """Alert feed: agent tự phát hiện (watch khách, tồn kho, PENDING, ticket).
+
+    Chứa số liệu vận hành + nội dung khiếu nại → bảo vệ bằng x-agent-token
+    khi AGENT_MERCHANT_TOKEN đặt (tab Vận hành của FE gửi kèm).
+    """
+    _check_merchant_auth(request)
     safe_limit = max(1, min(limit, 200))
     return {
         "alerts": [a.model_dump(mode="json") for a in _alert_feed.recent(safe_limit)],
@@ -512,7 +541,11 @@ async def alerts(limit: int = 50) -> dict:
 
 @app.get("/shop/watches")
 async def shop_watches(session_id: str = "") -> dict:
-    """Watch active của 1 chat session (mỗi session 1 shopper riêng)."""
+    """Watch active của 1 chat session (mỗi session 1 shopper riêng).
+
+    Chỉ trả watch của chính session gọi (user_id suy từ session prefix) —
+    không lộ watch của người khác, nên không cần token.
+    """
     sid = sanitize_session_id(session_id)
     user_id = f"shopper:{sid[:8]}"
     return {"watches": [w.model_dump(mode="json") for w in _watch_store.for_user(user_id)]}
@@ -527,8 +560,13 @@ async def shop_watch_cancel(watch_id: str) -> dict:
 
 
 @app.post("/shop/monitor/run")
-async def monitor_run() -> dict:
-    """Chạy 1 vòng monitor ngay — demo tính năng agent tự hành động."""
+async def monitor_run(request: Request) -> dict:
+    """Chạy 1 vòng monitor ngay — demo tính năng agent tự hành động.
+
+    Trigger được vòng quét = tốn BE call + tạo alert → bảo vệ bằng token
+    như /alerts (chống abuse từ internet).
+    """
+    _check_merchant_auth(request)
     if _monitor._settings is None:  # noqa: SLF001 — chưa qua lifespan
         raise HTTPException(status_code=503, detail="Host chưa khởi động xong")
     counts = await _monitor.run_once()

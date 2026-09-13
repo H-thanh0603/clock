@@ -32,6 +32,9 @@ logger = logging.getLogger("aurel-agents.proactive")
 MAX_ALERTS = 500
 MAX_WATCHES_PER_USER = 20
 MAX_OPEN_TICKETS = 100
+# Alert merchant-scan (low_stock/pending/ticket) lặp mỗi vòng — chỉ publish
+# lại sau khoảng này để feed không spam cùng 1 tình trạng.
+ALERT_REPEAT_AFTER_S = 6 * 3600
 
 
 # --- mô hình dữ liệu -----------------------------------------------------------------
@@ -361,10 +364,13 @@ class ProactiveMonitor:
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
         self.last_run: float | None = None
+        # Dedupe alert merchant: fingerprint → timestamp lần cuối publish.
+        # Không có cái này, 1 tình trạng tồn kho thấp lặp lại mỗi vòng quét.
+        self._alert_seen: dict[str, float] = {}
 
     def start(self) -> None:
-        if self._settings.monitor_interval_s <= 0:
-            logger.info("Proactive monitor tắt (AGENT_MONITOR_INTERVAL_S=0)")
+        if self._settings is None or self._settings.monitor_interval_s <= 0:
+            logger.info("Proactive monitor tắt (settings chưa có hoặc interval=0)")
             return
         self._task = asyncio.create_task(self._run(), name="proactive-monitor")
         logger.info(
@@ -378,6 +384,20 @@ class ProactiveMonitor:
                 await asyncio.wait_for(self._task, timeout=10)
             except (TimeoutError, asyncio.CancelledError):
                 self._task.cancel()
+
+    def _publish_once(self, kind: str, title: str, detail: str, data: dict[str, Any]) -> bool:
+        """Publish alert merchant-scan đúng 1 lần cho 1 tình trạng.
+
+        Fingerprint = kind + data (id sản phẩm/đơn); lặp lại mỗi vòng quét
+        thì chỉ nhắc lại sau ALERT_REPEAT_AFTER_S giây.
+        """
+        fingerprint = kind + ":" + json.dumps(data, sort_keys=True, default=str)
+        now = time.time()
+        if now - self._alert_seen.get(fingerprint, 0) < ALERT_REPEAT_AFTER_S:
+            return False
+        self._alert_seen[fingerprint] = now
+        self._alerts.publish(kind, title, detail, data)
+        return True
 
     async def _run(self) -> None:
         while not self._stop.is_set():
@@ -443,6 +463,8 @@ class ProactiveMonitor:
         """Merchant scan: đọc stats + inventory alerts trực tiếp (không tốn LLM).
 
         Turn LLM chỉ chạy khi có alert/ticket — operator hỏi tiếp qua chat.
+        Ticket đã publish 1 lần khi mở (handoff) — vòng scan chỉ đếm,
+        không publish lại, tránh spam feed mỗi 5 phút.
         """
         from merchant_agent import MerchantSessionContext
 
@@ -456,6 +478,7 @@ class ProactiveMonitor:
             register_if_new=False,
         )
         published = 0
+        open_tickets = len(self._tickets.open_tickets())
         try:
             await client.ensure_session()
             merchant = AurelMerchant(client)
@@ -468,22 +491,14 @@ class ProactiveMonitor:
                 for a in await merchant.get_inventory_alerts(session)
             ]
             for alert in check_merchant_snapshot(snapshot, inventory):
-                self._alerts.publish(alert.kind, alert.title, alert.detail, alert.data)
-                published += 1
-            # Handoff tickets → merchant thấy qua alert feed
-            for t in self._tickets.open_tickets():
-                self._alerts.publish(
-                    "ticket",
-                    f"Ticket {t.ticket_id}: {t.summary[:60]}",
-                    f"Khách {t.user_id} khiếu nại — cần vận hành xử lý. "
-                    + (f"Đơn {t.order_id}." if t.order_id else ""),
-                    {"ticket_id": t.ticket_id, "user_id": t.user_id, "order_id": t.order_id},
-                )
-                published += 1
+                if self._publish_once(
+                    alert.kind, alert.title, alert.detail, alert.data
+                ):
+                    published += 1
         except Exception:
             logger.exception("merchant scan lỗi — bỏ qua vòng này")
         finally:
             await client.aclose()
-        return {"merchant": published}
+        return {"merchant": published, "open_tickets": open_tickets}
 
 

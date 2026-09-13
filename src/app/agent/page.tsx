@@ -29,6 +29,11 @@ import {
 
 const AGENT_HOST =
   process.env.NEXT_PUBLIC_AGENT_URL || "http://127.0.0.1:8100";
+// Token cho endpoint vận hành (/merchant/*, /alerts, /shop/monitor/run) —
+// chỉ đặt khi AGENT_MERCHANT_TOKEN bật ở host (demo prod). Dev bỏ trống.
+const AGENT_TOKEN = process.env.NEXT_PUBLIC_AGENT_TOKEN || "";
+const agentHeaders = (): Record<string, string> =>
+  AGENT_TOKEN ? { "x-agent-token": AGENT_TOKEN } : {};
 
 // ---------------------------------------------------------------------------
 // UI helpers theo design system Obsidian & Champagne (globals.css tokens)
@@ -358,7 +363,9 @@ function AlertFeed({ refreshKey }: { refreshKey: number }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${AGENT_HOST}/alerts?limit=20`);
+      const res = await fetch(`${AGENT_HOST}/alerts?limit=20`, {
+        headers: agentHeaders(),
+      });
       if (!res.ok) return;
       const data = await res.json();
       setAlerts(data.alerts ?? []);
@@ -438,7 +445,7 @@ export default function AgentChatPage() {
       try {
         const res = await fetch(`${AGENT_HOST}/${role}/chat`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", ...agentHeaders() },
           body: JSON.stringify({ message: text, session_id: sessionIdRef.current }),
           signal: controller.signal,
         });

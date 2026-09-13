@@ -288,6 +288,126 @@ def test_handoff_ticket_ignores_normal_message(tmp_path):
     assert host._ticket_store.open_tickets() == []
 
 
+def test_handoff_ticket_ignores_policy_question(tmp_path):
+    """Câu HỎI chính sách không mở ticket — bug 3 false-positive."""
+    import aurel_agents.host as host
+    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+
+    host._watch_store = WatchStore(tmp_path / "w.json")
+    host._alert_feed = AlertFeed(tmp_path / "a.json")
+    host._ticket_store = TicketStore(tmp_path / "t.json")
+
+    for question in (
+        "Chính sách hoàn tiền thế nào?",
+        "làm sao để khiếu nại?",
+        "quy trình hoàn tiền bao lâu?",
+        "đồng hồ bị lỗi thì có hoàn không?",
+        "hướng dẫn khiếu nại giúp tôi",
+    ):
+        assert host._maybe_handoff_ticket(question, "s") is None, question
+    assert host._ticket_store.open_tickets() == []
+
+
+# --- bug 1: merchant scan không spam alert lặp -------------------------------------------
+
+
+def test_merchant_scan_alert_dedupe(tmp_path):
+    """Cùng 1 tình trạng (tồn kho thấp) chỉ publish 1 lần trong cooldown."""
+    from aurel_agents.proactive import AlertFeed, ProactiveMonitor
+
+    feed = AlertFeed(tmp_path / "a.json")
+    monitor = ProactiveMonitor(
+        watch_store=None,  # type: ignore[arg-type] — không dùng trong test
+        alert_feed=feed,
+        ticket_store=None,  # type: ignore[arg-type]
+        settings=None,
+    )
+    data = {"listing_id": "a", "stock": 1}
+    assert monitor._publish_once("low_stock", "A còn 1", "chi tiết", data) is True
+    assert monitor._publish_once("low_stock", "A còn 1", "chi tiết", data) is False  # cooldown
+    assert monitor._publish_once("low_stock", "A còn 1", "chi tiết", data) is False
+    # tình trạng KHÁC (sp khác) vẫn publish
+    assert monitor._publish_once("low_stock", "B còn 1", "chi tiết", {"listing_id": "b", "stock": 1}) is True
+    # hết cooldown (fake thời gian) → publish lại được
+    key = next(iter(monitor._alert_seen))
+    monitor._alert_seen[key] = 0.0
+    assert monitor._publish_once("low_stock", "A còn 1", "chi tiết", data) is True
+
+
+def test_scan_merchant_counts_open_tickets_without_republish(tmp_path):
+    """Bug 1: vòng scan KHÔNG publish lại ticket đã publish lúc mở."""
+    import asyncio
+
+    import respx
+    from httpx import Response
+
+    from aurel_agents.config import Settings
+    from aurel_agents.proactive import AlertFeed, ProactiveMonitor, TicketStore, WatchStore
+
+    feed = AlertFeed(tmp_path / "a.json")
+    tickets = TicketStore(tmp_path / "t.json")
+    watches = WatchStore(tmp_path / "w.json")
+    tickets.open("u1", "đồng hồ bị trầy")  # đã publish khi mở qua _maybe_handoff
+
+    settings = Settings(backend_url="http://be.test")
+    monitor = ProactiveMonitor(
+        watch_store=watches, alert_feed=feed, ticket_store=tickets, settings=settings
+    )
+    base = "http://be.test"
+
+    @respx.mock
+    async def scenario():
+        respx.post(f"{base}/auth/login").mock(
+            return_value=Response(
+                200, json={"accessToken": "t", "user": {"id": "a1", "role": "ADMIN"}}
+            )
+        )
+        respx.get(f"{base}/auth/csrf").mock(
+            return_value=Response(200, json={"csrfToken": "0123456789abcdef"})
+        )
+        respx.get(f"{base}/admin/stats").mock(
+            return_value=Response(200, json={"pendingOrders": 0})
+        )
+        respx.get(f"{base}/admin/products").mock(
+            return_value=Response(200, json={"items": []})
+        )
+        return await monitor._scan_merchant()
+
+    counts = asyncio.run(scenario())
+    # ticket đếm trong open_tickets nhưng KHÔNG publish alert lặp
+    assert counts["open_tickets"] == 1
+    ticket_alerts = [a for a in feed.recent(20) if a.kind == "ticket"]
+    assert ticket_alerts == []
+
+
+# --- bug 2: /alerts + /shop/monitor/run yêu cầu token khi đặt ----------------------------
+
+
+def test_alerts_and_monitor_endpoints_require_token(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import aurel_agents.host as host
+    from aurel_agents.config import get_settings
+
+    get_settings.cache_clear()
+    monkeypatch.setenv("AGENT_MERCHANT_TOKEN", "tok-123")
+    get_settings.cache_clear()
+    try:
+        client = TestClient(host.app)
+        assert client.get("/alerts").status_code == 401
+        assert client.get("/alerts", headers={"x-agent-token": "sai"}).status_code == 401
+        assert client.get("/alerts", headers={"x-agent-token": "tok-123"}).status_code == 200
+        # monitor/run qua auth → 503 vì host chưa lifespan (không phải 401)
+        assert (
+            client.post("/shop/monitor/run", headers={"x-agent-token": "tok-123"}).status_code
+            == 503
+        )
+        assert client.post("/shop/monitor/run").status_code == 401
+    finally:
+        monkeypatch.delenv("AGENT_MERCHANT_TOKEN", raising=False)
+        get_settings.cache_clear()
+
+
 # --- ProactiveMonitor: vòng check watch với respx mock BE -------------------------------
 
 
