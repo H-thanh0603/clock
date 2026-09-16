@@ -51,7 +51,18 @@ public — check log `docker compose ... logs backend`), trang chủ 200,
    - [ ] F5 trang return nhiều lần → không double-settle (idempotent)
    - [ ] Đối chiếu `txnRef` trong DB với sao kê merchant portal cuối ngày
 4. Lưu ý code: `expectedVnd` đã đóng băng lúc tạo URL nên đổi giá sau đó
-   không làm lệch đối soát; mỗi đơn giới hạn 3 payment PENDING.
+   không làm lệch đối soát; mỗi đơn giới hạn 3 payment PENDING;
+   `POST /payments/vnpay/create` throttle 10/phút chống spam link.
+5. Đối soát cuối ngày (bắt buộc khi thu tiền thật): query DB
+   `SELECT "txnRef", status FROM "Payment" WHERE method='vnpay'` so với sao
+   kê merchant portal — `txnRef` nào SUCCESS ở cổng mà PENDING ở DB thì
+   kiểm tra IPN có tới không (firewall/log `vnp_ResponseCode`); lệch amount
+   thì tra `expectedVnd` vs `totalVnd` lúc tạo link.
+6. Xoay key VNPay (TMN/HASH_SECRET): đổi ở portal → cập nhật `.env.prod` →
+   `up -d --build backend` restart (BE đọc env lúc khởi động, không hot-reload).
+   Key cũ chết ngay — link thanh toán tạo trước đó vẫn settle được vì
+   checksum verify bằng key mới sẽ FAIL → khách bấm link cũ nhận
+   `reason=checksum`, tạo link mới là xong. Không downtime DB.
 
 ## 5. Backup
 

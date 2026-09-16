@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { PaymentsService } from './payments.service';
 import { OptionalSessionGuard } from '../common/guards';
 import { CurrentUser } from '../common/current-user.decorator';
@@ -38,6 +39,9 @@ export class PaymentsController {
   @Post('create')
   @HttpCode(200)
   @UseGuards(OptionalSessionGuard)
+  // Mỗi link tạo 1 payment PENDING (giới hạn 3/đơn trong service) — không
+  // throttle thì script spam link đốt hạn mức VNPay + phình bảng payment.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   create(
     @Body() body: { orderId?: string },
     @CurrentUser() user: SessionUser | null,
