@@ -201,7 +201,8 @@ Cùng prompt/skills/tools, khác vòng loop:
   user `shop+…@` tuổi >24h (`AGENT_SHOPPER_TTL_HOURS`) không có đơn.
 - **Model fuzz adversarial** (upstream khuyến cáo khi đổi model/gateway):
   `pytest -m fuzz` — tốn token thật, kiểm fencing chống prompt-injection.
-  Mặc định deselected; CI không chạy.
+  Mặc định deselected; CI không chạy. Quy trình đổi model đầy đủ
+  (checklist + script + workflow tay): `docs/MODEL-CHANGE-CHECKLIST.md`.
 
 ## Test
 

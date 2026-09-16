@@ -1,0 +1,42 @@
+name: Agent fuzz (manual)
+
+# Fuzz adversarial tốn token thật — chỉ chạy tay khi đổi model/gateway
+# (xem docs/MODEL-CHANGE-CHECKLIST.md). Cần secret AGENT_API_KEY trên repo;
+# chưa có key thì job bỏ qua êm thay vì đỏ.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "AGENT_BASE_URL (trống = api.anthropic.com)"
+        required: false
+        default: ""
+      model:
+        description: "AGENT_MODEL"
+        required: false
+        default: "claude-sonnet-5"
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    # Không secret = không chạy (tránh fail ồn).
+    if: ${{ secrets.AGENT_API_KEY != '' }}
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -m fuzz -q
+        env:
+          AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+          AGENT_BASE_URL: ${{ inputs.base_url }}
+          AGENT_MODEL: ${{ inputs.model }}
+
+  no-key:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.AGENT_API_KEY == '' }}
+    steps:
+      - run: 'echo "Bỏ qua fuzz - chưa khai báo secret AGENT_API_KEY (đúng quy trình, key điền sau)."'
