@@ -45,6 +45,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from aurel_agents.activity import ActivityLog
 from aurel_agents.config import (
     MERCHANT_SKILLS,
     SHOPPING_SKILLS,
@@ -54,6 +55,7 @@ from aurel_agents.config import (
     get_settings,
 )
 from aurel_agents.paths import (
+    ACTIVITY_FILE,
     ALERTS_FILE,
     DATA_DIR,
     LEDGER_FILE,
@@ -105,6 +107,9 @@ _rate = RateLimiter()
 _watch_store = WatchStore(WATCHES_FILE)
 _alert_feed = AlertFeed(ALERTS_FILE)
 _ticket_store = TicketStore(TICKETS_FILE)
+# AI Activity Log: tool-call nào, của ai/session nào, ok/fail, bao lâu.
+# Ghi bởi adapter (pool + AurelMerchant) khi host wire vào ở lifespan.
+_activity_log = ActivityLog(ACTIVITY_FILE)
 _monitor = ProactiveMonitor(
     watch_store=_watch_store,
     alert_feed=_alert_feed,
@@ -328,6 +333,8 @@ async def lifespan(app: FastAPI):
     # phải fail ngay thay vì đè dữ liệu instance 1.
     lock = acquire_single_instance_lock(DATA_DIR / "host.lock")
     pool = PooledStorefront(settings)
+    pool._activity = _activity_log  # noqa: SLF001 — wire activity log
+    _monitor._activity_log = _activity_log  # noqa: SLF001 — retention sweep
     _state["shop_pool"] = pool
     try:
         _state["shopping"] = await _make_shopping_agent(pool)
@@ -337,6 +344,7 @@ async def lifespan(app: FastAPI):
         _state["shopping"] = None
     try:
         merchant, admin_client, backend = await _make_merchant_agent()
+        backend._activity = _activity_log  # noqa: SLF001 — wire activity log
         _state["merchant"] = merchant
         _state["admin_client"] = admin_client
         _state["merchant_backend"] = backend
@@ -600,6 +608,7 @@ async def index() -> dict:
             "merchant_approve": "POST /merchant/changes/{id}/approve",
             "merchant_discard": "POST /merchant/changes/{id}/discard",
             "alerts": "GET /alerts?limit=50 — feed ops (token); scope=shop&session_id=... cho feed watch của khách",
+            "activity": "GET /activity?limit=50&role=&session_id=&ok= — AI Activity Log (token)",
             "shop_watches": "GET /shop/watches?session_id=... — watch active của session",
             "shop_watch_cancel": "POST /shop/watches/{id}/cancel",
             "monitor_run": "POST /shop/monitor/run — chạy 1 vòng monitor ngay",
@@ -748,6 +757,33 @@ async def alerts(  # noqa: B008 — FastAPI inject
     return {
         "alerts": [a.model_dump(mode="json") for a in _alert_feed.recent(safe_limit)],
         "monitor_last_run": _monitor.last_run,
+    }
+
+
+@app.get("/activity")
+async def activity(  # noqa: B008 — FastAPI inject
+    limit: int = 50,
+    role: str = "",
+    session_id: str = "",
+    ok: str = "",
+    request: Request = None,
+) -> dict:
+    """AI Activity Log query (ops): tool nào, của actor/session nào,
+    ok/fail, mất bao lâu — tra khi khách khiếu nại hành vi agent.
+
+    Chứa actor + session → token-gated như feed ops. Không ghi args thô
+    (tránh PII) — chỉ detail nghiệp vụ (product_id, change_id...).
+    """
+    _check_merchant_auth(request)
+    safe_limit = max(1, min(limit, 200))
+    ok_flag = {"1": True, "0": False}.get(ok)
+    return {
+        "activity": _activity_log.recent(
+            safe_limit,
+            role=role or None,
+            session_id=session_id or None,
+            ok=ok_flag,
+        )
     }
 
 

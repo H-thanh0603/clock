@@ -22,6 +22,8 @@ LEDGER_FILE = DATA_DIR / "ledger-merchant.json"
 ALERTS_FILE = DATA_DIR / "alerts.json"
 WATCHES_FILE = DATA_DIR / "watches.json"
 TICKETS_FILE = DATA_DIR / "tickets.json"
+# AI Activity Log: 1 dòng JSONL/tool-call (actor, session, ok/fail, ms).
+ACTIVITY_FILE = DATA_DIR / "activity.jsonl"
 
 # vendor/ chứa 5 package của commerce-agents (đã pin trong requirements)
 VENDOR_DIR = AGENT_DIR / "vendor"
@@ -35,6 +37,7 @@ __all__ = [
     "MEMORY_STORE_FILE",
     "SESSIONS_DIR",
     "LEDGER_FILE",
+    "ACTIVITY_FILE",
     "ALERTS_FILE",
     "WATCHES_FILE",
     "TICKETS_FILE",

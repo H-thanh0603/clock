@@ -47,6 +47,7 @@ from merchant_agent import (
 from merchant_agent.changes import ChangeLedger
 from merchant_agent.config import MerchantAgentConfig
 
+from aurel_agents.activity import ActivityLog, log_activity
 from aurel_agents.clock_client import ClockClient
 
 logger = logging.getLogger(__name__)
@@ -156,6 +157,8 @@ class AurelMerchant(MerchantBackend):
         config: MerchantAgentConfig | None = None,
     ) -> None:
         self._client = client
+        # AI Activity Log (host wire vào; None = không log — test/REPL).
+        self._activity: ActivityLog | None = None
         self._ledger = ledger or ChangeLedger(
             config or MerchantAgentConfig(brand_name="Aurel & Co.")
         )
@@ -165,6 +168,7 @@ class AurelMerchant(MerchantBackend):
 
     # -- Performance ------------------------------------------------------------
 
+    @log_activity("merchant")
     async def get_business_snapshot(
         self, session: MerchantSessionContext, period: str | None = None
     ) -> BusinessSnapshot:
@@ -196,6 +200,7 @@ class AurelMerchant(MerchantBackend):
             note="Doanh thu chỉ tính đơn đã thu tiền (PAID+); không có nguồn traffic.",
         )
 
+    @log_activity("merchant")
     async def query_metrics(
         self,
         session: MerchantSessionContext,
@@ -231,6 +236,7 @@ class AurelMerchant(MerchantBackend):
             note="clock không có nguồn cho metric này (traffic: chưa có analytics).",
         )
 
+    @log_activity("merchant")
     async def get_campaign_performance(
         self, session: MerchantSessionContext, campaign_id: str | None = None
     ) -> list[Campaign]:
@@ -242,6 +248,7 @@ class AurelMerchant(MerchantBackend):
 
     # -- Listings -----------------------------------------------------------------
 
+    @log_activity("merchant")
     async def search_listings(
         self,
         session: MerchantSessionContext,
@@ -265,6 +272,7 @@ class AurelMerchant(MerchantBackend):
             listings = [x for x in listings if x.stock <= (filters.max_stock or 0)]
         return listings[:limit]
 
+    @log_activity("merchant", lambda s, a, k: str(a[0]) if a else None)
     async def get_listing(
         self, session: MerchantSessionContext, listing_id: str
     ) -> ListingDetails | None:
@@ -277,6 +285,7 @@ class AurelMerchant(MerchantBackend):
 
     # -- Inventory and order health --------------------------------------------------
 
+    @log_activity("merchant")
     async def get_inventory_alerts(self, session: MerchantSessionContext) -> list[InventoryAlert]:
         data = await self._client.admin_products(limit=50)
         alerts: list[InventoryAlert] = []
@@ -296,6 +305,7 @@ class AurelMerchant(MerchantBackend):
                 )
         return alerts
 
+    @log_activity("merchant")
     async def get_order_issues(self, session: MerchantSessionContext) -> list[OrderIssue]:
         data = await self._client.admin_orders(status="PENDING", limit=50)
         issues: list[OrderIssue] = []
@@ -315,6 +325,7 @@ class AurelMerchant(MerchantBackend):
 
     # -- Pricing -------------------------------------------------------------------------
 
+    @log_activity("merchant", lambda s, a, k: str(a[0]) if a else None)
     async def get_pricing_context(
         self, session: MerchantSessionContext, listing_id: str
     ) -> PricingContext | None:
@@ -337,6 +348,7 @@ class AurelMerchant(MerchantBackend):
     def _actor(self, session: MerchantSessionContext) -> str:
         return session.operator or self._client.user_id or "operator"
 
+    @log_activity("merchant")
     async def stage_listing_update(
         self,
         session: MerchantSessionContext,
@@ -380,6 +392,7 @@ class AurelMerchant(MerchantBackend):
             actor_kind=ActorKind.AGENT,
         )
 
+    @log_activity("merchant")
     async def stage_price_update(
         self,
         session: MerchantSessionContext,
@@ -406,6 +419,7 @@ class AurelMerchant(MerchantBackend):
             currency="USD",
         )
 
+    @log_activity("merchant")
     async def stage_inventory_action(
         self,
         session: MerchantSessionContext,
@@ -450,6 +464,7 @@ class AurelMerchant(MerchantBackend):
             actor_kind=ActorKind.AGENT,
         )
 
+    @log_activity("merchant")
     async def stage_promotion(
         self, session: MerchantSessionContext, promotion: PromotionDraft
     ) -> StagedChange:
@@ -499,6 +514,7 @@ class AurelMerchant(MerchantBackend):
         }
         return change
 
+    @log_activity("merchant")
     async def stage_campaign(
         self, session: MerchantSessionContext, campaign: CampaignDraft
     ) -> StagedChange:
@@ -593,9 +609,11 @@ class AurelMerchant(MerchantBackend):
                     f"({item.before!r} → {current!r}) — hãy xem lại rồi đề xuất lại"
                 )
 
+    @log_activity("merchant")
     async def get_pending_changes(self, session: MerchantSessionContext) -> list[StagedChange]:
         return self._ledger.pending()
 
+    @log_activity("merchant", lambda s, a, k: str(a[0]) if a else None)
     async def apply_change(self, session: MerchantSessionContext, change_id: str) -> StagedChange:
         change = self._ledger.get(change_id)
         if change is None or change.status.value != "staged":
@@ -673,6 +691,7 @@ class AurelMerchant(MerchantBackend):
         self._campaign_drafts.pop(change_id, None)
         return change
 
+    @log_activity("merchant", lambda s, a, k: str(a[0]) if a else None)
     async def discard_change(
         self,
         session: MerchantSessionContext,
@@ -686,6 +705,7 @@ class AurelMerchant(MerchantBackend):
 
     # -- Merchant context ----------------------------------------------------------------
 
+    @log_activity("merchant")
     async def get_merchant_context(self, session: MerchantSessionContext) -> dict[str, Any]:
         from merchant_agent import DataLimitation
 

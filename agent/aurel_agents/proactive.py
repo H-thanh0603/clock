@@ -479,11 +479,15 @@ class ProactiveMonitor:
         ticket_store: TicketStore,
         settings,
         sessions_dir: Path | None = None,
+        activity_log=None,
     ) -> None:
         self._watches = watch_store
         self._alerts = alert_feed
         self._tickets = ticket_store
         self._settings = settings
+        # AI Activity Log (host wire vào ở lifespan) — retention sweep dọn
+        # dòng cũ cùng vòng quét. None = không dọn (test không cần).
+        self._activity_log = activity_log
         self._sessions_dir = sessions_dir if sessions_dir is not None else Path("/dev/null")
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
@@ -620,6 +624,10 @@ class ProactiveMonitor:
                 alert_feed=self._alerts,
                 retention_days=self._settings.retention_days,
             )
+            if self._activity_log is not None and self._settings.retention_days > 0:
+                self._activity_log.trim_before(
+                    time.time() - self._settings.retention_days * 86400
+                )
         except Exception:
             logger.exception("retention sweep lỗi (bỏ qua)")
         return counts

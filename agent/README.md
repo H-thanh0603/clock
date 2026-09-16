@@ -224,6 +224,17 @@ ruff check .      # lint sạch (vendor/ + tests/upstream/ được exclude)
   `examples/` (mock backend theo upstream). Khác biệt duy nhất với upstream:
   `REPO_ROOT` trỏ vào `vendor/` và `mcp` pin `<2` (upstream viết cho FastMCP 1.x).
 
+## AI Activity Log
+
+Mỗi tool-call của agent ghi 1 dòng vào `data/activity.jsonl`: tool nào, actor/
+session nào, ok/fail, bao lâu (ms), id nghiệp vụ (`product_id`, `change_id`).
+KHÔNG ghi args thô (tránh PII). Dùng khi khách khiếu nại hành vi agent hoặc
+debug tool fail.
+
+- Query: `GET /activity?limit=50&role=&session_id=&ok=` — token-gated như
+  feed ops (tab Vận hành gọi qua proxy server-side, xem `docs/AGENT-PERMISSIONS.md`).
+- Retention chung `AGENT_RETENTION_DAYS`, cap 20k dòng.
+
 ## Memory persistence
 
 Host tạo `JsonFileMemoryStore` (file JSON trong `agent/data/`, đã gitignore) cho

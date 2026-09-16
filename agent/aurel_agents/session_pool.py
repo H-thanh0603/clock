@@ -24,6 +24,8 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any
 
+from aurel_agents.activity import ActivityLog
+
 _SESSION_OK = re.compile(r"[^A-Za-z0-9_-]")
 
 MAX_TRANSCRIPT_MESSAGES = 200
@@ -99,6 +101,8 @@ class PooledStorefront:
         # Delegated: session_id → (client, backend, created_at). Không vào
         # _backends (vòng đời ngắn theo token, không theo session).
         self._delegated: dict[str, tuple[Any, Any, float]] = {}
+        # AI Activity Log (host wire vào; None = không log).
+        self._activity: ActivityLog | None = None
         # Token delegation mới nhất mỗi session — FE gửi kèm mỗi request
         # chat; _backend_for đọc binding này (giỏ thật của user thay vì
         # shopper rác).
@@ -246,61 +250,118 @@ class PooledStorefront:
                 pass
         self._delegated.clear()
 
+    async def _logged(self, tool: str, session, call, detail: str | None = None):
+        """Chạy 1 tool qua backend của session + ghi activity (nếu wire log).
+
+        Không bao giờ làm hỏng turn: log fail thì bỏ qua, backend lỗi thì
+        raise nguyên (ghi fail trước khi raise).
+        """
+        sid = str(getattr(session, "session_id", "?"))
+        actor = str(getattr(session, "user_id", "?"))
+        t0 = time.monotonic()
+        ok, err, res = True, None, None
+        try:
+            res = await call(await self._backend_for(sid))
+            return res
+        except Exception as e:
+            ok, err = False, f"{type(e).__name__}: {str(e)[:200]}"
+            raise
+        finally:
+            if self._activity is not None:
+                self._activity.record(
+                    role="shop",
+                    session_id=sid,
+                    actor=actor,
+                    tool=tool,
+                    ok=ok,
+                    ms=int((time.monotonic() - t0) * 1000),
+                    detail=detail,
+                    error=err,
+                )
+
     # -- StorefrontBackend delegate (mỗi method lấy backend theo session) --
     async def search_products(self, session, query, filters=None, limit=8):
-        return await (await self._backend_for(session.session_id)).search_products(
-            session, query, filters, limit
+        return await self._logged(
+            "search_products", session,
+            lambda b: b.search_products(session, query, filters, limit),
         )
 
     async def get_product_details(self, session, product_id):
-        return await (await self._backend_for(session.session_id)).get_product_details(
-            session, product_id
+        return await self._logged(
+            "get_product_details", session,
+            lambda b: b.get_product_details(session, product_id), detail=str(product_id),
         )
 
     async def get_cart(self, session):
-        return await (await self._backend_for(session.session_id)).get_cart(session)
+        return await self._logged(
+            "get_cart", session,
+            lambda b: b.get_cart(session),
+        )
 
     async def add_to_cart(self, session, product_id, quantity):
-        return await (await self._backend_for(session.session_id)).add_to_cart(
-            session, product_id, quantity
+        return await self._logged(
+            "add_to_cart", session,
+            lambda b: b.add_to_cart(session, product_id, quantity), detail=str(product_id),
         )
 
     async def update_cart_item(self, session, product_id, quantity):
-        return await (await self._backend_for(session.session_id)).update_cart_item(
-            session, product_id, quantity
+        return await self._logged(
+            "update_cart_item", session,
+            lambda b: b.update_cart_item(session, product_id, quantity), detail=str(product_id),
         )
 
     async def remove_from_cart(self, session, product_id):
-        return await (await self._backend_for(session.session_id)).remove_from_cart(
-            session, product_id
+        return await self._logged(
+            "remove_from_cart", session,
+            lambda b: b.remove_from_cart(session, product_id), detail=str(product_id),
         )
 
     async def get_preferences(self, session):
-        return await (await self._backend_for(session.session_id)).get_preferences(session)
+        return await self._logged(
+            "get_preferences", session,
+            lambda b: b.get_preferences(session),
+        )
 
     async def checkout_handoff(self, session, cart):
-        return await (await self._backend_for(session.session_id)).checkout_handoff(session, cart)
+        return await self._logged(
+            "checkout_handoff", session,
+            lambda b: b.checkout_handoff(session, cart),
+        )
 
     async def get_account_context(self, session):
-        return await (await self._backend_for(session.session_id)).get_account_context(session)
+        return await self._logged(
+            "get_account_context", session,
+            lambda b: b.get_account_context(session),
+        )
 
     async def get_disclosure(self, session, product_id):
-        return await (await self._backend_for(session.session_id)).get_disclosure(
-            session, product_id
+        return await self._logged(
+            "get_disclosure", session,
+            lambda b: b.get_disclosure(session, product_id), detail=str(product_id),
         )
 
     async def get_orders(self, session, limit=5):
-        return await (await self._backend_for(session.session_id)).get_orders(session, limit)
+        return await self._logged(
+            "get_orders", session,
+            lambda b: b.get_orders(session, limit),
+        )
 
     async def get_order(self, session, order_id):
-        return await (await self._backend_for(session.session_id)).get_order(session, order_id)
+        return await self._logged(
+            "get_order", session,
+            lambda b: b.get_order(session, order_id), detail=str(order_id),
+        )
 
     async def search_policies(self, session, query):
-        return await (await self._backend_for(session.session_id)).search_policies(session, query)
+        return await self._logged(
+            "search_policies", session,
+            lambda b: b.search_policies(session, query),
+        )
 
     async def get_fulfillment_options(self, session, product_ids):
-        return await (await self._backend_for(session.session_id)).get_fulfillment_options(
-            session, product_ids
+        return await self._logged(
+            "get_fulfillment_options", session,
+            lambda b: b.get_fulfillment_options(session, product_ids),
         )
 
 
