@@ -67,7 +67,7 @@ export class AdminService {
     id: string,
     status: string,
     byUserId?: string,
-    opts: { refundRef?: string; note?: string } = {},
+    opts: { refundRef?: string; paymentRef?: string; note?: string } = {},
   ) {
     if (!(STATUSES as readonly string[]).includes(status))
       throw new BadRequestException('Trạng thái không hợp lệ');
@@ -102,6 +102,18 @@ export class AdminService {
       throw new BadRequestException(
         'Hoàn tiền cần mã tham chiếu (refundRef) — VD mã giao dịch hoàn trên cổng VNPay',
       );
+    // Xác nhận thu thủ công (đơn chưa qua cổng thanh toán mà admin đánh dấu
+    // PAID — VD đã nhận chuyển khoản): bắt buộc mã tham chiếu + sinh Payment
+    // record SUCCESS trong cùng tx. Không có dòng này thì doanh thu tăng mà
+    // đối soát không có chứng từ nào — vector gian lận nội bộ (P1-3).
+    // (Đường VNPay settle tự tạo Payment row của nó ở payments.service.)
+    const isManualPaid =
+      status === 'PAID' && (from === 'PENDING' || from === 'CONFIRMED');
+    const paymentRef = String(opts.paymentRef ?? '').trim().slice(0, 200);
+    if (isManualPaid && !paymentRef)
+      throw new BadRequestException(
+        'Xác nhận đã thu cần mã tham chiếu thu tiền (paymentRef) — VD mã giao dịch chuyển khoản',
+      );
     const order = await this.prisma.$transaction(async (tx) => {
       // Conditional update: hai admin đua nhau đổi trạng thái thì bên thua
       // nhận count=0 → 400, không ghi đè last-write-wins (audit ORD-001).
@@ -130,6 +142,23 @@ export class AdminService {
           });
         }
       }
+      if (isManualPaid) {
+        // Thu đủ phần còn lại trong cùng tx với chuyển trạng thái.
+        const remainingUsd = Math.max(0, current.totalUsd - current.paidUsd);
+        await tx.payment.create({
+          data: {
+            orderId: id,
+            method: 'manual',
+            amountUsd: remainingUsd,
+            status: 'SUCCESS',
+            txnRef: paymentRef,
+          },
+        });
+        await tx.order.update({
+          where: { id },
+          data: { paidUsd: current.totalUsd, paidVnd: current.totalVnd },
+        });
+      }
       const extraNote = String(opts.note ?? '').trim().slice(0, 200);
       await tx.orderEvent.create({
         data: {
@@ -139,7 +168,9 @@ export class AdminService {
           byUserId: byUserId ?? null,
           note: isRefund
             ? `Hoàn tiền — ref: ${refundRef}${extraNote ? ` — ${extraNote}` : ''}`
-            : 'Admin cập nhật',
+            : isManualPaid
+              ? `Xác nhận đã thu — ref: ${paymentRef}${extraNote ? ` — ${extraNote}` : ''}`
+              : 'Admin cập nhật',
         },
       });
       return tx.order.findUnique({ where: { id } });

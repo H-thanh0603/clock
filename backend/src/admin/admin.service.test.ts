@@ -14,8 +14,13 @@ function makePrisma(initialStatus: string) {
     id: 'ord-1',
     status: initialStatus,
     userId: 'u-1',
+    totalUsd: 100000,
+    totalVnd: BigInt(2520000000),
+    paidUsd: 0,
+    paidVnd: BigInt(0),
     items: [{ productSlug: 'vip-1', qty: 2 }],
   };
+  const payments: unknown[] = [];
   const prisma = {
     order: {
       findUnique: ({ include }: { include?: { items?: boolean } }) =>
@@ -34,6 +39,16 @@ function makePrisma(initialStatus: string) {
         const win = state.status === where.status;
         if (win) state.status = data.status;
         return Promise.resolve(win ? { count: 1 } : { count: 0 });
+      },
+      update: ({ data }: { data: Record<string, unknown> }) => {
+        Object.assign(order, data);
+        return Promise.resolve({ ...order, status: state.status });
+      },
+    },
+    payment: {
+      create: ({ data }: { data: unknown }) => {
+        payments.push(data);
+        return Promise.resolve({ id: 'pay-1', ...(data as object) });
       },
     },
     product: {
@@ -59,7 +74,13 @@ function makePrisma(initialStatus: string) {
     },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
   };
-  return { prisma: prisma as unknown as PrismaService, restocked, events, state };
+  return {
+    prisma: prisma as unknown as PrismaService,
+    restocked,
+    events,
+    payments,
+    state,
+  };
 }
 
 describe('AdminService.updateStatus', () => {
@@ -115,6 +136,33 @@ describe('AdminService.updateStatus', () => {
     await expect(svc.updateStatus('ord-1', 'PAID', 'admin-1')).rejects.toThrow(
       /Không thể chuyển/,
     );
+  });
+
+  it('PENDING → PAID kèm paymentRef: sinh Payment manual + chốt paid đủ', async () => {
+    const { prisma, payments, events } = makePrisma('PENDING');
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
+    const r = await svc.updateStatus('ord-1', 'PAID', 'admin-1', {
+      paymentRef: 'BANK-2026-001',
+    });
+    expect(r.status).toBe('PAID');
+    expect(payments).toHaveLength(1);
+    expect(payments[0]).toMatchObject({
+      orderId: 'ord-1',
+      method: 'manual',
+      amountUsd: 100000,
+      status: 'SUCCESS',
+      txnRef: 'BANK-2026-001',
+    });
+    expect(JSON.stringify(events[0])).toContain('BANK-2026-001');
+  });
+
+  it('PENDING → PAID thiếu paymentRef: 400, không ghi Payment', async () => {
+    const { prisma, payments } = makePrisma('PENDING');
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
+    await expect(svc.updateStatus('ord-1', 'PAID', 'admin-1')).rejects.toThrow(
+      /paymentRef/,
+    );
+    expect(payments).toHaveLength(0);
   });
 
   it('hai admin đua nhau → đúng 1 bên thắng, không ghi event đúp', async () => {

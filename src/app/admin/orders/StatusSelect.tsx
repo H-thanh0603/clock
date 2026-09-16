@@ -36,9 +36,11 @@ export function StatusSelect({
   const [busy, setBusy] = useState(false);
 
   const change = async (next: string) => {
-    // Hoàn tiền bắt buộc có mã tham chiếu (backend cũng validate) — hỏi ngay
-    // ở backoffice để admin không phải nhớ. Hủy bỏ prompt = không làm gì.
+    // Hoàn tiền / xác nhận thu thủ công bắt buộc có mã tham chiếu (backend
+    // cũng validate) — hỏi ngay ở backoffice để admin không phải nhớ.
+    // Hủy bỏ prompt = không làm gì.
     let refundRef: string | undefined;
+    let paymentRef: string | undefined;
     if (next === "REFUNDED") {
       const ref = window.prompt(
         "Mã tham chiếu hoàn tiền (VD mã giao dịch hoàn trên cổng VNPay):"
@@ -49,6 +51,16 @@ export function StatusSelect({
       }
       refundRef = ref.trim();
     }
+    if (next === "PAID") {
+      const ref = window.prompt(
+        "Mã tham chiếu thu tiền (VD mã giao dịch chuyển khoản đã nhận):"
+      );
+      if (!ref || !ref.trim()) {
+        setValue(status);
+        return;
+      }
+      paymentRef = ref.trim();
+    }
     setValue(next);
     setBusy(true);
     try {
@@ -56,7 +68,7 @@ export function StatusSelect({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status: next, refundRef }),
+        body: JSON.stringify({ status: next, refundRef, paymentRef }),
       });
       if (!res.ok) {
         setValue(status);

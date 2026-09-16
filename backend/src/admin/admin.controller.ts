@@ -41,11 +41,13 @@ export class AdminController {
   @HttpCode(200)
   updateStatus(
     @Param('id') id: string,
-    @Body() body: { status?: string; refundRef?: string; note?: string },
+    @Body()
+    body: { status?: string; refundRef?: string; paymentRef?: string; note?: string },
     @CurrentUser() user: SessionUser,
   ) {
     return this.admin.updateStatus(id, String(body.status ?? ''), user.id, {
       refundRef: body.refundRef,
+      paymentRef: body.paymentRef,
       note: body.note,
     });
   }
