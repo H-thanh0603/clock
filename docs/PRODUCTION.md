@@ -28,6 +28,8 @@ docker compose -f docker-compose.prod.yml exec backend npm run seed
 `npm run seed` tạo admin từ `ADMIN_EMAIL`/`ADMIN_PASSWORD` trong `.env.prod`
 — **không đặt 2 biến này thì seed từ chối chạy ở production** (guard chống
 mật khẩu mặc định). Đăng nhập và đổi mật khẩu ngay sau khi tạo.
+Chạy lại seed về sau là an toàn: sản phẩm merchant đã sửa (giá/mô tả...)
+được giữ nguyên, seed chỉ thêm mới hoặc đồng bộ SP chưa ai đụng tới.
 
 Kiểm tra: `https://<DOMAIN>/health` (qua `/backend`? trực tiếp backend không
 public — check log `docker compose ... logs backend`), trang chủ 200,

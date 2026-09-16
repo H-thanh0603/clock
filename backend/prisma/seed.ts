@@ -3,6 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { products } from "../../src/data/products";
+import { isSeedManaged } from "../src/common/seed-guard";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -56,50 +57,48 @@ async function main() {
     });
     console.log(`Service account agent sẵn sàng: ${agentEmail}`);
   }
+  let skipped = 0;
   for (const p of products) {
-    await prisma.product.upsert({
+    const data = {
+      slug: p.slug,
+      name: p.name,
+      reference: p.reference,
+      collection: p.collection,
+      priceUsd: p.priceUsd,
+      priceVnd: p.priceVnd,
+      shortDescription: p.shortDescription,
+      badges: p.badges,
+      strapLabel: p.strapLabel,
+      cardImage: p.cardImage,
+      images: p.images,
+      calibre: p.calibre,
+      diameterMm: p.diameterMm,
+      caseMaterial: p.caseMaterial,
+      complications: p.complications,
+      inBoutique: p.inBoutique,
+      specs: p.specs,
+      narrative: p.narrative,
+    };
+    const existing = await prisma.product.findUnique({
       where: { slug: p.slug },
-      update: {
-        name: p.name,
-        reference: p.reference,
-        collection: p.collection,
-        priceUsd: p.priceUsd,
-        priceVnd: p.priceVnd,
-        shortDescription: p.shortDescription,
-        badges: p.badges,
-        strapLabel: p.strapLabel,
-        cardImage: p.cardImage,
-        images: p.images,
-        calibre: p.calibre,
-        diameterMm: p.diameterMm,
-        caseMaterial: p.caseMaterial,
-        complications: p.complications,
-        inBoutique: p.inBoutique,
-        specs: p.specs,
-        narrative: p.narrative,
-      },
-      create: {
-        slug: p.slug,
-        name: p.name,
-        reference: p.reference,
-        collection: p.collection,
-        priceUsd: p.priceUsd,
-        priceVnd: p.priceVnd,
-        shortDescription: p.shortDescription,
-        badges: p.badges,
-        strapLabel: p.strapLabel,
-        cardImage: p.cardImage,
-        images: p.images,
-        calibre: p.calibre,
-        diameterMm: p.diameterMm,
-        caseMaterial: p.caseMaterial,
-        complications: p.complications,
-        inBoutique: p.inBoutique,
-        specs: p.specs,
-        narrative: p.narrative,
-      },
+      select: { createdAt: true, updatedAt: true },
     });
+    if (!existing) {
+      await prisma.product.create({ data });
+      continue;
+    }
+    // SP merchant đã sửa (giá/mô tả...) thì GIỮ NGUYÊN — seed chạy lại
+    // không được ghi đè công sức vận hành (audit P1-4).
+    if (!isSeedManaged(existing.createdAt, existing.updatedAt)) {
+      skipped++;
+      console.log(`Giữ nguyên ${p.slug} (đã có người sửa — seed không ghi đè)`);
+      continue;
+    }
+    const { slug: _slug, ...rest } = data;
+    await prisma.product.update({ where: { slug: p.slug }, data: rest });
   }
+  if (skipped > 0)
+    console.log(`Seed bỏ qua ${skipped} sản phẩm đã được chỉnh sửa thủ công`);
   const count = await prisma.product.count();
   console.log(`Seeded ${products.length} products (total in DB: ${count})`);
 
