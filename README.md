@@ -48,10 +48,13 @@ Chạy test:
 
 ```bash
 npm test                        # FE (vitest)
-cd backend && npm test          # BE — 125 test: tiền, auth, csrf, expire, promotions/campaigns/metrics, meili search...
+cd backend && npm test          # BE — 200+ test: tiền, auth, csrf, expire, promotions/campaigns/metrics, meili search...
 cd agent && pytest              # AI agents — 39 test adapter + 150 test upstream
 npx tsc --noEmit                 # typecheck FE
 cd backend && npx tsc --noEmit -p tsconfig.json   # typecheck BE
+npm run test:e2e                # E2E Playwright: guest mua deposit → tra đơn → reveal → hủy
+                                # (cần docker compose db + backend đã migrate + seed; test tự
+                                # hủy đơn nó tạo để hoàn kho cho lần chạy sau)
 ```
 
 ## Deploy production (tóm tắt)

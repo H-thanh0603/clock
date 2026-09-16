@@ -39,6 +39,10 @@ next-env.d.ts
 .codegraph/
 .zcode/
 
+# playwright e2e
+/test-results/
+/playwright-report/
+
 # python (agent/)
 agent/.venv/
 agent/**/__pycache__/

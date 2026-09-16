@@ -44,3 +44,61 @@ jobs:
       - run: npx tsc --noEmit -p tsconfig.json
       - run: npm test
       - run: npm run build
+
+  # E2E luồng mua hàng thật (P2-4): Postgres service + backend dev + FE dev,
+  # Playwright chạy spec e2e/. Method mô phỏng bật (NODE_ENV=development).
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aurel
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5433/aurel
+      JWT_SECRET: e2e-test-secret-du-32-ky-tu-cho-ci
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Backend — deps + migrate + seed + start
+        run: |
+          cd backend
+          npm ci
+          npx prisma migrate deploy
+          npm run seed
+          npm run build
+          (PORT=4000 FRONTEND_URL=http://localhost:3000,http://localhost:3100 BACKEND_PUBLIC_URL=http://localhost:4000 npm run start > /tmp/backend.log 2>&1 &)
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:4000/health && break
+            sleep 2
+          done
+      - name: Frontend — deps + browser
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Playwright e2e
+        run: npx playwright test
+        env:
+          BACKEND_URL: http://localhost:4000
+          NEXT_PUBLIC_BACKEND_URL: http://localhost:4000
+      - name: Log backend khi fail
+        if: failure()
+        run: tail -100 /tmp/backend.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: test-results/

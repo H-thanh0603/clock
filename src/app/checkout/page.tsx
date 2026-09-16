@@ -390,16 +390,16 @@ export default function Page() {
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Họ Tên Thượng Khách / Đại Diện</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" value={name} onChange={(e) => setName(e.target.value)}/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" value={name} data-testid="co-name" onChange={(e) => setName(e.target.value)}/>
 </div>
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Kênh Liên Lạc Bảo Mật (Signal / WhatsApp VIP)</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={contact} onChange={(e) => setContact(e.target.value)}/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={contact} onChange={(e) => setContact(e.target.value)} data-testid="co-contact"/>
 </div>
 </div>
 <div>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Địa Chỉ Dinh Thự / Văn Phòng Bảo Mật</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={address} onChange={(e) => setAddress(e.target.value)}/>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={address} onChange={(e) => setAddress(e.target.value)} data-testid="co-address"/>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
@@ -424,7 +424,7 @@ export default function Page() {
             <div className="bg-surface-container-lowest rounded-lg p-space-lg shadow-2xl border border-primary/50 flex items-start gap-space-sm">
               <span className="material-symbols-outlined text-primary text-[28px]">verified</span>
               <div>
-                <p className="font-title-editorial text-title-editorial text-on-surface">Đặt hàng thành công • Mã Vault {placed}</p>
+                <p className="font-title-editorial text-title-editorial text-on-surface" data-testid="co-success-code">Đặt hàng thành công • Mã Vault {placed}</p>
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Concierge sẽ liên hệ {contact || "kênh bảo mật"} trong 2 giờ làm việc để xác nhận khung giờ {slot}.</p>
                 {placedReview ? (
                   <p className="font-body-sm text-body-sm text-secondary mt-1">Đơn có hàng bespoke/custom nên đang chờ concierge duyệt giá — chưa ghi nợ.</p>
@@ -536,7 +536,7 @@ export default function Page() {
 </div>
 {/* Consent Điều khoản + Chính sách bảo mật (bắt buộc — BE enforce) */}
 <label className="flex cursor-pointer items-start gap-space-sm rounded bg-surface-container-low p-space-sm text-left">
-<input checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-primary mt-1 h-4 w-4 shrink-0 cursor-pointer" type="checkbox"/>
+<input data-testid="co-consent" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-primary mt-1 h-4 w-4 shrink-0 cursor-pointer" type="checkbox"/>
 <span className="font-body-sm text-body-sm text-on-surface-variant">
             Tôi đã đọc và đồng ý với{" "}
 <Link href="/legal/terms" className="text-primary underline hover:text-secondary">Điều khoản sử dụng</Link>
@@ -546,7 +546,7 @@ export default function Page() {
           </span>
 </label>
 {/* Primary Gold Glowing CTA */}
-<button onClick={placeOrder} disabled={placed !== null || processing !== null || items.length === 0 || !agreed} className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all shadow-xl flex items-center justify-center gap-space-xs group disabled:opacity-50" type="button">
+<button data-testid="co-place" onClick={placeOrder} disabled={placed !== null || processing !== null || items.length === 0 || !agreed} className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all shadow-xl flex items-center justify-center gap-space-xs group disabled:opacity-50" type="button">
 {processing ? (
             <span className="flex items-center gap-space-xs">
               <span className="w-4 h-4 rounded-full border-2 border-on-primary/40 border-t-on-primary animate-spin"></span>
