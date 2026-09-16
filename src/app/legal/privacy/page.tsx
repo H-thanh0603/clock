@@ -59,6 +59,14 @@ export default function PrivacyPage() {
           và phản đối việc xử lý dữ liệu marketing. Gửi yêu cầu tới:
           privacy@aurel.example — chúng tôi phản hồi trong 30 ngày.
         </p>
+        <p>
+          Dữ liệu chat với AI Concierge (lịch sử hội thoại, sở thích đã nhớ,
+          theo dõi giá/về hàng, việc đã giao) thuộc về phiên chat của quý
+          khách — bấm <strong>“Xóa phiên chat”</strong> ngay trên trang
+          Concierge để xóa ngay lập tức. Dữ liệu quá 30 ngày không có tương
+          tác cũng được hệ thống tự dọn (trừ đơn hàng, hóa đơn và hồ sơ kế
+          toán phải giữ theo luật).
+        </p>
       </section>
       <section>
         <h2>6. Cookie</h2>

@@ -1008,3 +1008,70 @@ def test_task_tool_save_and_complete(tmp_path):
 
     with pytest.raises(ValueError, match="Không tìm thấy việc"):
         asyncio.run(run_complete_other())
+
+
+def test_forget_wipes_own_session_only(tmp_path, monkeypatch):
+    """POST /shop/forget xóa transcript/watch/task của đúng session gọi."""
+    import asyncio
+
+    from fastapi.testclient import TestClient
+
+    import aurel_agents.host as host
+    from aurel_agents.proactive import AlertFeed, TaskStore, TicketStore, WatchStore
+    from aurel_agents.paths import MEMORY_STORE_FILE, SESSIONS_DIR
+
+    # Chuyển DATA_DIR sang tmp để không đụng data thật.
+    monkeypatch.setattr(host, "_watch_store", WatchStore(tmp_path / "w.json"))
+    monkeypatch.setattr(host, "_alert_feed", AlertFeed(tmp_path / "a.json"))
+    monkeypatch.setattr(host, "_ticket_store", TicketStore(tmp_path / "t.json"))
+    monkeypatch.setattr(host, "_task_store", TaskStore(tmp_path / "tasks.json"))
+    # host.py bind MEMORY_STORE_FILE lúc import (from ... import) nên patch
+    # thẳng biến trên module host, không phải trên paths.
+    monkeypatch.setattr(host, "MEMORY_STORE_FILE", tmp_path / "mem.json")
+
+    sid_mine = "mysess01abcdef"
+    sid_other = "otherss99zzzzzz"
+    user_mine = "shopper:mysess01"
+    user_other = "shopper:otherss9"
+
+    # transcript 2 session
+    from aurel_agents.session_pool import TranscriptStore
+
+    ts = TranscriptStore(tmp_path / "sessions")
+    monkeypatch.setattr(host, "_transcripts", ts)
+    ts.load(sid_mine).append({"role": "user", "content": "tôi thích tourbillon"})
+    ts.save(sid_mine)
+    ts.load(sid_other).append({"role": "user", "content": "hello"})
+    ts.save(sid_other)
+
+    # watch + task mỗi bên 1 cái
+    host._watch_store.add(user_mine, "chrono-x", "restock")
+    host._watch_store.add(user_other, "chrono-y", "restock")
+    host._task_store.add(user_mine, sid_mine, "So sánh", "dưới 20k")
+    host._task_store.add(user_other, sid_other, "Tìm quà", "dưới 5k")
+
+    # memory fact của session mình
+    from commerce_common.memory import JsonFileMemoryStore, MemoryFact
+
+    async def seed_mem():
+        store = JsonFileMemoryStore(tmp_path / "mem.json")
+        await store.upsert_facts(
+            user_mine, [MemoryFact(key="size", value="40mm", category="preference")]
+        )
+
+    asyncio.run(seed_mem())
+
+    client = TestClient(host.app)
+    r = client.post("/shop/forget", json={"session_id": sid_mine})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    assert body["removed_transcript"] is True
+
+    # dữ liệu mình sạch, người khác còn nguyên
+    assert ts.load(sid_mine) == []
+    assert len(ts.load(sid_other)) == 1
+    assert host._watch_store.for_user(user_mine) == []
+    assert len(host._watch_store.for_user(user_other)) == 1
+    assert host._task_store.for_user(user_mine) == []
+    assert len(host._task_store.for_user(user_other)) == 1

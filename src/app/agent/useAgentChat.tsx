@@ -400,6 +400,28 @@ export function useAgentChat() {
     pageProductRef.current = slug;
   }, []);
 
+  /** Xóa dữ liệu cá nhân của session hiện tại (transcript/memory/watch/task). */
+  const forgetSession = useCallback(async () => {
+    const sid = sessionIdRef.current;
+    if (!sid || busy) return false;
+    try {
+      const res = await fetch(`${AGENT_HOST}/shop/forget`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ session_id: sid }),
+      });
+      if (!res.ok) return false;
+    } catch {
+      return false;
+    }
+    sessionIdRef.current = null;
+    setMessages([]);
+    setCompareTray([]);
+    delegationRef.current = null;
+    setActAsMe(false);
+    return true;
+  }, [busy]);
+
   return {
     role,
     switchRole,
@@ -416,6 +438,7 @@ export function useAgentChat() {
     scrollRef,
     getSessionId,
     setPageProduct,
+    forgetSession,
     compareTray,
     removeFromTray,
     compareTrayNow,

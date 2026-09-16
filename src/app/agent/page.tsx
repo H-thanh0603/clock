@@ -258,10 +258,12 @@ export default function AgentChatPage() {
     scrollRef,
     getSessionId,
     setPageProduct,
+    forgetSession,
     compareTray,
     removeFromTray,
     compareTrayNow,
   } = useAgentChat();
+  const [forgotten, setForgotten] = useState(false);
 
   return (
     <main className="min-h-screen bg-surface text-on-surface">
@@ -315,7 +317,26 @@ export default function AgentChatPage() {
                 {actAsMe ? "● Đang hành động hộ bạn" : "Dùng tài khoản của tôi"}
               </button>
             )}
+            {role === "shop" && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm("Xóa toàn bộ lịch sử chat, sở thích đã nhớ, theo dõi và việc đã giao trong phiên này?")) return;
+                  const ok = await forgetSession();
+                  setForgotten(ok);
+                  window.setTimeout(() => setForgotten(false), 4000);
+                }}
+                title="Xóa transcript, memory, watch và task của phiên chat này"
+                className="border border-outline-variant/40 px-4 py-2 font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant transition-colors hover:border-error hover:text-error"
+              >
+                Xóa phiên chat
+              </button>
+            )}
           </div>
+          {forgotten && (
+            <p className="mt-space-sm font-body-sm text-body-sm text-primary">
+              Đã xóa phiên chat — concierge không còn nhớ gì về bạn trong phiên này.
+            </p>
+          )}
         </header>
 
         <div

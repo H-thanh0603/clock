@@ -72,6 +72,22 @@ class TranscriptStore:
         except Exception:
             pass
 
+    def delete(self, session_id: str) -> bool:
+        """Xóa transcript 1 session (quyền xóa dữ liệu — privacy).
+
+        Trả True nếu có gì để xóa (file hoặc cache). Không bao giờ raise.
+        """
+        sid = sanitize_session_id(session_id)
+        removed = self._cache.pop(sid, None) is not None
+        try:
+            path = self._dir / f"{sid}.json"
+            if path.exists():
+                path.unlink()
+                removed = True
+        except Exception:
+            pass
+        return removed
+
 
 class PooledStorefront:
     """StorefrontBackend isolate giỏ theo chat session.

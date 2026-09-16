@@ -621,6 +621,7 @@ async def index() -> dict:
             "activity": "GET /activity?limit=50&role=&session_id=&ok= — AI Activity Log (token)",
             "shop_watches": "GET /shop/watches?session_id=... — watch active của session",
             "shop_watch_cancel": "POST /shop/watches/{id}/cancel",
+            "shop_forget": "POST /shop/forget {session_id} — xóa transcript/memory/watch/task của session",
             "monitor_run": "POST /shop/monitor/run — chạy 1 vòng monitor ngay",
             "health": "GET /health",
         },
@@ -825,6 +826,58 @@ async def shop_watch_cancel(watch_id: str, session_id: str = "") -> dict:
         raise HTTPException(status_code=403, detail="Không có quyền hủy watch này")
     _watch_store.deactivate(watch_id)
     return {"ok": True, "watch": watch.model_dump(mode="json")}
+
+
+class ForgetRequest(BaseModel):
+    session_id: str = ""
+
+
+@app.post("/shop/forget")
+async def shop_forget(req: ForgetRequest) -> dict:
+    """Xóa dữ liệu cá nhân của 1 chat session (quyền xóa — privacy).
+
+    Xóa: transcript chat, memory facts của shopper session đó, watch
+    (active + inactive), task (open + done). Không cần token vì chỉ xóa
+    đúng dữ liệu của session gọi (user_id suy từ session prefix) — không
+    chạm được dữ liệu session khác. Memory merchant (subject "aurel"
+    chung) và transcript merchant KHÔNG xóa ở đây.
+    """
+    from commerce_common.memory import JsonFileMemoryStore
+
+    sid = sanitize_session_id(req.session_id)
+    user_id = f"shopper:{sid[:8]}"
+    removed_transcript = _transcripts.delete(sid)
+    # Memory: subject = session.user_id (shopping) — xem executor.memory_subject.
+    store = JsonFileMemoryStore(MEMORY_STORE_FILE)
+    try:
+        await store.clear(user_id)
+        removed_memory = True
+    except Exception:
+        removed_memory = False
+    removed_watches = 0
+    for w in list(_watch_store.all()):
+        if getattr(w, "user_id", None) == user_id:
+            if _watch_store.remove(getattr(w, "watch_id", ""), "watch_id"):
+                removed_watches += 1
+    removed_tasks = 0
+    for t in list(_task_store.all()):
+        if getattr(t, "user_id", None) == user_id:
+            if _task_store.remove(getattr(t, "task_id", ""), "task_id"):
+                removed_tasks += 1
+    # Delegation binding + delegated client của session cũng drop.
+    pool = _state.get("shop_pool")
+    if pool is not None:
+        try:
+            pool.bind_delegation(sid, "")
+        except Exception:
+            pass
+    return {
+        "ok": True,
+        "removed_transcript": removed_transcript,
+        "removed_memory": removed_memory,
+        "removed_watches": removed_watches,
+        "removed_tasks": removed_tasks,
+    }
 
 
 @app.post("/shop/monitor/run")
