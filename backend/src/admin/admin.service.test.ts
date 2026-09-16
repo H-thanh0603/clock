@@ -79,11 +79,42 @@ describe('AdminService.updateStatus', () => {
     expect(restocked.get('vip-1')).toBe(2);
   });
 
-  it('PAID → CANCELLED: KHÔNG hoàn tồn kho (đã thu tiền, xử lý hoàn riêng)', async () => {
+  it('PAID → CANCELLED: bị chặn — tiền đã thu phải đi qua REFUNDED', async () => {
     const { prisma, restocked } = makePrisma('PAID');
     const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
-    await svc.updateStatus('ord-1', 'CANCELLED', 'admin-1');
+    await expect(svc.updateStatus('ord-1', 'CANCELLED', 'admin-1')).rejects.toThrow(
+      /Không thể chuyển từ PAID sang CANCELLED/,
+    );
     expect(restocked.size).toBe(0);
+  });
+
+  it('PAID → REFUNDED kèm refundRef: hoàn tồn kho + ghi event có ref', async () => {
+    const { prisma, restocked, events } = makePrisma('PAID');
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
+    const r = await svc.updateStatus('ord-1', 'REFUNDED', 'admin-1', {
+      refundRef: 'VNP-REF-123',
+    });
+    expect(r.status).toBe('REFUNDED');
+    expect(restocked.get('vip-1')).toBe(2);
+    expect(events).toHaveLength(1);
+    expect(JSON.stringify(events[0])).toContain('VNP-REF-123');
+  });
+
+  it('PAID → REFUNDED thiếu refundRef: 400 (kỷ luật sổ sách)', async () => {
+    const { prisma, restocked } = makePrisma('PAID');
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
+    await expect(svc.updateStatus('ord-1', 'REFUNDED', 'admin-1')).rejects.toThrow(
+      /refundRef/,
+    );
+    expect(restocked.size).toBe(0);
+  });
+
+  it('REFUNDED là trạng thái cuối: không chuyển tiếp đi đâu', async () => {
+    const { prisma } = makePrisma('REFUNDED');
+    const svc = new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never);
+    await expect(svc.updateStatus('ord-1', 'PAID', 'admin-1')).rejects.toThrow(
+      /Không thể chuyển/,
+    );
   });
 
   it('hai admin đua nhau → đúng 1 bên thắng, không ghi event đúp', async () => {

@@ -17,6 +17,7 @@ const STATUSES = [
   'SHIPPED',
   'COMPLETED',
   'CANCELLED',
+  'REFUNDED',
 ] as const;
 
 // Cache dashboard 60s trong memory (số liệu tổng quan không cần realtime).
@@ -62,17 +63,26 @@ export class AdminService {
     };
   }
 
-  async updateStatus(id: string, status: string, byUserId?: string) {
+  async updateStatus(
+    id: string,
+    status: string,
+    byUserId?: string,
+    opts: { refundRef?: string; note?: string } = {},
+  ) {
     if (!(STATUSES as readonly string[]).includes(status))
       throw new BadRequestException('Trạng thái không hợp lệ');
     // Chỉ cho chuyển trạng thái hợp lệ (không nhảy cóc/ngược).
+    // PAID không được → CANCELLED trực tiếp: tiền đã thu mà hủy chay thì
+    // sổ lệch (mất tiền lẫn mất hàng trên sổ) — phải đi qua REFUNDED kèm
+    // mã tham chiếu hoàn tiền (audit BIZ-HIGH-02).
     const allowed: Record<string, string[]> = {
       PENDING: ['CONFIRMED', 'PAID', 'CANCELLED'],
       CONFIRMED: ['PAID', 'SHIPPED', 'CANCELLED'],
-      PAID: ['SHIPPED', 'CANCELLED'],
+      PAID: ['SHIPPED', 'REFUNDED'],
       SHIPPED: ['COMPLETED'],
       COMPLETED: [],
       CANCELLED: [],
+      REFUNDED: [],
     };
     const current = await this.prisma.order.findUnique({
       where: { id },
@@ -84,6 +94,14 @@ export class AdminService {
         `Không thể chuyển từ ${current.status} sang ${status}`,
       );
     const from = current.status;
+    // Hoàn tiền bắt buộc có mã tham chiếu (mã giao dịch hoàn trên cổng
+    // VNPay hoặc phiếu thủ công) — kỷ luật sổ sách, tra soát được về sau.
+    const isRefund = status === 'REFUNDED';
+    const refundRef = String(opts.refundRef ?? '').trim().slice(0, 200);
+    if (isRefund && !refundRef)
+      throw new BadRequestException(
+        'Hoàn tiền cần mã tham chiếu (refundRef) — VD mã giao dịch hoàn trên cổng VNPay',
+      );
     const order = await this.prisma.$transaction(async (tx) => {
       // Conditional update: hai admin đua nhau đổi trạng thái thì bên thua
       // nhận count=0 → 400, không ghi đè last-write-wins (audit ORD-001).
@@ -97,7 +115,13 @@ export class AdminService {
         );
       // Hủy đơn chưa chốt → hoàn tồn kho (trước đây chỉ khách hủy mới hoàn,
       // admin hủy làm hàng "bốc hơi" — audit ORD-001).
-      if (status === 'CANCELLED' && (from === 'PENDING' || from === 'CONFIRMED')) {
+      // Hoàn tiền (PAID → REFUNDED) cũng hoàn kho: hàng chưa giao thì về
+      // lại kệ được bán tiếp; paidUsd giữ nguyên làm sổ đã thu.
+      if (
+        (status === 'CANCELLED' &&
+          (from === 'PENDING' || from === 'CONFIRMED')) ||
+        isRefund
+      ) {
         for (const l of current.items) {
           if (!l.productSlug) continue;
           await tx.product.updateMany({
@@ -106,13 +130,16 @@ export class AdminService {
           });
         }
       }
+      const extraNote = String(opts.note ?? '').trim().slice(0, 200);
       await tx.orderEvent.create({
         data: {
           orderId: id,
           from,
           to: status as (typeof STATUSES)[number],
           byUserId: byUserId ?? null,
-          note: 'Admin cập nhật',
+          note: isRefund
+            ? `Hoàn tiền — ref: ${refundRef}${extraNote ? ` — ${extraNote}` : ''}`
+            : 'Admin cập nhật',
         },
       });
       return tx.order.findUnique({ where: { id } });

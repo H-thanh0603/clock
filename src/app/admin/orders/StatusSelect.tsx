@@ -11,6 +11,7 @@ const STATUSES = [
   "SHIPPED",
   "COMPLETED",
   "CANCELLED",
+  "REFUNDED",
 ] as const;
 
 const STATUS_VN: Record<string, string> = {
@@ -20,6 +21,7 @@ const STATUS_VN: Record<string, string> = {
   SHIPPED: "Đang vận chuyển",
   COMPLETED: "Hoàn tất",
   CANCELLED: "Đã hủy",
+  REFUNDED: "Đã hoàn tiền",
 };
 
 export function StatusSelect({
@@ -34,6 +36,19 @@ export function StatusSelect({
   const [busy, setBusy] = useState(false);
 
   const change = async (next: string) => {
+    // Hoàn tiền bắt buộc có mã tham chiếu (backend cũng validate) — hỏi ngay
+    // ở backoffice để admin không phải nhớ. Hủy bỏ prompt = không làm gì.
+    let refundRef: string | undefined;
+    if (next === "REFUNDED") {
+      const ref = window.prompt(
+        "Mã tham chiếu hoàn tiền (VD mã giao dịch hoàn trên cổng VNPay):"
+      );
+      if (!ref || !ref.trim()) {
+        setValue(status);
+        return;
+      }
+      refundRef = ref.trim();
+    }
     setValue(next);
     setBusy(true);
     try {
@@ -41,11 +56,17 @@ export function StatusSelect({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status: next }),
+        body: JSON.stringify({ status: next, refundRef }),
       });
       if (!res.ok) {
         setValue(status);
-        alert("Cập nhật thất bại");
+        const data = (await res.json().catch(() => null)) as {
+          message?: string | string[];
+        } | null;
+        const msg = Array.isArray(data?.message)
+          ? data.message.join(", ")
+          : data?.message;
+        alert(msg ?? "Cập nhật thất bại");
       } else {
         router.refresh();
       }

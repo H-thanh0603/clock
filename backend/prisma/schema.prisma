@@ -19,6 +19,10 @@ enum OrderStatus {
   SHIPPED
   COMPLETED
   CANCELLED
+  // Đã hoàn tiền cho khách (tiền đã thu qua VNPay rồi trả lại): trạng thái
+  // cuối, hoàn tồn kho, giữ nguyên paidUsd làm sổ đã thu + refundRef trong
+  // OrderEvent. PAID không được → CANCELLED trực tiếp nữa (audit BIZ-HIGH-02).
+  REFUNDED
 }
 
 enum PaymentStatus {
