@@ -183,5 +183,9 @@ Hai lớp, fail-closed:
 1. **Throttler in-memory** — đúng cho 1 instance; thêm Redis store khi scale BE horizontally.
 2. **RLS** — nếu thêm service thứ 2 truy cập DB trực tiếp, bật Postgres RLS trên bảng có `userId`.
 3. **`GET /orders/by-code/:code` public** — thiết kế cho khách vãng lai, có rate limit; cân nhắc thêm contact-verify khi có traffic thật lớn.
-4. **Agent admin demo password** — `config.py` có fallback `Admin123!` khi thiếu env; prod đã có `ADMIN_EMAIL/ADMIN_PASSWORD` bắt buộc (seed fail-fast). Nên bỏ fallback mặc định khi ra production thật.
-5. **CI audit step** — thêm `npm audit --audit-level=high` vào GitHub Actions để phát hiện advisory mới.
+4. **Agent admin password** — ✅ ĐÃ VÁ (09/2026): `config.py` không còn default
+   `Admin123!` (rỗng khi thiếu env → merchant agent 503 rõ ràng thay vì lén
+   login yếu); `.env.example` để trống kèm chú thích. Prod vẫn seed
+   `AGENT_ADMIN_EMAIL/PASSWORD` riêng cho service account.
+5. **CI audit step** — ✅ ĐÃ VÁ (09/2026): `npm audit --audit-level=high`
+   trong cả job frontend + backend của `ci.yml`.

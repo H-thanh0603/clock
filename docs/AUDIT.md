@@ -155,3 +155,22 @@ CI: test (FE+BE) → build → deploy: backup → build → migrate deploy (cont
 ---
 
 *Phương pháp re-audit: đối chiếu từng mục bảng gốc với code hiện tại (grep + đọc file + chạy test), không phỏng đoán. Mọi khẳng định "đã vá" đều có file/commit tương ứng liệt kê ở §4.*
+
+---
+
+## 8. Đợt vá 16/09/2026 — ngoài-AI (security/payments/privacy/legal/ops)
+
+| Mảng | Việc | Commit |
+|---|---|---|
+| Security | Xóa default `Admin123!` agent (`config.py` rỗng khi thiếu env → 503 rõ ràng); `npm audit --audit-level=high` vào CI FE+BE | `2e8f159` |
+| Payments | Throttle `POST /payments/vnpay/create` 10/phút; docs đối soát `txnRef` cuối ngày + xoay key VNPay | `a1be4a1` |
+| Privacy | `POST /shop/forget` xóa transcript/memory/watch/task đúng session + nút “Xóa phiên chat” ở `/agent` + retention 30d vào privacy page | `8b3b63b` |
+| Legal | Trang `/legal/shipping` (vận chuyển/đổi trả/bảo hành); SLA bespoke 48h + đặt cọc 20% vào terms; đồng bộ 2 policy mới cho shopping agent | `90c6826` |
+| Ops | `scripts/offsite-backup.sh` (rclone) + `OFFSITE_REMOTE` env + docs restore drill + mục xoay secret | `71bbe93` |
+
+Test sau đợt vá: FE 49 + BE 215 + agent 237 pass; `tsc` FE/BE xanh; `ruff` agent sạch.
+
+Còn mở có chủ đích (chưa làm): by-code public giữ nguyên (đã có rate-limit +
+contact-verify + sig — siết thêm khi traffic lớn); invoice `PENDING_ISSUE`
+kế toán làm tay qua portal (chưa có UI backoffice riêng); Redis/BullMQ khi
+>500 đơn/ngày hoặc 2 BE.
