@@ -34,7 +34,7 @@ Kết quả: **19/20 PASS** — 1 mục vá trong đợt audit này (20. Scan de
 ### 1. Hide API keys ✅
 
 - Không có API key thật nào trong code. Tất cả qua env: `JWT_SECRET`, `VNPAY_HASH_SECRET`, `S3_*`, `AGENT_API_KEY`, `MEILI_MASTER_KEY`, `SENTRY_DSN`, SMTP/Telegram.
-- Chỉ `NEXT_PUBLIC_*` được expose ra browser (`NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_SENTRY_DSN` — thiết kế công khai, không phải secret). `NEXT_PUBLIC_AGENT_TOKEN` chỉ set ở "demo prod" khi host bật `AGENT_MERCHANT_TOKEN` — đây là operational token cho endpoint monitor, không phải model API key.
+- Chỉ `NEXT_PUBLIC_*` được expose ra browser (`NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_SENTRY_DSN` — thiết kế công khai, không phải secret). Token merchant (`AGENT_MERCHANT_TOKEN`) KHÔNG BAO GIỜ là `NEXT_PUBLIC_*`: FE gọi vận hành qua Next route `/api/agent/*` (server verify role ADMIN + gắn token phía server). Mọi `NEXT_PUBLIC_*_TOKEN` trong bundle đều coi như public.
 - Model API key (`AGENT_API_KEY`) sống trong `agent/.env` (không commit) và chỉ dùng phía server host (`agent/aurel_agents/config.py`), không bao giờ xuyên qua FE.
 - Thư viện secret-scan pattern (`sk-`, `AKIA`, `ghp_`, private key PEM) trên working tree: 0 kết quả.
 

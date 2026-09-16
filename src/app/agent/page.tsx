@@ -31,11 +31,9 @@ import {
 
 const AGENT_HOST =
   process.env.NEXT_PUBLIC_AGENT_URL || "http://127.0.0.1:8100";
-// Token cho endpoint vận hành (/merchant/*, /alerts, /shop/monitor/run) —
-// chỉ đặt khi AGENT_MERCHANT_TOKEN bật ở host (demo prod). Dev bỏ trống.
-const AGENT_TOKEN = process.env.NEXT_PUBLIC_AGENT_TOKEN || "";
-const agentHeaders = (): Record<string, string> =>
-  AGENT_TOKEN ? { "x-agent-token": AGENT_TOKEN } : {};
+// Endpoint vận hành (/merchant/*, feed ops) KHÔNG gọi thẳng host từ browser —
+// đi qua Next route /api/agent/* (server verify role ADMIN + giữ
+// AGENT_MERCHANT_TOKEN phía server). Token không bao giờ xuống client.
 
 // ---------------------------------------------------------------------------
 // UI helpers theo design system Obsidian & Champagne (globals.css tokens)
@@ -359,23 +357,52 @@ type AlertRow = {
   created_at: number;
 };
 
-function AlertFeed({ refreshKey }: { refreshKey: number }) {
+function AlertFeed({
+  refreshKey,
+  role,
+  isAdmin,
+  getSessionId,
+}: {
+  refreshKey: number;
+  role: AgentRole;
+  isAdmin: boolean;
+  getSessionId: () => string | null;
+}) {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [lastRun, setLastRun] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${AGENT_HOST}/alerts?limit=20`, {
-        headers: agentHeaders(),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setAlerts(data.alerts ?? []);
-      setLastRun(data.monitor_last_run ?? null);
+      const merged: AlertRow[] = [];
+      let run: number | null = null;
+      // Feed shop: alert watch của CHÍNH session — public, không cần token.
+      const sid = getSessionId();
+      if (sid) {
+        const shop = await fetch(
+          `${AGENT_HOST}/alerts?limit=20&scope=shop&session_id=${encodeURIComponent(sid)}`
+        );
+        if (shop.ok) {
+          const data = await shop.json();
+          merged.push(...(data.alerts ?? []));
+          run = data.monitor_last_run ?? null;
+        }
+      }
+      // Feed ops (tồn kho/PENDING/ticket): chỉ admin, qua proxy server-side.
+      if (role === "merchant" && isAdmin) {
+        const ops = await fetch(`/api/agent/alerts?limit=20`);
+        if (ops.ok) {
+          const data = await ops.json();
+          merged.unshift(...(data.alerts ?? []));
+          run = data.monitor_last_run ?? run;
+        }
+      }
+      setAlerts(merged);
+      setLastRun(run);
     } catch {
       // host chưa chạy — im lặng
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, isAdmin]);
 
   useEffect(() => {
     load();
@@ -451,7 +478,8 @@ export default function AgentChatPage() {
   // Delegation (agentic web): agent hành động THAY user — giỏ/đơn/wishlist
   // thật. Bật = xin JWT ngắn hạn (30 phút) từ BE /auth/delegation.
   const [actAsMe, setActAsMe] = useState(false);
-  const [me, setMe] = useState<{ name?: string } | null>(null);
+  const [me, setMe] = useState<{ name?: string; role?: string } | null>(null);
+  const isAdmin = me?.role === "ADMIN";
   const delegationRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -501,6 +529,20 @@ export default function AgentChatPage() {
     async (raw: string) => {
       const text = raw.trim();
       if (!text || busy) return;
+      // Tab Vận hành chỉ dành cho admin — chặn ngay ở client (server proxy
+      // verify lại lần nữa, đây chỉ là UX).
+      if (role === "merchant" && me?.role !== "ADMIN") {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "assistant",
+            text: "Khu vực vận hành chỉ dành cho tài khoản admin. Hãy đăng nhập bằng tài khoản quản trị.",
+            ux: [],
+            done: true,
+          },
+        ]);
+        return;
+      }
       setInput("");
       setBusy(true);
       setMessages((m) => [
@@ -511,9 +553,15 @@ export default function AgentChatPage() {
 
       const controller = new AbortController();
       try {
-        const res = await fetch(`${AGENT_HOST}/${role}/chat`, {
+        // Merchant đi qua proxy server-side (giữ token + check admin);
+        // shop chat công khai gọi thẳng host.
+        const url =
+          role === "merchant"
+            ? `/api/agent/merchant/chat`
+            : `${AGENT_HOST}/shop/chat`;
+        const res = await fetch(url, {
           method: "POST",
-          headers: { "content-type": "application/json", ...agentHeaders() },
+          headers: { "content-type": "application/json" },
           body: JSON.stringify({
             message: text,
             session_id: sessionIdRef.current,
@@ -681,8 +729,19 @@ export default function AgentChatPage() {
         setStatusLine(null);
       }
     },
-    [busy, role],
+    [busy, role, me],
   );
+
+  // Mất quyền admin giữa chừng (logout/tab khác) mà đang ở tab Vận hành
+  // → đá về tab Khách hàng ngay, khỏi kẹt ở vùng không còn quyền.
+  useEffect(() => {
+    if (role === "merchant" && me && me.role !== "ADMIN") {
+      setRole("shop");
+      setMessages([]);
+      sessionIdRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me]);
 
   return (
     <main className="min-h-screen bg-surface text-on-surface">
@@ -710,7 +769,9 @@ export default function AgentChatPage() {
             báo cáo và đề xuất thay đổi (staged — luôn chờ người duyệt).
           </p>
           <div className="mt-space-md flex flex-wrap items-center gap-2">
-            {(["shop", "merchant"] as const).map((r) => (
+            {/* Tab Vận hành chỉ hiện với ADMIN (server proxy verify lại) —
+                khách thường không thấy vùng này tồn tại. */}
+            {(isAdmin ? (["shop", "merchant"] as const) : (["shop"] as const)).map((r) => (
               <button
                 key={r}
                 onClick={() => {
@@ -802,7 +863,12 @@ export default function AgentChatPage() {
           </button>
         </form>
 
-        <AlertFeed refreshKey={messages.length} />
+        <AlertFeed
+          refreshKey={messages.length}
+          role={role}
+          isAdmin={isAdmin}
+          getSessionId={() => sessionIdRef.current}
+        />
       </div>
     </main>
   );
