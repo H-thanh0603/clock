@@ -7,7 +7,8 @@ import AskConciergeButton from "@/components/AskConciergeButton";
 import { notFound } from "next/navigation";
 import { collectionLabels, formatUsd } from "@/data/products";
 import { linePrice } from "@/lib/pricing";
-import { safeJsonLd } from "@/lib/json-ld";
+import { absoluteMediaUrl, absoluteSiteUrl, safeJsonLd } from "@/lib/json-ld";
+import { mediaUrl } from "@/lib/media";
 
 // Phụ kiện đi kèm hiển thị cuối trang — lấy từ DB (trước đây hardcode).
 const ACCESSORY_SLUG = "travel-roll-calfskin-18k";
@@ -44,7 +45,8 @@ export default async function Page({
     name: product.name,
     sku: product.reference,
     description: product.shortDescription,
-    image: product.images.slice(0, 5),
+    // Google bỏ qua image tương đối — absolutize theo CDN/SITE_URL (P2-6).
+    image: product.images.slice(0, 5).map(absoluteMediaUrl),
     brand: { "@type": "Brand", name: "Aurel & Co." },
     category: `Đồng hồ cao cấp — ${collectionLabel}`,
     offers: {
@@ -62,8 +64,8 @@ export default async function Page({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Bộ Sưu Tập", item: "/collections" },
-      { "@type": "ListItem", position: 2, name: collectionLabel, item: `/collections?collection=${product.collection}` },
+      { "@type": "ListItem", position: 1, name: "Bộ Sưu Tập", item: absoluteSiteUrl("/collections") },
+      { "@type": "ListItem", position: 2, name: collectionLabel, item: absoluteSiteUrl(`/collections?collection=${product.collection}`) },
       { "@type": "ListItem", position: 3, name: product.name },
     ],
   };
@@ -287,7 +289,7 @@ export default async function Page({
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-2xl items-center">
 <div className="lg:col-span-5 relative">
 <div className="aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-surface-container-low relative">
-<img className="w-full h-full object-cover" data-alt="Black and white atmospheric portrait of elderly Swiss master watchmaker with loupe inspecting the balance wheel of a luxury gold tourbillon watch on vintage oak workbench in Geneva." src="/images/stitch/31_AB6AXuCawX.jpg"/>
+<img className="w-full h-full object-cover" data-alt="Black and white atmospheric portrait of elderly Swiss master watchmaker with loupe inspecting the balance wheel of a luxury gold tourbillon watch on vintage oak workbench in Geneva." src={mediaUrl("/images/stitch/31_AB6AXuCawX.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent"></div>
 <div className="absolute bottom-space-lg left-space-lg right-space-lg">
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block">Maître Horloger</span>
@@ -346,7 +348,7 @@ export default async function Page({
 {/* Pairing 1: High-end Watch Winder */}
 <div className="p-space-md rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-all">
 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest mb-space-md">
-<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="High-end artisan Swiss leather watch winder box with walnut wood inlays, micro-motor rotator mechanism, and glass display door illuminated with gold LED." src="/images/stitch/32_AB6AXuBBdd.jpg"/>
+<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="High-end artisan Swiss leather watch winder box with walnut wood inlays, micro-motor rotator mechanism, and glass display door illuminated with gold LED." src={mediaUrl("/images/stitch/32_AB6AXuBBdd.jpg")}/>
 <span className="absolute top-2 right-2 px-space-xs py-0.5 rounded bg-surface-container-low/90 backdrop-blur-md text-primary font-label-badge text-[9px] uppercase tracking-wider">
               Swiss Precision Winder
             </span>
@@ -368,7 +370,7 @@ export default async function Page({
 {/* Pairing 2: Bespoke Cufflinks */}
 <div className="p-space-md rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-all">
 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest mb-space-md">
-<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Pair of exquisite 18k solid rose gold cufflinks designed with miniature rotating tourbillon escapement mechanism with synthetic rubies on dark slate velvet." src="/images/stitch/33_AB6AXuD10T.jpg"/>
+<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Pair of exquisite 18k solid rose gold cufflinks designed with miniature rotating tourbillon escapement mechanism with synthetic rubies on dark slate velvet." src={mediaUrl("/images/stitch/33_AB6AXuD10T.jpg")}/>
 <span className="absolute top-2 right-2 px-space-xs py-0.5 rounded bg-surface-container-low/90 backdrop-blur-md text-secondary font-label-badge text-[9px] uppercase tracking-wider">
               Haute Joaillerie
             </span>

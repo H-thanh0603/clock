@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { formatUsd, formatVnd, type Product } from "@/data/products";
 import { apiUrl } from "@/lib/api-client";
 import { useWishlist } from "@/components/WishlistProvider";
+import { mediaUrl } from "@/lib/media";
 
 function WishBtn({ slug }: { slug: string }) {
   const { has, toggle } = useWishlist();
@@ -500,7 +501,7 @@ export default function Page() {
 <div className="bg-surface-container-lowest rounded-2xl p-space-2xl grid grid-cols-1 lg:grid-cols-12 gap-space-2xl items-center shadow-xl">
 <div className="lg:col-span-4 relative flex items-center justify-center">
 <div className="relative w-48 h-48 md:w-56 md:h-56 rounded-full overflow-hidden shadow-2xl">
-<img className="w-full h-full object-cover" data-alt="Portrait of a distinguished Swiss master watchmaker and horological consultant in a dark bespoke suit examining a movement with a brass loupe, refined ambient warm studio light" src="/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg"/>
+<img className="w-full h-full object-cover" data-alt="Portrait of a distinguished Swiss master watchmaker and horological consultant in a dark bespoke suit examining a movement with a brass loupe, refined ambient warm studio light" src={mediaUrl("/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg")}/>
 </div>
 <div className="absolute -bottom-2 bg-surface-container-high px-space-md py-1 rounded-full shadow flex items-center gap-space-xs">
 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>

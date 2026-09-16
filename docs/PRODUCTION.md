@@ -93,7 +93,27 @@ mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
   Rồi `up -d --build backend frontend`. Bỏ trống cả 2 = noop an toàn.
   Sentry cảnh báo email/Slack ngay khi có lỗi mới — không cần ai trông 24/7.
 
-## 7. Các dịch vụ tùy chọn (đều có fallback an toàn khi bỏ trống)
+## 7. Media tĩnh qua CDN (R2/S3 + domain riêng, optional)
+
+Video hero (mp4 nặng) + ảnh catalog đang serve từ chính VPS — vài nghìn
+lượt xem là hết băng thông. FE đã hỗ trợ prefix qua
+`NEXT_PUBLIC_MEDIA_BASE_URL` (helper `src/lib/media.ts`): trống = serve
+local như cũ, có giá trị = mọi `/images/*` + video hero trỏ sang CDN.
+
+1. Tạo R2 bucket (Cloudflare, egress rẻ) + custom domain
+   `media.<DOMAIN>` + public read cho 2 prefix `images/*`,
+   `swiss-luxury-watches-and-chronographs/*`.
+2. Sync lần đầu + mỗi khi thêm ảnh mới vào `public/`:
+   `rclone sync ./public/ r2:aurel-media/ --include '{images/**,swiss-luxury-watches-and-chronographs/**}'`
+   (JSON-LD cũng tự trỏ ảnh sang CDN để Google lấy được).
+3. Điền `NEXT_PUBLIC_MEDIA_BASE_URL="https://media.<DOMAIN>"` vào
+   `.env.prod`, build lại frontend. Verify: mở trang, ảnh/video load từ
+   domain media (DevTools → Network).
+4. Lưu ý: `preload="none"` KHÔNG đặt cho video hero vì nó `autoPlay`
+   (đặt cũng vô nghĩa — autoplay vẫn tải). Tiết kiệm thật đến từ CDN
+   (băng thông VPS), không phải từ bớt byte (trình duyệt vẫn cần byte đó).
+
+## 8. Các dịch vụ tùy chọn (đều có fallback an toàn khi bỏ trống)
 
 - **Ảnh upload**: điền `S3_*` trong `.env.prod` để lưu ảnh lên S3/R2/MinIO;
   bỏ trống = lưu disk volume `uploads/` (vẫn an toàn vì có volume mount).

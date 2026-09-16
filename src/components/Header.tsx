@@ -8,6 +8,7 @@ import { useAuth } from "./AuthProvider";
 import { useWishlist } from "./WishlistProvider";
 import { formatUsd } from "@/data/format";
 import { productBySlug } from "@/data/wishMeta";
+import { mediaUrl } from "@/lib/media";
 
 const links = [
   { href: "/", label: "Trang Chủ" },
@@ -55,7 +56,7 @@ export default function Header() {
           <img
             alt="Aurel & Co. Haute Horlogerie Logo"
             className="h-8 w-auto object-contain"
-            src="/images/logo.png"
+            src={mediaUrl("/images/logo.png")}
           />
           <div className="flex flex-col">
             <span className="font-title-editorial text-title-editorial leading-none tracking-[0.25em] text-on-surface uppercase">
@@ -157,7 +158,7 @@ export default function Header() {
                         className="flex items-center gap-space-sm rounded-lg bg-surface-container p-space-xs"
                       >
                         <img
-                          src={p.image}
+                          src={mediaUrl(p.image)}
                           alt={p.name}
                           className="h-12 w-12 shrink-0 rounded object-cover"
                         />
@@ -218,7 +219,7 @@ export default function Header() {
                   <img
                     alt="Profile"
                     className="h-8 w-8 rounded-full object-cover ring-1 ring-primary/40"
-                    src="/images/vip-collector-profile.jpg"
+                    src={mediaUrl("/images/vip-collector-profile.jpg")}
                   />
                   <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-primary ring-1 ring-surface"></span>
                 </div>
@@ -262,7 +263,7 @@ export default function Header() {
                   <img
                     alt="Profile"
                     className="h-8 w-8 rounded-full object-cover ring-1 ring-primary/40"
-                    src="/images/vip-collector-profile.jpg"
+                    src={mediaUrl("/images/vip-collector-profile.jpg")}
                   />
                   <span className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-surface-container-highest ring-1 ring-surface"></span>
                 </div>

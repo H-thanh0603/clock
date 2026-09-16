@@ -2,6 +2,7 @@
 
 import { useCart, type CartItem } from "./CartProvider";
 import { formatUsd, formatVnd } from "@/data/products";
+import { mediaUrl } from "@/lib/media";
 
 /** Dòng vật phẩm trong Vault — visual Stitch, số lượng & xóa đấu thật. */
 export default function VaultItemCard({ item }: { item: CartItem }) {
@@ -29,7 +30,7 @@ export default function VaultItemCard({ item }: { item: CartItem }) {
             <img
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               data-alt={item.name}
-              src={item.image}
+              src={mediaUrl(item.image)}
             />
             <div className="absolute bottom-2 left-2 bg-surface-container-lowest/80 backdrop-blur-md px-2 py-1 rounded text-primary font-label-badge text-[9px] uppercase tracking-widest">
               Vault Selection

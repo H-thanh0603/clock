@@ -9,6 +9,7 @@ import { linePrice } from "@/lib/pricing";
 import { useCurrency } from "./CurrencyProvider";
 import { useCart } from "./CartProvider";
 import SpecBadge from "./SpecBadge";
+import { mediaUrl } from "@/lib/media";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { price } = useCurrency();
@@ -34,7 +35,7 @@ export default function ProductCard({ product }: { product: Product }) {
     <article className="group flex flex-col border border-outline-variant/25 bg-surface-container/50 transition-colors duration-300 hover:border-primary-container/50">
       <Link href={`/products/${product.slug}`} className="relative block aspect-square overflow-hidden">
         <Image
-          src={product.images[0]}
+          src={mediaUrl(product.images[0])}
           alt={product.name}
           fill
           sizes="(max-width: 768px) 100vw, 33vw"

@@ -9,6 +9,7 @@ import { strapOptions } from "@/data/straps";
 import { linePrice, USD_TO_VND } from "@/lib/pricing";
 import { useCurrency } from "./CurrencyProvider";
 import { useCart } from "./CartProvider";
+import { mediaUrl } from "@/lib/media";
 
 export default function ProductDetail({ product }: { product: Product }) {
   const { price } = useCurrency();
@@ -51,7 +52,7 @@ export default function ProductDetail({ product }: { product: Product }) {
         <div className="lg:col-span-7">
           <div className="relative aspect-square overflow-hidden border border-primary-container/30">
             <Image
-              src={product.images[activeImage]}
+              src={mediaUrl(product.images[activeImage])}
               alt={product.name}
               fill
               priority
@@ -82,7 +83,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                 }`}
               >
                 <Image
-                  src={img}
+                  src={mediaUrl(img)}
                   alt={`${product.name} — ảnh ${i + 1}`}
                   fill
                   sizes="96px"

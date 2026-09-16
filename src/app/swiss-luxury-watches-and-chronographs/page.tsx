@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Icon } from "@iconify/react";
 import { Syncopate } from "next/font/google";
+import { mediaUrl } from "@/lib/media";
 
 const syncopate = Syncopate({
   subsets: ["latin"],
@@ -46,7 +47,7 @@ export default function Page() {
 
       <div className="kinetic-anchor">
         <video autoPlay loop muted playsInline className="h-full w-full object-cover">
-          <source src="/swiss-luxury-watches-and-chronographs/video.mp4" type="video/mp4" />
+          <source src={mediaUrl("/swiss-luxury-watches-and-chronographs/video.mp4")} type="video/mp4" />
         </video>
       </div>
 

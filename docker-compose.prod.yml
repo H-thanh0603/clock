@@ -178,7 +178,8 @@ services:
         NEXT_PUBLIC_AGENT_URL: "https://${DOMAIN:?DOMAIN chưa đặt}/agent"
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
         NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${NEXT_PUBLIC_SENTRY_ENVIRONMENT:-prod-vps}
-      SITE_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
+        SITE_URL: "https://${DOMAIN:?DOMAIN chưa đặt}"
+        NEXT_PUBLIC_MEDIA_BASE_URL: ${NEXT_PUBLIC_MEDIA_BASE_URL:-}
       # Proxy server-side /api/agent/* → agent host (giữ token ở server).
       # KHÔNG phải NEXT_PUBLIC_* — xuống browser là lộ token merchant.
       AGENT_INTERNAL_URL: "http://agent:8100"

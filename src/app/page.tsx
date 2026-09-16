@@ -1,5 +1,6 @@
 import SalonForm from "@/components/SalonForm";
 import Link from "next/link";
+import { mediaUrl } from "@/lib/media";
 
 export default function Home() {
   return (
@@ -56,7 +57,7 @@ export default function Home() {
 <div className="absolute w-[360px] h-[360px] sm:w-[460px] sm:h-[460px] rounded-full bg-gradient-to-tr from-primary/10 to-transparent blur-2xl"></div>
 {/* Micro Chrono Dial Graphic Overlay */}
 <div className="relative w-full max-w-[480px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-surface-container">
-<img className="w-full h-full object-cover object-center scale-105 hover:scale-100 transition-transform duration-1000" data-alt="Macro high-end photograph of a luxury Swiss skeleton rose gold tourbillon watch with exposed flying balance wheel, sapphire crystal casing, hand-beveled bridges, dark obsidian studio backdrop with subtle amber gold cinematic side rim lighting" src="/images/stitch/02_AB6AXuAiPb.jpg"/>
+<img className="w-full h-full object-cover object-center scale-105 hover:scale-100 transition-transform duration-1000" data-alt="Macro high-end photograph of a luxury Swiss skeleton rose gold tourbillon watch with exposed flying balance wheel, sapphire crystal casing, hand-beveled bridges, dark obsidian studio backdrop with subtle amber gold cinematic side rim lighting" src={mediaUrl("/images/stitch/02_AB6AXuAiPb.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
 {/* Floating Spec Plate */}
 <div className="absolute bottom-space-md left-space-md right-space-md p-space-md rounded bg-surface-container-lowest/85 backdrop-blur-md flex items-center justify-between">
@@ -97,7 +98,7 @@ export default function Home() {
 </section>
 {/* BRAND FILM — BÊN TRONG XƯỞNG GENÈVE */}
 <section id="brand-film" className="relative w-full overflow-hidden bg-surface-container-lowest">
-<video className="aspect-video w-full object-cover" src="/swiss-luxury-watches-and-chronographs/video.mp4" poster="/swiss-luxury-watches-and-chronographs/video-poster.jpg" autoPlay muted loop playsInline></video>
+<video className="aspect-video w-full object-cover" src={mediaUrl("/swiss-luxury-watches-and-chronographs/video.mp4")} poster={mediaUrl("/swiss-luxury-watches-and-chronographs/video-poster.jpg")} autoPlay muted loop playsInline></video>
 <div className="absolute inset-0 bg-surface-container-lowest/30"></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/35 to-surface-container-lowest/70"></div>
 <div className="absolute inset-0 flex flex-col items-center justify-center px-gutter-desktop text-center">
@@ -130,7 +131,7 @@ export default function Home() {
 {/* CARD 1 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Aurel &amp; Co. Grand Complication Tourbillon luxury watch with transparent double sapphire crystal, visible complex escapement gears, deep slate dial, cinematic lighting" src="/images/stitch/03_AB6AXuClCG.jpg"/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Aurel &amp; Co. Grand Complication Tourbillon luxury watch with transparent double sapphire crystal, visible complex escapement gears, deep slate dial, cinematic lighting" src={mediaUrl("/images/stitch/03_AB6AXuClCG.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-primary">Masterpiece No. 01</span>
 </div>
@@ -160,7 +161,7 @@ export default function Home() {
 {/* CARD 2 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Celestial Moonphase Obsidian watch with black iridescent meteorite mother of pearl dial, hyper-detailed astronomical golden moon disc, 18K rose gold casing" src="/images/stitch/04_AB6AXuBFmG.jpg"/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Celestial Moonphase Obsidian watch with black iridescent meteorite mother of pearl dial, hyper-detailed astronomical golden moon disc, 18K rose gold casing" src={mediaUrl("/images/stitch/04_AB6AXuBFmG.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-secondary">Astronomie</span>
 </div>
@@ -190,7 +191,7 @@ export default function Home() {
 {/* CARD 3 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Royal Chronograph Flyback watch with black ceramic bezel, high precision chronograph sub-dials, integrated platinum bracelet, luxury horology aesthetic" src="/images/stitch/05_AB6AXuBFXA.jpg"/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Royal Chronograph Flyback watch with black ceramic bezel, high precision chronograph sub-dials, integrated platinum bracelet, luxury horology aesthetic" src={mediaUrl("/images/stitch/05_AB6AXuBFXA.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-primary">Haute Sport</span>
 </div>
@@ -220,7 +221,7 @@ export default function Home() {
 {/* CARD 4 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Atelier Skeleton Pure Gold timepiece showcasing 32 vivid blue sapphire jewels, hand-carved guilloche patterns on rose gold bridges, high luxury Swiss finishing" src="/images/stitch/06_AB6AXuDxn0.jpg"/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Atelier Skeleton Pure Gold timepiece showcasing 32 vivid blue sapphire jewels, hand-carved guilloche patterns on rose gold bridges, high luxury Swiss finishing" src={mediaUrl("/images/stitch/06_AB6AXuDxn0.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-secondary">Métiers d'Art</span>
 </div>
@@ -269,7 +270,7 @@ export default function Home() {
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-stretch">
 {/* Left Macro Showcase Image */}
 <div className="lg:col-span-5 relative rounded-xl overflow-hidden shadow-2xl bg-surface-container min-h-[380px]">
-<img className="w-full h-full object-cover object-center" data-alt="Extreme macro extreme close-up view of a watch tourbillon cage with mirror-polished steel arms, gold balance screws, oscillating hairspring and rubies, captured in warm dramatic watchmaking atelier lighting" src="/images/stitch/07_AB6AXuBpdu.jpg"/>
+<img className="w-full h-full object-cover object-center" data-alt="Extreme macro extreme close-up view of a watch tourbillon cage with mirror-polished steel arms, gold balance screws, oscillating hairspring and rubies, captured in warm dramatic watchmaking atelier lighting" src={mediaUrl("/images/stitch/07_AB6AXuBpdu.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/90 via-surface-container-lowest/30 to-transparent"></div>
 <div className="absolute bottom-space-lg left-space-lg right-space-lg">
 <div className="flex items-center gap-space-xs text-primary mb-1">

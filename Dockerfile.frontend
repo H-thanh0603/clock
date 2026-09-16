@@ -23,6 +23,9 @@ ENV NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT
 # Site URL tuyệt đối cho sitemap/robots (SEO).
 ARG SITE_URL
 ENV SITE_URL=$SITE_URL
+# CDN media tĩnh (R2...): prefix /images/* + video hero. Trống = serve local.
+ARG NEXT_PUBLIC_MEDIA_BASE_URL
+ENV NEXT_PUBLIC_MEDIA_BASE_URL=$NEXT_PUBLIC_MEDIA_BASE_URL
 RUN npm run build
 
 # ---- run ----
