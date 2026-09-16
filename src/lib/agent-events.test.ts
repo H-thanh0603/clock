@@ -214,3 +214,21 @@ describe("buildReceipt — task", () => {
     expect(buildReceipt(evs as never)).toEqual(["Đã xong 1 việc được giao"]);
   });
 });
+
+describe("ComparisonTray — sync khay (logic FE)", () => {
+  it("dedupe theo slug + cap 6", () => {
+    const mk = (slug: string) => ({ product: { slug, name: slug } });
+    const prev = [mk("a"), mk("b")];
+    const incoming = [mk("b"), mk("c"), mk("d"), mk("e"), mk("f"), mk("g"), mk("h")];
+    const seen = new Set(prev.map((e) => e.product.slug));
+    const fresh = incoming.filter((e) => e.product?.slug && !seen.has(e.product.slug));
+    const merged = [...prev, ...fresh].slice(-6);
+    expect(merged.map((e) => e.product.slug)).toEqual(["c", "d", "e", "f", "g", "h"]);
+  });
+
+  it("gỡ 1 chiếc khỏi khay", () => {
+    const tray = [{ product: { slug: "a", name: "A" } }, { product: { slug: "b", name: "B" } }];
+    const next = tray.filter((e) => e.product.slug !== "a");
+    expect(next.map((e) => e.product.slug)).toEqual(["b"]);
+  });
+});

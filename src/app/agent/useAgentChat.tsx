@@ -9,8 +9,11 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { csrfFetch } from "@/lib/api-client";
-import type { AgentEvent, AgentRole } from "@/lib/agent-events";
+import type { AgentEvent, AgentProduct, AgentRole } from "@/lib/agent-events";
 import { buildReceipt, memoryFactText } from "@/lib/agent-events";
+
+/** Khay so sánh tối đa 6 chiếc — đủ cho quyết định, gọn cho UI. */
+const TRAY_MAX = 6;
 import { Card, MemoryChip, StagedChangeCard, UxEvent, fmtUsd } from "./chat-widgets";
 
 export const AGENT_HOST =
@@ -53,6 +56,11 @@ export function useAgentChat() {
   // thật. Bật = xin JWT ngắn hạn (30 phút) từ BE /auth/delegation.
   const [actAsMe, setActAsMe] = useState(false);
   const [me, setMe] = useState<{ name?: string; role?: string } | null>(null);
+  // Khay so sánh đeo bám xuyên turn (G2-6): SP agent từng giới thiệu được
+  // giữ lại theo slug — mở tab khác quay lại vẫn còn (trong phiên trang).
+  const [compareTray, setCompareTray] = useState<
+    { product: AgentProduct; note?: string | null }[]
+  >([]);
   const isAdmin = me?.role === "ADMIN";
   const delegationRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -192,6 +200,26 @@ export function useAgentChat() {
                   ...b,
                   ux: [...b.ux, { id: uxSeq++, node: <UxEvent event={ev} /> }],
                 }));
+                // Sync khay so sánh từ SP agent giới thiệu (present_products
+                // + present_comparison) — dedupe theo slug, cap 6.
+                if (
+                  ev.component === "present_products" ||
+                  ev.component === "present_comparison"
+                ) {
+                  const incoming =
+                    ev.component === "present_products"
+                      ? (ev.payload.items ?? [])
+                      : (ev.payload.entries ?? []);
+                  if (incoming.length > 0) {
+                    setCompareTray((prev) => {
+                      const seen = new Set(prev.map((e) => e.product.slug));
+                      const fresh = incoming.filter(
+                        (e) => e.product?.slug && !seen.has(e.product.slug)
+                      );
+                      return [...prev, ...fresh].slice(-TRAY_MAX);
+                    });
+                  }
+                }
                 break;
               case "cart_update":
                 patch((b) => ({
@@ -344,6 +372,26 @@ export function useAgentChat() {
     setRole(r);
     setMessages([]);
     sessionIdRef.current = null;
+    setCompareTray([]);
+  }, []);
+
+  const removeFromTray = useCallback((slug: string) => {
+    setCompareTray((prev) => prev.filter((e) => e.product.slug !== slug));
+  }, []);
+
+  // Refs giữ bản mới nhất cho compareTrayNow (tránh dep-loop với send).
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  const compareTrayRef = useRef(compareTray);
+  compareTrayRef.current = compareTray;
+
+  /** Gửi câu chốt so sánh dùng đúng SP trong khay (FE dựng, không tin model). */
+  const compareTrayNow = useCallback(() => {
+    const names = compareTrayRef.current.map((e) => e.product.name).join(", ");
+    if (!names) return;
+    void sendRef.current(
+      `So sánh giúp tôi các chiếc này: ${names} — lập bảng ưu/nhược và gợi ý chiếc hợp nhất.`
+    );
   }, []);
 
   const getSessionId = useCallback(() => sessionIdRef.current, []);
@@ -368,5 +416,8 @@ export function useAgentChat() {
     scrollRef,
     getSessionId,
     setPageProduct,
+    compareTray,
+    removeFromTray,
+    compareTrayNow,
   };
 }

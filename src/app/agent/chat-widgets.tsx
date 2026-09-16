@@ -77,57 +77,130 @@ function ProductsGrid({ payload }: { payload: UxPayload }) {
   );
 }
 
+/**
+ * Bảng so sánh thuần — dùng chung cho ComparisonGrid (theo turn) và
+ * ComparisonTray (khay đeo bám xuyên turn, G2-6). entries là dữ liệu DB
+ * thật từ agent (không bịa spec), khác chatbot giữ state bằng text.
+ */
+export function ComparisonTable({
+  entries,
+  dimensions,
+  recommendedId,
+  headerAction,
+}: {
+  entries: { product: AgentProduct; note?: string | null }[];
+  dimensions?: string[];
+  recommendedId?: string;
+  /** Render thêm (vd. nút × gỡ) cạnh tên mỗi cột. */
+  headerAction?: (slug: string) => ReactNode;
+}) {
+  const dims = dimensions ?? [];
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full font-body-sm text-body-sm">
+        <thead>
+          <tr className="border-b border-outline-variant/30 text-left text-on-surface-variant">
+            <th className="py-space-sm pr-space-md font-label-spec text-label-spec uppercase tracking-wider">Tiêu chí</th>
+            {entries.map((e) => (
+              <th
+                key={e.product.slug}
+                className={`py-space-sm px-space-md font-label-spec text-label-spec uppercase tracking-wider ${
+                  recommendedId === e.product.slug ? "text-primary" : ""
+                }`}
+              >
+                {e.product.name}
+                {recommendedId === e.product.slug && (
+                  <span className="ml-1 text-primary">★</span>
+                )}
+                {headerAction?.(e.product.slug)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dims.map((d, i) => (
+            <tr key={i} className="border-b border-outline-variant/15">
+              <td className="py-space-sm pr-space-md text-on-surface-variant">{d}</td>
+              {entries.map((e) => (
+                <td key={e.product.slug} className="py-space-sm px-space-md text-on-surface">
+                  {e.product.specs?.find((s) => s.label === d)?.value ?? "—"}
+                </td>
+              ))}
+            </tr>
+          ))}
+          <tr>
+            <td className="py-space-sm pr-space-md text-on-surface-variant">Giá</td>
+            {entries.map((e) => (
+              <td key={e.product.slug} className="py-space-sm px-space-md text-primary">
+                {fmtUsd(agentPrice(e.product))}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ComparisonGrid({ payload }: { payload: UxPayload }) {
   if (!payload.entries?.length) return null;
-  const dims = payload.dimensions ?? [];
   return (
     <Card>
       {payload.title && (
         <h3 className="font-headline-md text-headline-md text-on-surface mb-space-md">{payload.title}</h3>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full font-body-sm text-body-sm">
-          <thead>
-            <tr className="border-b border-outline-variant/30 text-left text-on-surface-variant">
-              <th className="py-space-sm pr-space-md font-label-spec text-label-spec uppercase tracking-wider">Tiêu chí</th>
-              {payload.entries.map((e) => (
-                <th
-                  key={e.product.slug}
-                  className={`py-space-sm px-space-md font-label-spec text-label-spec uppercase tracking-wider ${
-                    payload.recommended_product_id === e.product.slug ? "text-primary" : ""
-                  }`}
-                >
-                  {e.product.name}
-                  {payload.recommended_product_id === e.product.slug && (
-                    <span className="ml-1 text-primary">★</span>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dims.map((d, i) => (
-              <tr key={i} className="border-b border-outline-variant/15">
-                <td className="py-space-sm pr-space-md text-on-surface-variant">{d}</td>
-                {payload.entries?.map((e) => (
-                  <td key={e.product.slug} className="py-space-sm px-space-md text-on-surface">
-                    {e.product.specs?.find((s) => s.label === d)?.value ?? "—"}
-                  </td>
-                ))}
-              </tr>
-            ))}
-            <tr>
-              <td className="py-space-sm pr-space-md text-on-surface-variant">Giá</td>
-              {payload.entries.map((e) => (
-                <td key={e.product.slug} className="py-space-sm px-space-md text-primary">
-                  {fmtUsd(agentPrice(e.product))}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ComparisonTable
+        entries={payload.entries}
+        dimensions={payload.dimensions}
+        recommendedId={payload.recommended_product_id}
+      />
     </Card>
+  );
+}
+
+/**
+ * Khay so sánh đeo bám xuyên turn (G2-6): SP agent từng giới thiệu được giữ
+ * lại ở FE (theo slug), render cùng bảng từ dữ liệu thật. Khác chatbot:
+ * state có cấu trúc + spec từ DB, không "quên" hay bịa.
+ */
+export function ComparisonTray({
+  entries,
+  onRemove,
+  onCompare,
+}: {
+  entries: { product: AgentProduct; note?: string | null }[];
+  onRemove: (slug: string) => void;
+  onCompare: () => void;
+}) {
+  if (entries.length < 2) return null;
+  return (
+    <section className="mb-space-md border border-primary/40 bg-surface-container/30 p-space-md">
+      <div className="flex items-center justify-between gap-space-md">
+        <p className="font-label-spec text-label-spec uppercase tracking-[0.25em] text-primary">
+          ⚖ Đang so sánh ({entries.length})
+        </p>
+        <button
+          onClick={onCompare}
+          className="font-body-sm text-body-sm text-primary underline hover:text-primary-hover"
+        >
+          Nhờ concierge chốt giúp →
+        </button>
+      </div>
+      <div className="mt-space-sm">
+        <ComparisonTable
+          entries={entries}
+          headerAction={(slug) => (
+            <button
+              onClick={() => onRemove(slug)}
+              title="Bỏ khỏi khay"
+              className="ml-2 text-on-surface-variant/60 hover:text-error"
+            >
+              ×
+            </button>
+          )}
+        />
+      </div>
+    </section>
   );
 }
 

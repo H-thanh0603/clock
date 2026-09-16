@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AGENT_HOST, SUGGESTIONS, useAgentChat } from "./useAgentChat";
+import { ComparisonTray } from "./chat-widgets";
 import type { AgentRole } from "@/lib/agent-events";
 import { apiUrl } from "@/lib/api-client";
 import { useCart } from "@/components/CartProvider";
@@ -257,6 +258,9 @@ export default function AgentChatPage() {
     scrollRef,
     getSessionId,
     setPageProduct,
+    compareTray,
+    removeFromTray,
+    compareTrayNow,
   } = useAgentChat();
 
   return (
@@ -364,6 +368,16 @@ export default function AgentChatPage() {
             </div>
           ))}
         </div>
+
+        {/* Khay so sánh đeo bám xuyên turn (G2-6): SP agent từng giới thiệu
+            được giữ lại — khác chatbot giữ state bằng text. */}
+        {role === "shop" && (
+          <ComparisonTray
+            entries={compareTray}
+            onRemove={removeFromTray}
+            onCompare={compareTrayNow}
+          />
+        )}
 
         <form
           onSubmit={(e) => {
