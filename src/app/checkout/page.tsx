@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import { apiUrl, csrfFetch } from "@/lib/api-client";
+import {
+  checkoutFingerprint,
+  clearCheckoutKey,
+  getCheckoutKey,
+} from "@/lib/idempotency";
 import VaultItemCard from "@/components/VaultItemCard";
 import { formatUsd, formatVnd } from "@/data/products";
 
@@ -53,10 +58,17 @@ export default function Page() {
     if (items.length === 0 || placed || processing) return;
     setOrderError("");
     setProcessing("Tạo đơn & niêm ấn Vault...");
+    // Idempotency-Key theo fingerprint giỏ: double-click/retry mạng cùng key
+    // → BE trả đơn cũ, không trừ kho lần 2. Chỉ xóa key khi ĐÃ NHẬN response
+    // (mất response + bấm lại vẫn replay đúng).
+    const fp = checkoutFingerprint(items);
     try {
       const res = await csrfFetch("/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": getCheckoutKey(fp),
+        },
         credentials: "include",
         body: JSON.stringify({
           customerName: name,
@@ -85,6 +97,8 @@ export default function Page() {
             data.error ??
             "Lỗi tạo đơn hàng"
         );
+      // Đã nhận response (đơn mới hay replay) → key hoàn thành sứ mệnh.
+      clearCheckoutKey(fp);
       // Đơn VNPay: KHÔNG clear giỏ lúc này — giỏ chỉ clear khi settle
       // success (bỏ thanh toán giữa chừng vẫn giữ giỏ).
       if (pay !== "vnpay") clear();

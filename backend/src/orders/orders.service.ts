@@ -1,6 +1,7 @@
-import { randomInt } from 'crypto';
+import { createHash, randomInt } from 'crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -49,6 +50,40 @@ export type CreateOrderInput = {
   payment?: { method?: string };
 };
 
+export type CreateOrderOpts = {
+  /** Idempotency-Key header: retry/double-click cùng key → trả đơn cũ. */
+  idempotencyKey?: string;
+};
+
+/** Key BE chấp nhận: 8–64 ký tự URL-safe (FE sinh UUID/lần bấm). */
+const IDEM_KEY_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+function normalizeIdemKey(raw: unknown): string | null {
+  const k = String(raw ?? '').trim();
+  return IDEM_KEY_RE.test(k) ? k : null;
+}
+
+/** Định danh chủ sở hữu cho khách vãng lai (không lưu SĐT thô vào bảng key). */
+function contactHash(contact: string): string {
+  return createHash('sha256')
+    .update(contact.trim().toLowerCase())
+    .digest('hex');
+}
+
+/** Shape trả về của tạo đơn (dùng chung cho đơn mới + replay idempotent). */
+export type CreateOrderResult = {
+  orderId: string;
+  code: string;
+  totalUsd: number;
+  totalVnd: number;
+  paidUsd: number;
+  paidVnd: number;
+  remainingUsd: number;
+  remainingVnd: number;
+  status: string;
+  pendingReview: boolean;
+};
+
 /** Serialize order (BigInt/Date → JSON-safe). */
 export function serializeOrder(o: {
   totalVnd: bigint;
@@ -72,8 +107,68 @@ export class OrdersService {
     private readonly notify: NotifyService,
   ) {}
 
+  /** Dựng response tạo đơn từ order DB (đơn mới hay replay đều cùng shape). */
+  private toCreateResult(o: {
+    id: string;
+    code: string;
+    totalUsd: number;
+    totalVnd: bigint | number;
+    paidUsd: number;
+    paidVnd: bigint | number;
+    status: string;
+    items: { productSlug: string | null }[];
+  }): CreateOrderResult {
+    const totalVnd = Number(o.totalVnd);
+    const paidVnd = Number(o.paidVnd);
+    return {
+      orderId: o.id,
+      code: o.code,
+      totalUsd: o.totalUsd,
+      totalVnd,
+      paidUsd: o.paidUsd,
+      paidVnd,
+      remainingUsd: o.totalUsd - o.paidUsd,
+      remainingVnd: totalVnd - paidVnd,
+      status: o.status,
+      // Dòng không gắn SP thật = hàng bespoke/custom chờ concierge duyệt.
+      pendingReview: o.items.some((i) => !i.productSlug),
+    };
+  }
+
+  /**
+   * Trả về đơn đã tạo trước đó cho cùng Idempotency-Key (null = chưa có).
+   * Key gắn chủ sở hữu: key của user này không moi được đơn user khác —
+   * sai chủ thì 409 thay vì rò rỉ (kể cả sự tồn tại của đơn).
+   */
+  private async replayIdempotent(
+    key: string,
+    userId: string | null,
+    contact: string,
+  ): Promise<CreateOrderResult | null> {
+    const rec = await this.prisma.idempotencyKey.findUnique({
+      where: { key },
+    });
+    if (!rec) return null;
+    const owned = rec.userId
+      ? rec.userId === userId
+      : !userId && rec.contactHash === contactHash(contact);
+    if (!owned)
+      throw new ConflictException('Idempotency-Key đã được dùng cho đơn khác');
+    const order = await this.prisma.order.findUnique({
+      where: { id: rec.orderId },
+      include: { items: true },
+    });
+    // Đơn gốc không còn (bị xóa tay ngoài luồng) → cho tạo mới.
+    if (!order) return null;
+    return this.toCreateResult(order);
+  }
+
   /** Tạo đơn từ giỏ. Khách vãng lai vẫn đặt được (userId null). */
-  async create(input: CreateOrderInput, userId: string | null) {
+  async create(
+    input: CreateOrderInput,
+    userId: string | null,
+    opts: CreateOrderOpts = {},
+  ) {
     const customerName = String(input.customerName ?? '').trim();
     const contact = String(input.contact ?? '').trim();
     const address = String(input.address ?? '').trim();
@@ -83,6 +178,15 @@ export class OrdersService {
 
     if (!customerName || !contact || !address)
       throw new BadRequestException('Thiếu tên, liên lạc hoặc địa chỉ');
+
+    // Idempotency-Key: request retry/double-click gửi cùng key → trả về đơn
+    // đã tạo trước đó (không trừ kho lần 2). Key gắn với chủ sở hữu nên
+    // không moi được đơn của người khác (P1-5).
+    const idemKey = normalizeIdemKey(opts.idempotencyKey);
+    if (idemKey) {
+      const replay = await this.replayIdempotent(idemKey, userId, contact);
+      if (replay) return replay;
+    }
     if (!(METHODS as readonly string[]).includes(method))
       throw new BadRequestException('Phương thức thanh toán không hợp lệ');
     if (
@@ -189,18 +293,11 @@ export class OrdersService {
       ) {
         // Trả lại đơn cũ (idempotent theo nội dung + khoảng 3') — cùng
         // shape như đơn mới tạo để FE checkout redirect bình thường.
-        return {
-          orderId: recent.id,
-          code: recent.code,
-          totalUsd: recent.totalUsd,
-          totalVnd: Number(recent.totalVnd),
-          paidUsd: recent.paidUsd,
-          paidVnd: Number(recent.paidVnd),
-          remainingUsd: recent.totalUsd - recent.paidUsd,
-          remainingVnd: Number(recent.totalVnd) - Number(recent.paidVnd),
-          status: recent.status,
-          pendingReview: hasCustom,
-        };
+        // (pendingReview suy từ items đơn cũ — đúng hơn flag của request mới.)
+        return this.toCreateResult({
+          ...recent,
+          items: recent.items,
+        });
       }
     }
 
@@ -280,6 +377,34 @@ export class OrdersService {
     }
     if (!order) throw new BadRequestException('Không tạo được mã đơn, thử lại');
 
+    // Ghi Idempotency-Key → đơn vừa tạo (best-effort): retry sau này replay
+    // đơn này. Race 2 request song song tuyệt đối cùng ms: bên thua P2002
+    // thì trả đơn bên thắng (đơn trùng của mình đã tạo vẫn tồn tại — chấp
+    // nhận, cửa sổ race hẹp; double-click/retry tuần tự đã được chặn hết).
+    if (idemKey) {
+      try {
+        await this.prisma.idempotencyKey.create({
+          data: {
+            key: idemKey,
+            userId,
+            contactHash: userId ? null : contactHash(contact),
+            orderId: order.id,
+          },
+        });
+      } catch (e) {
+        if (
+          typeof e === 'object' &&
+          e !== null &&
+          'code' in e &&
+          (e as { code?: string }).code === 'P2002'
+        ) {
+          const replay = await this.replayIdempotent(idemKey, userId, contact);
+          if (replay) return replay;
+        }
+        // Lưu key fail vì lý do khác → thôi, đơn đã tạo đúng.
+      }
+    }
+
     // Thông báo không chặn luồng chính (fire-and-forget, có try/catch trong).
     void this.notify.orderCreated({
       code: order.code,
@@ -293,18 +418,16 @@ export class OrdersService {
       itemCount: lines.reduce((s, l) => s + l.qty, 0),
     });
 
-    return {
-      orderId: order.id,
+    return this.toCreateResult({
+      id: order.id,
       code: order.code,
       totalUsd: order.totalUsd,
-      totalVnd: Number(order.totalVnd),
+      totalVnd: order.totalVnd,
       paidUsd: order.paidUsd,
-      paidVnd: Number(order.paidVnd),
-      remainingUsd: order.totalUsd - order.paidUsd,
-      remainingVnd: Number(order.totalVnd) - Number(order.paidVnd),
+      paidVnd: order.paidVnd,
       status: order.status,
-      pendingReview: hasCustom,
-    };
+      items: lines.map((l) => ({ productSlug: l.productSlug })),
+    });
   }
 
   /**

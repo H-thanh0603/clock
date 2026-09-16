@@ -165,6 +165,20 @@ model OrderEvent {
   @@index([orderId, createdAt])
 }
 
+/// Idempotency-Key cho POST /orders: retry mạng/double-click gửi cùng key
+/// thì trả về đơn cũ thay vì tạo đơn mới + trừ kho lần nữa. Key gắn với
+/// chủ sở hữu (userId, hoặc contactHash cho khách vãng lai) — key của người
+/// này không moi được đơn người khác. Cron dọn key quá 24h.
+model IdempotencyKey {
+  key         String   @id
+  userId      String?
+  contactHash String?
+  orderId     String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model WishlistItem {
   id          String   @id @default(cuid())
   userId      String

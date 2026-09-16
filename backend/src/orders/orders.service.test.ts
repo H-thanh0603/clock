@@ -316,3 +316,99 @@ describe('OrdersService.create', () => {
     );
   });
 });
+
+describe('OrdersService.create idempotency-key', () => {
+  function makeIdemPrisma() {
+    const { prisma: base, created } = makePrisma();
+    const b = base as unknown as Record<string, Record<string, unknown>>;
+    const keys = new Map<string, Record<string, unknown>>();
+    const orders = new Map<string, Record<string, unknown>>();
+    let creates = 0;
+    const orderBase = b.order as Record<string, (...a: never[]) => Promise<unknown>>;
+    // $transaction phải inject object override (chứ không phải object gốc
+    // của makePrisma) — nếu không tx.order.create bypass counter/store.
+    const prisma: Record<string, unknown> = {
+      ...b,
+      order: {
+        ...orderBase,
+        create: (async (args: {
+          data: Record<string, unknown> & { code: string };
+        }) => {
+          creates++;
+          const o = (await (
+            orderBase.create as (a: unknown) => Promise<Record<string, unknown>>
+          )(args)) as Record<string, unknown>;
+          orders.set(o.id as string, { ...o, items: [{ productSlug: 'vip-1' }] });
+          return o;
+        }) as never,
+        findUnique: (async ({ where }: { where: { id: string } }) =>
+          orders.get(where.id) ?? null) as never,
+      },
+      idempotencyKey: {
+        findUnique: (async ({ where }: { where: { key: string } }) =>
+          keys.get(where.key) ?? null) as never,
+        create: (async ({ data }: { data: Record<string, unknown> }) => {
+          const k = data.key as string;
+          if (keys.has(k)) {
+            const e = new Error('Unique constraint') as Error & { code?: string };
+            e.code = 'P2002';
+            throw e;
+          }
+          keys.set(k, data);
+          return data;
+        }) as never,
+      },
+    };
+    prisma.$transaction = async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn(prisma);
+    return {
+      prisma: prisma as unknown as PrismaService,
+      keys,
+      created,
+      creates: () => creates,
+    };
+  }
+
+  const KEY = 'idem-key-abc123';
+
+  it('cùng key 2 lần → tạo 1 đơn, lần 2 replay đơn cũ', async () => {
+    const f = makeIdemPrisma();
+    const svc = new OrdersService(f.prisma, notifyStub);
+    const r1 = await svc.create(BASE_ORDER, 'u1', { idempotencyKey: KEY });
+    const r2 = await svc.create(BASE_ORDER, 'u1', { idempotencyKey: KEY });
+    expect(f.creates()).toBe(1);
+    expect(r2.orderId).toBe(r1.orderId);
+    expect(r2.code).toBe(r1.code);
+    expect(f.keys.size).toBe(1);
+  });
+
+  it('key của user khác → 409, không rò đơn', async () => {
+    const f = makeIdemPrisma();
+    const svc = new OrdersService(f.prisma, notifyStub);
+    await svc.create(BASE_ORDER, 'u1', { idempotencyKey: KEY });
+    await expect(
+      svc.create(BASE_ORDER, 'u2', { idempotencyKey: KEY }),
+    ).rejects.toThrow(/đã được dùng/);
+  });
+
+  it('key invalid (quá ngắn) → bỏ qua, tạo đơn bình thường', async () => {
+    const f = makeIdemPrisma();
+    const svc = new OrdersService(f.prisma, notifyStub);
+    await svc.create(BASE_ORDER, 'u1', { idempotencyKey: 'x' });
+    expect(f.creates()).toBe(1);
+    expect(f.keys.size).toBe(0);
+  });
+
+  it('khách vãng lai: cùng key + cùng contact → replay; khác contact → 409', async () => {
+    const f = makeIdemPrisma();
+    const svc = new OrdersService(f.prisma, notifyStub);
+    const r1 = await svc.create(BASE_ORDER, null, { idempotencyKey: KEY });
+    const r2 = await svc.create(BASE_ORDER, null, { idempotencyKey: KEY });
+    expect(r2.orderId).toBe(r1.orderId);
+    await expect(
+      svc.create({ ...BASE_ORDER, contact: '0911' }, null, {
+        idempotencyKey: KEY,
+      }),
+    ).rejects.toThrow(/đã được dùng/);
+  });
+});

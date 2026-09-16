@@ -31,6 +31,15 @@ export class OrderExpireService {
   }
 
   async expirePending(): Promise<number> {
+    // Dọn Idempotency-Key quá 24h (P1-5) — key cũ không còn tác dụng replay,
+    // giữ lại chỉ phình bảng. Chạy chung vòng cron cho đỡ thêm job.
+    try {
+      await this.prisma.idempotencyKey.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - 24 * 3600_000) } },
+      });
+    } catch (e) {
+      this.log.warn(`Dọn idempotency key thất bại: ${(e as Error).message}`);
+    }
     const cutoff = new Date(Date.now() - ttlHours() * 3600_000);
     const stale = await this.prisma.order.findMany({
       where: { status: 'PENDING', createdAt: { lt: cutoff } },

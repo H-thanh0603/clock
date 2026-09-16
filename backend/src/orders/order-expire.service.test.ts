@@ -50,6 +50,9 @@ function makePrisma(staleOrders: { id: string; code: string; createdAt: Date; it
         return Promise.resolve({});
       },
     },
+    idempotencyKey: {
+      deleteMany: () => Promise.resolve({ count: 0 }),
+    },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
   };
   return { prisma: prisma as unknown as PrismaService, restocked, events, status };

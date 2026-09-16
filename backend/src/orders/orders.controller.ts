@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   NotFoundException,
   Param,
@@ -29,8 +30,11 @@ export class OrdersController {
   create(
     @Body() body: CreateOrderInput,
     @CurrentUser() user: SessionUser | null,
+    // Idempotency-Key do FE sinh/lần bấm: retry mạng/double-click cùng key
+    // → trả đơn cũ, không trừ kho lần 2 (P1-5). Thiếu/invalid = không dedup.
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.orders.create(body, user?.id ?? null);
+    return this.orders.create(body, user?.id ?? null, { idempotencyKey });
   }
 
   @Get('mine')
