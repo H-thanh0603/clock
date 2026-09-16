@@ -22,6 +22,10 @@ export class OrdersController {
   @Post()
   @HttpCode(200)
   @UseGuards(OptionalSessionGuard)
+  // Tạo đơn trừ kho ngay (kể cả khách vãng lai) — throttle riêng để chống
+  // spam đơn giữ hàng loạt (audit HIGH-01). Sau fix trust-proxy, limit này
+  // tính theo từng IP thật, không còn là bucket chung cả site.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   create(
     @Body() body: CreateOrderInput,
     @CurrentUser() user: SessionUser | null,
@@ -59,6 +63,9 @@ export class OrdersController {
 
   @Post('by-code/:code/cancel')
   @HttpCode(200)
+  // Mã đơn đoán được (AC-YYYY-6 số) + contact là SĐT/email — không throttle
+  // thì dò mã + SĐT phổ biến để hủy đơn người khác (audit HIGH-04).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   cancelByCode(
     @Param('code') code: string,
     @Body() body: { contact?: string },
