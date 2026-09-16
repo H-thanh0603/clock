@@ -69,6 +69,7 @@ const BASE_ORDER = {
   address: 'HCM',
   items: [BASE_ITEM],
   payment: { method: 'cod' },
+  agreedTerms: true,
 };
 
 describe('OrdersService.create', () => {
@@ -504,5 +505,31 @@ describe('OrdersService.cancel cross-format contact', () => {
     const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
     const r = await svc.cancelByCode('AC-2026-X', '+84901234567');
     expect(r.status).toBe('CANCELLED');
+  });
+});
+
+describe('OrdersService.create agreedTerms', () => {
+  it('thiếu consent → 400, không trừ kho/không tạo đơn', async () => {
+    const { prisma, created } = makePrisma();
+    const svc = new OrdersService(prisma, notifyStub);
+    const { agreedTerms: _drop, ...noConsent } = BASE_ORDER;
+    await expect(svc.create(noConsent, null)).rejects.toThrow(/đồng ý/);
+    expect(created).toHaveLength(0);
+  });
+
+  it('agreedTerms: false tường minh → 400', async () => {
+    const { prisma } = makePrisma();
+    const svc = new OrdersService(prisma, notifyStub);
+    await expect(
+      svc.create({ ...BASE_ORDER, agreedTerms: false }, null),
+    ).rejects.toThrow(/đồng ý/);
+  });
+
+  it('có consent → đơn lưu agreedTerms: true', async () => {
+    const { prisma, created } = makePrisma();
+    const svc = new OrdersService(prisma, notifyStub);
+    await svc.create(BASE_ORDER, null);
+    expect(created).toHaveLength(1);
+    expect((created[0] as { agreedTerms: boolean }).agreedTerms).toBe(true);
   });
 });

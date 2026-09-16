@@ -29,6 +29,9 @@ export default function Page() {
   } | null>(null);
   const [orderError, setOrderError] = useState("");
   const [pay, setPay] = useState("vnpay");
+  // Consent Điều khoản + Chính sách bảo mật — bắt buộc mới cho đặt hàng
+  // (BE validate + lưu agreedTerms vào đơn, P2-1).
+  const [agreed, setAgreed] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
   const [allowedMethods, setAllowedMethods] = useState<string[]>(["vnpay"]);
 
@@ -56,6 +59,12 @@ export default function Page() {
 
   const placeOrder = async () => {
     if (items.length === 0 || placed || processing) return;
+    if (!agreed) {
+      setOrderError(
+        "Quý khách cần đồng ý Điều khoản & Chính sách bảo mật trước khi đặt hàng."
+      );
+      return;
+    }
     setOrderError("");
     setProcessing("Tạo đơn & niêm ấn Vault...");
     // Idempotency-Key theo fingerprint giỏ: double-click/retry mạng cùng key
@@ -86,6 +95,7 @@ export default function Page() {
             qty: i.qty,
           })),
           payment: { method: pay },
+          agreedTerms: agreed,
         }),
       });
       const data = await res.json();
@@ -524,8 +534,19 @@ export default function Page() {
               Thông tin thượng khách được lưu trữ phân tán, chỉ giải mã duy nhất cho Concierge Officer phụ trách.
             </p>
 </div>
+{/* Consent Điều khoản + Chính sách bảo mật (bắt buộc — BE enforce) */}
+<label className="flex cursor-pointer items-start gap-space-sm rounded bg-surface-container-low p-space-sm text-left">
+<input checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-primary mt-1 h-4 w-4 shrink-0 cursor-pointer" type="checkbox"/>
+<span className="font-body-sm text-body-sm text-on-surface-variant">
+            Tôi đã đọc và đồng ý với{" "}
+<Link href="/legal/terms" className="text-primary underline hover:text-secondary">Điều khoản sử dụng</Link>
+            {" "}và{" "}
+<Link href="/legal/privacy" className="text-primary underline hover:text-secondary">Chính sách bảo mật</Link>
+            {" "}của Aurel &amp; Co., bao gồm việc lưu trữ thông tin liên lạc để concierge xác nhận đơn.
+          </span>
+</label>
 {/* Primary Gold Glowing CTA */}
-<button onClick={placeOrder} disabled={placed !== null || processing !== null || items.length === 0} className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all shadow-xl flex items-center justify-center gap-space-xs group disabled:opacity-50" type="button">
+<button onClick={placeOrder} disabled={placed !== null || processing !== null || items.length === 0 || !agreed} className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all shadow-xl flex items-center justify-center gap-space-xs group disabled:opacity-50" type="button">
 {processing ? (
             <span className="flex items-center gap-space-xs">
               <span className="w-4 h-4 rounded-full border-2 border-on-primary/40 border-t-on-primary animate-spin"></span>

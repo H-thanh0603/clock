@@ -50,6 +50,8 @@ export type CreateOrderInput = {
   slot?: string;
   items?: ItemInput[];
   payment?: { method?: string };
+  /** Tick đồng ý Điều khoản + Chính sách bảo mật — BE bắt buộc (P2-1). */
+  agreedTerms?: boolean;
 };
 
 export type CreateOrderOpts = {
@@ -217,6 +219,12 @@ export class OrdersService {
 
     if (!customerName || !contact || !address)
       throw new BadRequestException('Thiếu tên, liên lạc hoặc địa chỉ');
+    // Consent là điều kiện đặt hàng (Điều khoản + Chính sách bảo mật) —
+    // validate server-side, FE chỉ là UX (P2-1, Nghị định 13/2023).
+    if (input.agreedTerms !== true)
+      throw new BadRequestException(
+        'Bạn cần đồng ý Điều khoản & Chính sách bảo mật trước khi đặt hàng',
+      );
 
     // Idempotency-Key: request retry/double-click gửi cùng key → trả về đơn
     // đã tạo trước đó (không trừ kho lần 2). Key gắn với chủ sở hữu nên
@@ -380,6 +388,7 @@ export class OrdersService {
               totalVnd,
               paidUsd,
               paidVnd,
+              agreedTerms: true,
               items: { create: lines },
               payments: {
                 create: {

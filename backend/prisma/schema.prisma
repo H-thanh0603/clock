@@ -90,6 +90,9 @@ model Order {
   // Đã thu (deposit 20% hoặc full). Còn lại = total - paid.
   paidUsd      Int         @default(0)
   paidVnd      BigInt      @default(0)
+  // Khách đã tick đồng ý Điều khoản + Chính sách bảo mật lúc checkout
+  // (bằng chứng consent — Nghị định 13/2023). BE bắt buộc, không tin client.
+  agreedTerms  Boolean     @default(false)
   items        OrderItem[]
   payments     Payment[]
   events       OrderEvent[]
