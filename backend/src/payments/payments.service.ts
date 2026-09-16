@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
@@ -28,6 +29,8 @@ function frontendBaseUrl(): string {
 
 @Injectable()
 export class PaymentsService {
+  private readonly log = new Logger(PaymentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notify: NotifyService,
@@ -214,8 +217,13 @@ export class PaymentsService {
           contact: order.contact,
         });
       }
-    } catch {
-      // Thông báo không được làm hỏng callback thanh toán.
+    } catch (e) {
+      // Thông báo không được làm hỏng callback thanh toán — nhưng PHẢI log:
+      // catch câm từng làm invoice đơn tiền tỷ "bốc hơi" mà không ai hay
+      // (audit DATA-CRIT: Int overflow ở Invoice.amountVnd).
+      this.log.warn(
+        `notifyPaid(${code}) thất bại (đơn đã PAID, kiểm tra notify/invoice): ${(e as Error).message}`,
+      );
     }
   }
 

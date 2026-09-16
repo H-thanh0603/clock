@@ -248,7 +248,9 @@ model Invoice {
   number      String?  /// Số hóa đơn dạng AUR-YYYY-XXXXX sau khi phát hành
   externalRef String?  /// Mã tham chiếu nhà cung cấp e-invoice
   status      String   @default("PENDING_ISSUE")
-  amountVnd   Int
+  // BigInt: đơn flagship $145k × 25.200 = 3,65 tỷ VND, vượt trần Int32
+  // (2.147.483.647) — Int làm invoice đơn lớn throw âm thầm (audit DATA-CRIT).
+  amountVnd   BigInt
   buyerName   String
   buyerEmail String?
   createdAt   DateTime @default(now())

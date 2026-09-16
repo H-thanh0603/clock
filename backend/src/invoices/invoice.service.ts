@@ -74,7 +74,9 @@ export class InvoiceService {
         },
         body: JSON.stringify({
           orderRef: invoice.orderCode,
-          amount: invoice.amountVnd,
+          // amountVnd là BigInt (đơn lớn vượt Int32) — JSON.stringify(BigInt)
+          // throw TypeError nên phải đổi sang Number trước khi serialize.
+          amount: Number(invoice.amountVnd),
           currency: 'VND',
           buyer: {
             name: invoice.buyerName,
