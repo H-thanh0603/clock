@@ -12,8 +12,11 @@
 
 import { useEffect, useRef, useState, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { AGENT_HOST, SUGGESTIONS, useAgentChat } from "./useAgentChat";
 import type { AgentRole } from "@/lib/agent-events";
+import { apiUrl } from "@/lib/api-client";
+import { useCart } from "@/components/CartProvider";
 
 function SuggestionsChips({ suggestions, onPick }: { suggestions: string[]; onPick: (s: string) => void }) {
   if (!suggestions.length) return null;
@@ -38,7 +41,78 @@ type AlertRow = {
   title: string;
   detail: string;
   created_at: number;
+  data?: { product_id?: string } | null;
 };
+
+/**
+ * Nút "Thêm vào giỏ" ngay trong alert watch (G2-4): alert báo tin + hành
+ * động một chạm — chatbot chỉ báo tin. Dùng đúng addItem của CartProvider
+ * (khách vãng lai → giỏ local, đã login → sync server; giá chốt server-side
+ * theo slug nên không tin giá client).
+ */
+function WatchAddButton({ productId }: { productId: string }) {
+  const { addItem } = useCart();
+  const [state, setState] = useState<"idle" | "busy" | "added" | "error">("idle");
+
+  const add = async () => {
+    if (state === "busy" || state === "added") return;
+    setState("busy");
+    try {
+      const r = await fetch(apiUrl(`/products/${encodeURIComponent(productId)}`));
+      if (!r.ok) throw new Error("not-found");
+      const p = (await r.json()) as {
+        slug: string;
+        name: string;
+        priceUsd: number;
+        priceVnd: number;
+        cardImage?: string;
+        images?: string[];
+        strapLabel?: string;
+        inBoutique?: boolean;
+        stock?: number;
+      };
+      if (p.inBoutique === false || (p.stock ?? 1) <= 0) {
+        throw new Error("out-of-stock");
+      }
+      addItem({
+        slug: p.slug,
+        name: p.name,
+        priceUsd: p.priceUsd,
+        priceVnd: p.priceVnd,
+        image: p.cardImage ?? p.images?.[0] ?? "",
+        strap: p.strapLabel ?? "Tiêu chuẩn Atelier",
+      });
+      setState("added");
+    } catch {
+      setState("error");
+    }
+  };
+
+  if (state === "added") {
+    return (
+      <span className="font-body-sm text-body-sm text-primary">
+        Đã thêm ✓ ·{" "}
+        <Link href="/cart" className="underline hover:text-primary-hover">
+          Xem giỏ →
+        </Link>
+      </span>
+    );
+  }
+  return (
+    <span className="font-body-sm text-body-sm">
+      <button
+        onClick={add}
+        disabled={state === "busy"}
+        className="text-primary underline hover:text-primary-hover disabled:opacity-50"
+      >
+        {state === "busy" ? "Đang thêm…" : "Thêm vào giỏ →"}
+      </button>
+      {state === "error" && (
+        <span className="text-on-surface-variant/70"> (chiếc này hiện chưa bán được)</span>
+      )}
+    </span>
+  );
+}
 
 function AlertFeed({
   refreshKey,
@@ -113,9 +187,23 @@ function AlertFeed({
             <p className="font-body-sm text-body-sm text-on-surface">
               <span className="text-primary">{a.kind === "ticket" ? "ticket" : a.kind}</span>
               {" · "}
-              {a.title}
+              {a.data?.product_id ? (
+                <Link
+                  href={`/products/${encodeURIComponent(a.data.product_id)}`}
+                  className="underline decoration-primary/40 hover:text-primary"
+                >
+                  {a.title}
+                </Link>
+              ) : (
+                a.title
+              )}
             </p>
             <p className="font-body-sm text-body-sm text-on-surface-variant/70">{a.detail}</p>
+            {(a.kind === "restock" || a.kind === "price_drop") && a.data?.product_id && (
+              <p className="mt-1">
+                <WatchAddButton productId={a.data.product_id} />
+              </p>
+            )}
           </li>
         ))}
       </ul>
