@@ -248,6 +248,25 @@ export default function AgentChatPage() {
                     {u.node}
                   </div>
                 ))}
+                {/* Biên lai cuối turn: agent ĐÃ LÀM gì — chatbot không có
+                    thứ này để khoe (G1-1). Chỉ hiện khi turn xong và có việc. */}
+                {m.role === "assistant" && m.done && m.receipt.length > 0 && (
+                  <div className="mt-space-sm border-t border-outline-variant/15 p-space-md">
+                    <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+                      ✓ Đã làm trong lượt này
+                    </p>
+                    <ul className="mt-space-xs space-y-1">
+                      {m.receipt.map((line, ri) => (
+                        <li
+                          key={ri}
+                          className="font-body-sm text-body-sm text-on-surface-variant"
+                        >
+                          <span className="text-primary">✓</span> {line}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {!m.done && busy && (
                   <p className="p-space-md font-body-sm text-body-sm text-on-surface-variant animate-pulse">
                     ▍{statusLine ?? "đang suy nghĩ…"}

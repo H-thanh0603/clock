@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { csrfFetch } from "@/lib/api-client";
 import type { AgentEvent, AgentRole } from "@/lib/agent-events";
+import { buildReceipt } from "@/lib/agent-events";
 import { Card, StagedChangeCard, UxEvent, fmtUsd } from "./chat-widgets";
 
 export const AGENT_HOST =
@@ -20,6 +21,8 @@ export type Bubble = {
   text: string;
   ux: { id: number; node: ReactNode }[];
   done: boolean;
+  /** Biên lai cuối turn: agent đã LÀM gì (từ event stream, xem buildReceipt). */
+  receipt: string[];
 };
 
 export const SUGGESTIONS: Record<AgentRole, string[]> = {
@@ -79,7 +82,7 @@ export function useAgentChat() {
         {
           role: "assistant",
           text: "Cần đăng nhập trước khi cho concierge hành động hộ bạn.",
-          ux: [],
+          ux: [], receipt: [],
           done: true,
         },
       ]);
@@ -108,7 +111,7 @@ export function useAgentChat() {
           {
             role: "assistant",
             text: "Khu vực vận hành chỉ dành cho tài khoản admin. Hãy đăng nhập bằng tài khoản quản trị.",
-            ux: [],
+            ux: [], receipt: [],
             done: true,
           },
         ]);
@@ -118,11 +121,13 @@ export function useAgentChat() {
       setBusy(true);
       setMessages((m) => [
         ...m,
-        { role: "user", text, ux: [], done: true },
-        { role: "assistant", text: "", ux: [], done: false },
+        { role: "user", text, ux: [], receipt: [], done: true },
+        { role: "assistant", text: "", ux: [], receipt: [], done: false },
       ]);
 
       const controller = new AbortController();
+      // Thu event cả turn để dựng biên lai (cần ngoài try để catch dùng được).
+      const turnEvents: AgentEvent[] = [];
       try {
         // Merchant đi qua proxy server-side (giữ token + check admin);
         // shop chat công khai gọi thẳng host.
@@ -168,6 +173,7 @@ export function useAgentChat() {
             } catch {
               continue;
             }
+            turnEvents.push(ev);
             switch (ev.type) {
               case "session":
                 sessionIdRef.current = ev.session_id;
@@ -276,18 +282,26 @@ export function useAgentChat() {
                 break;
               case "turn_complete":
               case "done":
-                patch((b) => ({ ...b, done: true }));
+                patch((b) => ({ ...b, done: true, receipt: buildReceipt(turnEvents) }));
                 break;
             }
           }
         }
       } catch (e) {
+        // Turn lỗi giữa chừng vẫn giữ biên lai phần đã làm được (nếu có).
+        let partial: string[] = [];
+        try {
+          partial = buildReceipt(turnEvents);
+        } catch {
+          partial = [];
+        }
         setMessages((m) =>
           m.map((b, i) =>
             i === m.length - 1
               ? {
                   ...b,
                   done: true,
+                  receipt: partial,
                   text:
                     b.text +
                     `\n\n⚠ Không nối được agent host (${AGENT_HOST}). Kiểm tra agent host đang chạy (agent/README.md) và NEXT_PUBLIC_AGENT_URL.`,

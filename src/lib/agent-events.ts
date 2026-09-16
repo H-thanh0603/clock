@@ -206,3 +206,115 @@ export function parseSseBody(body: string): AgentEvent[] {
 export function agentPrice(p: AgentProduct): number {
   return p.priceUsd ?? p.price ?? 0;
 }
+
+/** Nhãn tiếng Việt cho tool vendor (dùng ở biên lai + status). */
+const TOOL_LABELS: Record<string, string> = {
+  search_products: "Tìm kiếm sản phẩm",
+  get_product_details: "Xem chi tiết sản phẩm",
+  get_cart: "Kiểm tra giỏ hàng",
+  add_to_cart: "Thêm vào giỏ hàng",
+  get_preferences: "Đọc sở thích đã nhớ",
+  get_orders: "Tra cứu đơn hàng",
+  get_order_status: "Tra cứu trạng thái đơn",
+  search_policies: "Tra cứu chính sách",
+  get_fulfillment_options: "Xem phương thức nhận hàng",
+  set_watch: "Đặt theo dõi",
+};
+
+function toolLabel(tool: string): string {
+  return TOOL_LABELS[tool] ?? tool.replace(/_/g, " ");
+}
+
+/**
+ * Biên lai cuối turn: từ event stream suy ra agent ĐÃ LÀM gì (không phải
+ * ĐÃ NÓI gì) — chatbot không có thứ này để khoe. Trả về mảng dòng ngắn gọn;
+ * mảng rỗng = turn tán gẫu thuần → không render gì.
+ *
+ * Ưu tiên số liệu giàu thông tin (tìm thấy N chiếc) hơn đếm tool thô
+ * (tìm kiếm N lần) để tránh dòng trùng ý.
+ */
+export function buildReceipt(events: AgentEvent[]): string[] {
+  const lines: string[] = [];
+  const toolCounts = new Map<string, number>();
+  let productsFound = 0;
+  let compared = 0;
+  let cartQty = 0;
+  let memoryCount = 0;
+  let watchSet = false;
+  let handoff = false;
+  let changeStaged = false;
+
+  for (const ev of events) {
+    if (!ev) continue;
+    if (ev.type === "tool_call") {
+      toolCounts.set(ev.tool, (toolCounts.get(ev.tool) ?? 0) + 1);
+    } else if (ev.type === "ui") {
+      if (ev.component === "present_products") {
+        productsFound += ev.payload.items?.length ?? 0;
+      } else if (ev.component === "present_comparison") {
+        compared += ev.payload.entries?.length ?? 0;
+      } else if (ev.component === "watch_confirmed") {
+        watchSet = true;
+      }
+    } else if (ev.type === "cart_update") {
+      cartQty = (ev.cart.items ?? []).reduce((s, it) => s + (it.quantity ?? 0), 0);
+    } else if (ev.type === "memory") {
+      memoryCount += ev.facts.length;
+    } else if (ev.type === "handoff") {
+      handoff = true;
+    } else if (ev.type === "change_update") {
+      changeStaged = true;
+    }
+  }
+
+  if (productsFound > 0) {
+    lines.push(`Đã tìm ${productsFound} chiếc phù hợp`);
+  } else {
+    const n = toolCounts.get("search_products") ?? 0;
+    if (n > 0) lines.push(n === 1 ? "Đã tìm kiếm sản phẩm" : `Đã tìm kiếm ${n} lần`);
+  }
+  const details = toolCounts.get("get_product_details") ?? 0;
+  if (details > 0) {
+    lines.push(details === 1 ? "Đã xem chi tiết 1 chiếc" : `Đã xem chi tiết ${details} chiếc`);
+  }
+  if (compared > 0) {
+    lines.push(`Đã so sánh ${compared} chiếc`);
+  }
+  if (cartQty > 0) {
+    lines.push(`Đã thêm ${cartQty} món vào giỏ`);
+  } else {
+    const n = toolCounts.get("add_to_cart") ?? 0;
+    if (n > 0) lines.push("Đã cập nhật giỏ hàng");
+  }
+  if (watchSet || (toolCounts.get("set_watch") ?? 0) > 0) {
+    lines.push("Đã đặt theo dõi (sẽ báo khi khớp điều kiện)");
+  }
+  const policyHits = toolCounts.get("search_policies") ?? 0;
+  if (policyHits > 0) lines.push("Đã tra cứu chính sách");
+  const orderHits =
+    (toolCounts.get("get_orders") ?? 0) + (toolCounts.get("get_order_status") ?? 0);
+  if (orderHits > 0) lines.push("Đã tra cứu đơn hàng");
+  if (memoryCount > 0) {
+    lines.push(memoryCount === 1 ? "Đã nhớ 1 điều về bạn" : `Đã nhớ ${memoryCount} điều về bạn`);
+  }
+  if (handoff) lines.push("Đã chuyển vụ việc cho vận hành");
+  if (changeStaged) lines.push("Đã đề xuất thay đổi (chờ người duyệt)");
+
+  // Các tool còn lại chưa có dòng riêng → gộp 1 dòng, tránh im lặng khó hiểu.
+  const covered = new Set([
+    "search_products",
+    "get_product_details",
+    "add_to_cart",
+    "set_watch",
+    "search_policies",
+    "get_orders",
+    "get_order_status",
+  ]);
+  const others: string[] = [];
+  for (const [tool, n] of toolCounts) {
+    if (!covered.has(tool)) others.push(n === 1 ? toolLabel(tool) : `${toolLabel(tool)} (${n})`);
+  }
+  if (others.length > 0) lines.push(`Đã thực hiện: ${others.join(" · ")}`);
+
+  return lines.slice(0, 7);
+}

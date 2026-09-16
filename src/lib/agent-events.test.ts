@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   agentPrice,
   applyEvent,
+  buildReceipt,
   emptyAccumulator,
   parseAgentEvent,
   parseSseBody,
@@ -111,5 +112,65 @@ describe("agentPrice", () => {
     expect(agentPrice({ slug: "a", name: "A", priceUsd: 100, price: 200 })).toBe(100);
     expect(agentPrice({ slug: "b", name: "B", price: 200 })).toBe(200);
     expect(agentPrice({ slug: "c", name: "C" })).toBe(0);
+  });
+});
+
+describe("buildReceipt — biên lai cuối turn", () => {
+  it("turn tìm + so + giỏ + nhớ → dòng giàu thông tin, đúng thứ tự", () => {
+    const evs = [
+      { type: "tool_call", tool: "search_products", id: "t1" },
+      { type: "tool_call", tool: "search_products", id: "t2" },
+      {
+        type: "ui",
+        component: "present_products",
+        payload: { items: [{ product: { slug: "a" } }, { product: { slug: "b" } }] },
+      },
+      { type: "tool_call", tool: "get_product_details", id: "t3" },
+      {
+        type: "ui",
+        component: "present_comparison",
+        payload: { entries: [{ product: { slug: "a" } }, { product: { slug: "b" } }] },
+      },
+      { type: "cart_update", cart: { items: [{ quantity: 1 }, { quantity: 2 }] } },
+      { type: "memory", facts: [{ fact: "thích 40mm" }, { fact: "vàng hồng" }] },
+      { type: "done" },
+    ];
+    expect(buildReceipt(evs as never)).toEqual([
+      "Đã tìm 2 chiếc phù hợp",
+      "Đã xem chi tiết 1 chiếc",
+      "Đã so sánh 2 chiếc",
+      "Đã thêm 3 món vào giỏ",
+      "Đã nhớ 2 điều về bạn",
+    ]);
+  });
+
+  it("turn tán gẫu thuần → mảng rỗng (không render gì)", () => {
+    expect(
+      buildReceipt([{ type: "text_delta", text: "chào" }, { type: "done" }] as never)
+    ).toEqual([]);
+  });
+
+  it("watch + handoff + policy + order lookup → đủ dòng", () => {
+    const evs = [
+      { type: "tool_call", tool: "set_watch", id: "t1" },
+      { type: "tool_call", tool: "search_policies", id: "t2" },
+      { type: "tool_call", tool: "get_orders", id: "t3" },
+      { type: "handoff", ticket_id: "t-1", message: "ok" },
+      { type: "done" },
+    ];
+    expect(buildReceipt(evs as never)).toEqual([
+      "Đã đặt theo dõi (sẽ báo khi khớp điều kiện)",
+      "Đã tra cứu chính sách",
+      "Đã tra cứu đơn hàng",
+      "Đã chuyển vụ việc cho vận hành",
+    ]);
+  });
+
+  it("tool lạ không im lặng — gộp vào dòng 'Đã thực hiện'", () => {
+    const evs = [
+      { type: "tool_call", tool: "get_cart", id: "t1" },
+      { type: "done" },
+    ];
+    expect(buildReceipt(evs as never)).toEqual(["Đã thực hiện: Kiểm tra giỏ hàng"]);
   });
 });
