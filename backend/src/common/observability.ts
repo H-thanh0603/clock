@@ -17,7 +17,18 @@ let initialized = false;
 
 export function initObservability(): void {
   const dsn = process.env.SENTRY_DSN;
-  if (!dsn) return; // Không cấu hình → noop hết, không tốn tài nguyên.
+  if (!dsn) {
+    // Không cấu hình → noop hết, không tốn tài nguyên. Nhưng ở production
+    // mà trống DSN thì lỗi 5xx chết chìm không ai hay — cảnh báo to để
+    // operator nhớ điền (P1-7; key điền sau, cảnh báo trước).
+    if (process.env.NODE_ENV === 'production') {
+      new Logger('Observability').error(
+        'SENTRY_DSN trống ở production — lỗi 5xx sẽ KHÔNG báo về đâu. ' +
+          'Điền DSN (sentry.io, miễn phí) trước khi nhận đơn thật.',
+      );
+    }
+    return;
+  }
   Sentry.init({
     dsn,
     environment: process.env.SENTRY_ENVIRONMENT ?? 'production',

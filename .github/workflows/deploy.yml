@@ -45,6 +45,8 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm --no-deps backend npx prisma migrate deploy
 
       # Bước 4: mới thay container — schema đã sẵn, code mới chạy ngay.
+      # Chỉ up service stateless + meili: KHÔNG đụng db/db-backup (tránh
+      # restart DB không cần thiết gây downtime ghi đơn).
       - name: Restart stack với ảnh mới
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -54,8 +56,23 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.VPS_DIR }}
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-            # Chờ healthcheck rồi in trạng thái; lỗi thì in log để debug.
-            sleep 10
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend agent caddy meilisearch
+            # Smoke test sau deploy (P1-7): backend + frontend phải sống thì
+            # deploy mới coi là xong. Fail ở đây = workflow đỏ, operator vào
+            # kiểm tra ngay (chưa auto-rollback — rollback tay theo PRODUCTION.md §6).
+            for i in $(seq 1 12); do
+              if docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T backend node -e "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" \
+                && docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T frontend node -e "fetch('http://localhost:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; then
+                echo "✅ smoke test pass (lần thử $i)"
+                break
+              fi
+              if [ "$i" = "12" ]; then
+                echo "❌ SMOKE TEST FAIL sau 2 phút — kiểm tra ngay!" >&2
+                docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+                docker compose -f docker-compose.prod.yml --env-file .env.prod logs backend --tail 50
+                docker compose -f docker-compose.prod.yml --env-file .env.prod logs frontend --tail 50
+                exit 1
+              fi
+              sleep 10
+            done
             docker compose -f docker-compose.prod.yml ps
-            docker compose -f docker-compose.prod.yml logs backend --tail 50

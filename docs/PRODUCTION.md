@@ -70,9 +70,11 @@ mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
 
 ## 6. Cập nhật / rollback
 
-- Cập nhật: `git pull && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build`
-  rồi `exec backend npx prisma migrate deploy`. (Sau khi có CI — mục P1.6 —
-  bước này tự động.)
+- Cập nhật tay (không qua CI): `git pull`, backup trước, migrate trước
+  (`run --rm --no-deps backend npx prisma migrate deploy`), rồi
+  `up -d --build backend frontend agent caddy meilisearch` — KHÔNG `up -d`
+  toàn file (tránh restart `db`/`db-backup` không cần thiết). Xong kiểm tra
+  smoke: backend `/health` + trang chủ 200 (CI deploy tự làm bước này).
 - Rollback: `docker compose ... up -d --build` lại ở commit cũ
   (`git checkout <sha>`). Migrate DOWN không tự động — chỉ rollback code
   khi migration mới tương thích ngược; ngược lại phải viết migration sửa.
