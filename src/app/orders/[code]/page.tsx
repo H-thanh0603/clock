@@ -5,6 +5,7 @@ import { formatUsd, formatVnd } from "@/data/products";
 import { ClearCartOnPaid } from "./ClearCartOnPaid";
 import { CancelGuestButton } from "./CancelGuestButton";
 import { ContactReveal } from "./ContactReveal";
+import { OrderStatusPoller } from "./OrderStatusPoller";
 
 const STATUS_VN: Record<string, string> = {
   PENDING: "Chờ xác nhận",
@@ -65,6 +66,11 @@ export default async function OrderSuccessPage({
               ? "VNPay đã xác nhận giao dịch. Concierge sẽ liên hệ bàn giao trong 2 giờ làm việc."
               : `Trạng thái hiện tại: ${STATUS_VN[order.status] ?? order.status}. Concierge sẽ liên hệ xác nhận trong 2 giờ làm việc.`}
           </p>
+          <OrderStatusPoller
+            code={order.code}
+            sig={sp.sig}
+            initialStatus={order.status}
+          />
           {full ? (
             <div className="mt-space-sm w-full space-y-space-xs border-t border-outline-variant/20 pt-space-md text-left">
               {order.items.map((i) => (
