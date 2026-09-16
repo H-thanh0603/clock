@@ -15,6 +15,7 @@ import {
   settlePayment,
   type SettleDeps,
 } from '../common/vnpay';
+import { signOrderCode } from '../orders/orders.service';
 
 function backendBaseUrl(): string {
   return (
@@ -171,7 +172,20 @@ export class PaymentsService {
     paid: boolean,
     reason?: string,
   ): string {
-    return `${frontendBaseUrl()}/orders/${code}?paid=${paid ? '1' : '0'}${reason ? `&reason=${reason}` : ''}`;
+    // Kèm sig xem đơn (HMAC mã đơn): trình duyệt landing từ VNPay không có
+    // session/contact nhưng vẫn xem được chi tiết đơn của chính mình (P1-6).
+    // Sig chỉ mở items+totals của ĐÚNG đơn này — không PII, không action.
+    const url =
+      `${frontendBaseUrl()}/orders/${code}?paid=${paid ? '1' : '0'}` +
+      `${reason ? `&reason=${reason}` : ''}`;
+    if (!code) return url;
+    try {
+      return `${url}&sig=${signOrderCode(code)}`;
+    } catch {
+      // Thiếu JWT_SECRET (cấu hình dở) → redirect không sig, trang tra đơn
+      // hiện trạng thái tối thiểu thay vì gãy hẳn.
+      return url;
+    }
   }
 
   /** VNPay redirect người dùng về đây sau thanh toán → redirect tiếp về frontend. */

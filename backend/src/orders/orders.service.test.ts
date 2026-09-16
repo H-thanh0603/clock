@@ -412,3 +412,97 @@ describe('OrdersService.create idempotency-key', () => {
     ).rejects.toThrow(/đã được dùng/);
   });
 });
+
+describe('OrdersService.byCode contact-verify + sig', () => {
+  const GUEST_ORDER = {
+    id: 'ord-g',
+    code: 'AC-2026-GUEST',
+    userId: null,
+    contact: '0901234567',
+    status: 'PENDING',
+    totalUsd: 1000,
+    totalVnd: BigInt(25200000),
+    paidUsd: 0,
+    paidVnd: BigInt(0),
+    items: [
+      {
+        id: 'li-1',
+        name: 'VIP',
+        priceUsd: 1000,
+        priceVnd: BigInt(25200000),
+        image: 'img',
+        strap: 's',
+        qty: 1,
+      },
+    ],
+  };
+  const fake = () => ({
+    order: {
+      findUnique: () => Promise.resolve({ ...GUEST_ORDER }),
+      findFirst: () => Promise.resolve(null),
+    },
+    idempotencyKey: { findUnique: () => Promise.resolve(null) },
+  });
+
+  it('không contact/sig → tối thiểu (không items/totals)', async () => {
+    const svc = new OrdersService(fake() as never, notifyStub);
+    const r = await svc.byCode('AC-2026-GUEST');
+    expect(r).toEqual({ code: 'AC-2026-GUEST', status: 'PENDING' });
+    expect(r).not.toHaveProperty('items');
+  });
+
+  it('contact khác cách viết (+84) → full chi tiết', async () => {
+    const svc = new OrdersService(fake() as never, notifyStub);
+    const r = await svc.byCode('AC-2026-GUEST', { contact: '+84901234567' });
+    expect(r).toHaveProperty('items');
+    expect((r as { totalUsd: number }).totalUsd).toBe(1000);
+  });
+
+  it('contact sai → tối thiểu', async () => {
+    const svc = new OrdersService(fake() as never, notifyStub);
+    const r = await svc.byCode('AC-2026-GUEST', { contact: '0909999999' });
+    expect(r).not.toHaveProperty('items');
+  });
+
+  it('sig hợp lệ → full; sig giả → tối thiểu', async () => {
+    const prev = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = 'test-jwt-secret-du-32-ky-tu-abcdef';
+    try {
+      const { signOrderCode } = await import('./orders.service');
+      const svc = new OrdersService(fake() as never, notifyStub);
+      const good = await svc.byCode('AC-2026-GUEST', {
+        sig: signOrderCode('AC-2026-GUEST'),
+      });
+      expect(good).toHaveProperty('items');
+      const bad = await svc.byCode('AC-2026-GUEST', { sig: '0'.repeat(32) });
+      expect(bad).not.toHaveProperty('items');
+    } finally {
+      if (prev === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = prev;
+    }
+  });
+});
+
+describe('OrdersService.cancel cross-format contact', () => {
+  it('SĐT lưu 090... hủy bằng +84... → thành công', async () => {
+    const order = {
+      id: 'ord-9',
+      status: 'PENDING',
+      userId: null,
+      contact: '0901234567',
+      items: [{ productSlug: 'vip-1', qty: 1 }],
+    };
+    const prisma = {
+      order: {
+        findUnique: () => Promise.resolve(order),
+        updateMany: () => Promise.resolve({ count: 1 }),
+      },
+      product: { updateMany: () => Promise.resolve({ count: 1 }) },
+      orderEvent: { create: () => Promise.resolve({}) },
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
+    };
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
+    const r = await svc.cancelByCode('AC-2026-X', '+84901234567');
+    expect(r.status).toBe('CANCELLED');
+  });
+});

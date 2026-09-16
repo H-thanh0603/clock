@@ -1,4 +1,4 @@
-import { createHash, randomInt } from 'crypto';
+import { createHash, createHmac, randomInt, timingSafeEqual } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -9,6 +9,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotifyService } from '../notify/notify.service';
 import { linePrice } from '../common/pricing';
+import { sameContact } from '../common/phone';
+import { sessionSecret } from '../common/session';
 
 const METHODS = ['centurion', 'escrow', 'deposit', 'vnpay', 'cod'] as const;
 // Method mô phỏng (giả lập thu tiền, không có rails thật). Ở production
@@ -69,6 +71,43 @@ function contactHash(contact: string): string {
     .update(contact.trim().toLowerCase())
     .digest('hex');
 }
+
+/**
+ * Chữ ký xem đơn (sig cho URL redirect VNPay): HMAC-SHA256 mã đơn bằng
+ * JWT_SECRET, cắt 32 hex. Người cầm link redirect (không đăng nhập, không
+ * nhớ SĐT) vẫn xem được chi tiết đơn của chính mình; kẻ ngoài không forge
+ * được nếu không có secret. Chỉ mở items+totals của ĐÚNG đơn đó — không
+ * PII, không action (không thay thế auth).
+ */
+export function signOrderCode(code: string): string {
+  return createHmac('sha256', sessionSecret())
+    .update(`aurel-code-view:${code}`)
+    .digest('hex')
+    .slice(0, 32);
+}
+
+/** Verify sig xem đơn — sai format/secret thiếu → false (fail-closed). */
+export function verifyOrderCode(code: string, sig: unknown): boolean {
+  const s = String(sig ?? '');
+  if (!/^[0-9a-f]{32}$/.test(s)) return false;
+  try {
+    return timingSafeEqual(
+      Buffer.from(signOrderCode(code), 'utf8'),
+      Buffer.from(s, 'utf8'),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export type ByCodeOpts = {
+  /** SĐT/email lúc đặt (so khớp mọi cách viết SĐT) — khách vãng lai. */
+  contact?: string;
+  /** userId từ session — chủ đơn đã đăng nhập. */
+  userId?: string | null;
+  /** Chữ ký xem đơn trong URL redirect VNPay (không login, không nhớ SĐT). */
+  sig?: string;
+};
 
 /** Shape trả về của tạo đơn (dùng chung cho đơn mới + replay idempotent). */
 export type CreateOrderResult = {
@@ -431,15 +470,22 @@ export class OrdersService {
   }
 
   /**
-   * Tra cứu công khai theo mã — chỉ trả trường tối thiểu để hiển thị
-   * (không lộ tên/SĐT/địa chỉ/userId), vì mã đơn dễ đoán.
+   * Tra cứu theo mã — chi tiết (items + totals) CHỈ cho người chứng minh
+   * được sở hữu: session chính chủ, contact khớp, hoặc sig trong URL
+   * redirect VNPay. Còn lại chỉ trả {code, status} (P1-6): mã đơn đoán được,
+   * trước đây ai cũng xem được món + tổng tiền của đơn người khác.
    */
-  async byCode(code: string) {
+  async byCode(code: string, opts: ByCodeOpts = {}) {
     const order = await this.prisma.order.findUnique({
       where: { code },
       include: { items: true },
     });
     if (!order) return null;
+    const owned =
+      (opts.userId != null && order.userId === opts.userId) ||
+      (opts.contact != null && sameContact(order.contact, opts.contact)) ||
+      verifyOrderCode(order.code, opts.sig);
+    if (!owned) return { code: order.code, status: order.status };
     return {
       code: order.code,
       status: order.status,
@@ -495,11 +541,10 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Không thấy đơn hàng');
     if (order.status !== 'PENDING')
       throw new BadRequestException('Chỉ hủy được đơn đang chờ xác nhận');
+    // So khớp mọi cách viết SĐT (+84/84/cách/gạch) + email hoa thường.
     const owned =
       (opts.userId && order.userId === opts.userId) ||
-      (opts.contact &&
-        order.contact.trim().toLowerCase() ===
-          opts.contact.trim().toLowerCase());
+      (opts.contact != null && sameContact(order.contact, opts.contact));
     if (!owned) throw new ForbiddenException('Không có quyền hủy đơn này');
 
     await this.prisma.$transaction(async (tx) => {

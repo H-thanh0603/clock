@@ -210,3 +210,21 @@ async def test_fulfillment_and_preferences(respx_mock):
     prefs = await st.get_preferences(ctx)
     assert prefs.display_name == "Agent Shopper"
     assert prefs.preferences["brand"] == "Aurel & Co."
+
+
+@pytest.mark.asyncio
+async def test_get_order_tolerates_minimal_bycode(respx_mock):
+    """BE by-code trả tối thiểu {code, status} cho người không sở hữu (P1-6)
+    → agent vẫn đọc được status, không crash vì thiếu items/totals."""
+    from shopping_agent import ShoppingSessionContext
+
+    st = make_storefront(respx_mock)
+    ctx = ShoppingSessionContext(session_id="s1", user_id="u1")
+    respx_mock.get(f"{BASE}/orders/by-code/AC-2026-999999").respond(
+        json={"code": "AC-2026-999999", "status": "PENDING"}
+    )
+    found = await st.get_order(ctx, "AC-2026-999999")
+    assert found is not None
+    assert found.order_id == "AC-2026-999999"
+    assert found.items == []
+    assert found.total == 0.0

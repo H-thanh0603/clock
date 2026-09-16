@@ -49,8 +49,20 @@ export class OrdersController {
 
   @Get('by-code/:code')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  async byCode(@Param('code') code: string) {
-    const order = await this.orders.byCode(code);
+  @UseGuards(OptionalSessionGuard)
+  async byCode(
+    @Param('code') code: string,
+    @Query('contact') contact?: string,
+    @Query('sig') sig?: string,
+    @CurrentUser() user?: SessionUser | null,
+  ) {
+    // Chi tiết chỉ cho chính chủ (session/contact/sig) — còn lại BE trả
+    // {code, status} tối thiểu (P1-6).
+    const order = await this.orders.byCode(code, {
+      contact,
+      sig,
+      userId: user?.id ?? null,
+    });
     if (!order) throw new NotFoundException('Không thấy đơn hàng');
     return order;
   }

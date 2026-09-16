@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getOrderByCode } from "@/lib/orders";
+import { getOrderByCode, isOrderFull } from "@/lib/orders";
 import { formatUsd, formatVnd } from "@/data/products";
 import { ClearCartOnPaid } from "./ClearCartOnPaid";
 import { CancelGuestButton } from "./CancelGuestButton";
+import { ContactReveal } from "./ContactReveal";
 
 const STATUS_VN: Record<string, string> = {
   PENDING: "Chờ xác nhận",
@@ -12,6 +13,7 @@ const STATUS_VN: Record<string, string> = {
   SHIPPED: "Đang vận chuyển",
   COMPLETED: "Hoàn tất",
   CANCELLED: "Đã hủy",
+  REFUNDED: "Đã hoàn tiền",
 };
 
 export default async function OrderSuccessPage({
@@ -19,12 +21,16 @@ export default async function OrderSuccessPage({
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ paid?: string; reason?: string }>;
+  searchParams: Promise<{ paid?: string; reason?: string; sig?: string }>;
 }) {
   const { code } = await params;
   const sp = await searchParams;
-  const order = await getOrderByCode(code);
+  // sig từ URL redirect VNPay (không login/nhớ SĐT vẫn xem được đơn mình).
+  // Không sig + không session chính chủ → BE trả tối thiểu, trang hiện
+  // trạng thái + form nhập contact để reveal (P1-6).
+  const order = await getOrderByCode(code, { sig: sp.sig });
   if (!order) notFound();
+  const full = isOrderFull(order);
 
   const paid = sp.paid === "1";
 
@@ -59,28 +65,32 @@ export default async function OrderSuccessPage({
               ? "VNPay đã xác nhận giao dịch. Concierge sẽ liên hệ bàn giao trong 2 giờ làm việc."
               : `Trạng thái hiện tại: ${STATUS_VN[order.status] ?? order.status}. Concierge sẽ liên hệ xác nhận trong 2 giờ làm việc.`}
           </p>
-          <div className="mt-space-sm w-full space-y-space-xs border-t border-outline-variant/20 pt-space-md text-left">
-            {order.items.map((i) => (
-              <div
-                key={i.id}
-                className="font-body-sm text-body-sm flex items-center justify-between gap-space-sm"
-              >
-                <span className="text-on-surface">
-                  {i.name}{" "}
-                  <span className="text-on-surface-variant/70">× {i.qty}</span>
-                </span>
-                <span className="text-on-surface-variant">
-                  {formatUsd(i.priceUsd * i.qty)}
+          {full ? (
+            <div className="mt-space-sm w-full space-y-space-xs border-t border-outline-variant/20 pt-space-md text-left">
+              {order.items.map((i) => (
+                <div
+                  key={i.id}
+                  className="font-body-sm text-body-sm flex items-center justify-between gap-space-sm"
+                >
+                  <span className="text-on-surface">
+                    {i.name}{" "}
+                    <span className="text-on-surface-variant/70">× {i.qty}</span>
+                  </span>
+                  <span className="text-on-surface-variant">
+                    {formatUsd(i.priceUsd * i.qty)}
+                  </span>
+                </div>
+              ))}
+              <div className="font-body-md text-body-md flex items-center justify-between pt-space-xs">
+                <span className="text-on-surface">Tổng quyết toán</span>
+                <span className="font-display text-xl text-primary">
+                  {formatUsd(order.totalUsd)} (~{formatVnd(Number(order.totalVnd))})
                 </span>
               </div>
-            ))}
-            <div className="font-body-md text-body-md flex items-center justify-between pt-space-xs">
-              <span className="text-on-surface">Tổng quyết toán</span>
-              <span className="font-display text-xl text-primary">
-                {formatUsd(order.totalUsd)} (~{formatVnd(Number(order.totalVnd))})
-              </span>
             </div>
-          </div>
+          ) : (
+            <ContactReveal code={order.code} />
+          )}
           <div className="mt-space-md flex flex-wrap justify-center gap-space-sm">
             <Link
               href="/collections"

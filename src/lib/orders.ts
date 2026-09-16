@@ -48,15 +48,41 @@ export type OrderDto = {
   events?: OrderEventDto[];
 };
 
-/** Chi tiết đơn theo mã (public, trường tối thiểu). null = không thấy. */
-export async function getOrderByCode(code: string): Promise<OrderDto | null> {
+/** Tra cứu tối thiểu khi chưa chứng minh sở hữu (chỉ code + status). */
+export type OrderMinimal = {
+  code: string;
+  status: string;
+};
+
+/**
+ * Chi tiết đơn theo mã — BE chỉ trả full (items + totals) cho chính chủ
+ * (session/contact/sig), còn lại trả OrderMinimal. opt:
+ * - sig: chữ ký trong URL redirect VNPay (giữ nguyên từ query).
+ * - contact: SĐT/email lúc đặt (nhập tay ở form reveal).
+ * null = không thấy đơn.
+ */
+export async function getOrderByCode(
+  code: string,
+  opt: { sig?: string; contact?: string } = {}
+): Promise<OrderDto | OrderMinimal | null> {
   try {
-    return await apiJson<OrderDto>(
-      `/orders/by-code/${encodeURIComponent(code)}`
+    const qs = new URLSearchParams();
+    if (opt.sig) qs.set("sig", opt.sig);
+    if (opt.contact) qs.set("contact", opt.contact);
+    const q = qs.toString();
+    return await apiJson<OrderDto | OrderMinimal>(
+      `/orders/by-code/${encodeURIComponent(code)}${q ? `?${q}` : ""}`
     );
   } catch {
     return null;
   }
+}
+
+/** Type guard: response có chi tiết món + tổng tiền không. */
+export function isOrderFull(
+  o: OrderDto | OrderMinimal
+): o is OrderDto {
+  return Array.isArray((o as OrderDto).items);
 }
 
 /** Đơn của user đang đăng nhập — phân trang server-side. null = chưa đăng nhập. */
