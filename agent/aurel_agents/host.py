@@ -132,11 +132,12 @@ def _check_budget(session_id: str, per_day: int) -> None:
         return
     key = _budget_key(session_id)
     if _turn_counts.get(key, 0) >= per_day:
+        # KHÔNG gợi ý "mở phiên mới" ở đây — đó là đường bypass cap tiền
+        # (audit HIGH-05): attacker script mở session mới là có thêm quota.
         raise HTTPException(
             status_code=429,
             detail=(
-                f"Phiên chat đã dùng hết {per_day} lượt/ngày — quay lại ngày mai "
-                "hoặc mở phiên mới (mỗi phiên có cap riêng)."
+                f"Phiên chat đã dùng hết {per_day} lượt/ngày — quay lại ngày mai."
             ),
         )
     _turn_counts[key] = _turn_counts.get(key, 0) + 1
@@ -146,11 +147,49 @@ def _new_session_id() -> str:
     return uuid.uuid4().hex
 
 
-def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
+def client_ip_from_headers(
+    forwarded: str | None, fallback: str, hops: int = 1,
+) -> str:
+    """IP client từ X-Forwarded-For — lấy entry do proxy tin cậy append.
+
+    Chuỗi XFF có dạng [client, proxy1, ..., proxyN] với proxyN gần host
+    nhất (Caddy append IP nó thấy vào CUỐI). Lấy entry ĐẦU như trước đây
+    cho phép attacker tự đặt IP bằng 1 header gửi kèm → bypass rate-limit
+    theo IP + đầu độc bucket của người khác (audit HIGH-05). Lấy entry ở
+    vị trí [-hops] (mặc định 1 = entry cuối = IP Caddy nhìn thấy).
+    """
     if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+        if parts:
+            idx = max(0, len(parts) - max(1, hops))
+            return parts[idx]
+    return fallback or "unknown"
+
+
+def _client_ip(request: Request) -> str:
+    fallback = request.client.host if request.client else "unknown"
+    try:
+        hops = get_settings().trust_proxy_hops
+    except Exception:
+        hops = 1
+    return client_ip_from_headers(
+        request.headers.get("x-forwarded-for"), fallback, hops
+    )
+
+
+def ensure_merchant_token(settings) -> None:
+    """Fail-fast khi prod yêu cầu token merchant mà env còn trống.
+
+    Không có hàm này, deploy prod quên AGENT_MERCHANT_TOKEN → mọi endpoint
+    /merchant/* + /alerts mở công khai mà không ai hay (audit SEC-CRIT-01).
+    """
+    if getattr(settings, "merchant_token_required", False) and not getattr(
+        settings, "merchant_token", None
+    ):
+        raise RuntimeError(
+            "AGENT_REQUIRE_MERCHANT_TOKEN=1 nhưng AGENT_MERCHANT_TOKEN trống — "
+            "từ chối khởi động để không mở endpoint merchant ra Internet."
+        )
 
 
 def _check_rate(request: Request, per_min: int) -> None:
@@ -225,6 +264,9 @@ def _persist_merchant_ledger() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
+    # Prod yêu cầu token merchant mà env trống → chết ngay khi khởi động,
+    # không phục vụ 1 giây nào ở trạng thái mở toang.
+    ensure_merchant_token(settings)
     logger.info("Agent host: backend=%s model=%s", settings.backend_url, settings.model)
     _monitor._settings = settings  # noqa: SLF001 — wire settings khi startup
     # Single-instance guard: store JSON là single-writer — instance thứ 2
@@ -502,7 +544,7 @@ async def index() -> dict:
             "merchant_changes": "GET /merchant/changes",
             "merchant_approve": "POST /merchant/changes/{id}/approve",
             "merchant_discard": "POST /merchant/changes/{id}/discard",
-            "alerts": "GET /alerts?limit=50 — feed proactive agent",
+            "alerts": "GET /alerts?limit=50 — feed ops (token); scope=shop&session_id=... cho feed watch của khách",
             "shop_watches": "GET /shop/watches?session_id=... — watch active của session",
             "shop_watch_cancel": "POST /shop/watches/{id}/cancel",
             "monitor_run": "POST /shop/monitor/run — chạy 1 vòng monitor ngay",
@@ -605,15 +647,47 @@ async def merchant_discard(change_id: str, request: Request) -> dict:
 # --- proactive endpoints (feed + watch + monitor) -------------------------------------
 
 
+# Loại alert thuộc về shopper (thông báo watch của chính họ) — được xem
+# không cần token. Mọi loại còn lại (low_stock/pending_orders/ticket/
+# be_status) là dữ liệu vận hành → chỉ feed ops (token).
+SHOP_ALERT_KINDS = frozenset({"restock", "price_drop"})
+
+
+def shop_alerts_for(alerts: list, user_id: str) -> list:
+    """Lọc alert watch thuộc đúng 1 shopper (thuần, test được)."""
+    out = []
+    for a in alerts:
+        kind = getattr(a, "kind", None)
+        data = getattr(a, "data", None) or {}
+        if kind in SHOP_ALERT_KINDS and data.get("user_id") == user_id:
+            out.append(a)
+    return out
+
+
 @app.get("/alerts")
-async def alerts(limit: int = 50, request: Request = None) -> dict:  # noqa: B008 — FastAPI inject
+async def alerts(  # noqa: B008 — FastAPI inject
+    limit: int = 50,
+    scope: str = "ops",
+    session_id: str = "",
+    request: Request = None,
+) -> dict:
     """Alert feed: agent tự phát hiện (watch khách, tồn kho, PENDING, ticket).
 
-    Chứa số liệu vận hành + nội dung khiếu nại → bảo vệ bằng x-agent-token
-    khi AGENT_MERCHANT_TOKEN đặt (tab Vận hành của FE gửi kèm).
+    - ``scope=shop&session_id=...``: chỉ alert restock/price_drop CỦA CHÍNH
+      session (khách xem thông báo watch của mình) — không cần token.
+    - Mặc định (ops): toàn feed, chứa số liệu vận hành + nội dung khiếu nại
+      → bảo vệ bằng x-agent-token khi AGENT_MERCHANT_TOKEN đặt.
     """
-    _check_merchant_auth(request)
     safe_limit = max(1, min(limit, 200))
+    if scope == "shop":
+        sid = sanitize_session_id(session_id)
+        user_id = f"shopper:{sid[:8]}"
+        items = shop_alerts_for(_alert_feed.recent(200), user_id)[-safe_limit:][::-1]
+        return {
+            "alerts": [a.model_dump(mode="json") for a in items],
+            "monitor_last_run": _monitor.last_run,
+        }
+    _check_merchant_auth(request)
     return {
         "alerts": [a.model_dump(mode="json") for a in _alert_feed.recent(safe_limit)],
         "monitor_last_run": _monitor.last_run,

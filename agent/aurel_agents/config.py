@@ -65,6 +65,14 @@ class Settings:
     # prod-hardening (optional, bỏ trống = tắt để tương thích dev cũ)
     # AGENT_MERCHANT_TOKEN: nếu đặt, /merchant/* yêu cầu header x-agent-token.
     merchant_token: str | None = None
+    # Fail-closed: =True thì host từ chối khởi động khi thiếu
+    # AGENT_MERCHANT_TOKEN (tránh deploy prod quên token → merchant mở toang).
+    # Dev giữ False; compose prod set =1.
+    merchant_token_required: bool = False
+    # Số proxy tin cậy trước host (Caddy = 1): IP client lấy từ entry
+    # X-Forwarded-For ở vị trí [-hops] (proxy append IP thật vào CUỐI).
+    # Lấy entry đầu như trước đây cho phép giả IP bằng 1 header.
+    trust_proxy_hops: int = 1
     # Rate limit chat: số request/phút/IP (0 = tắt).
     chat_rate_limit_per_min: int = 60
     # Budget model mỗi round (upstream mặc định 2048 — thinking + reply chung).
@@ -100,6 +108,8 @@ class Settings:
             host=os.getenv("AGENT_HOST") or "127.0.0.1",
             port=int(os.getenv("AGENT_PORT") or 8100),
             merchant_token=os.getenv("AGENT_MERCHANT_TOKEN") or None,
+            merchant_token_required=os.getenv("AGENT_REQUIRE_MERCHANT_TOKEN") == "1",
+            trust_proxy_hops=max(1, int(os.getenv("AGENT_TRUST_PROXY_HOPS") or 1)),
             chat_rate_limit_per_min=int(os.getenv("AGENT_CHAT_RATE_LIMIT_PER_MIN") or 60),
             max_tokens=int(os.getenv("AGENT_MAX_TOKENS") or 2048),
             request_timeout_s=float(os.getenv("AGENT_REQUEST_TIMEOUT_S") or 120.0),

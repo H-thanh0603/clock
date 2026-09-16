@@ -197,3 +197,101 @@ def test_host_merchant_token_guard(monkeypatch):
     finally:
         monkeypatch.delenv("AGENT_MERCHANT_TOKEN", raising=False)
         get_settings.cache_clear()
+
+
+def test_client_ip_takes_last_hop():
+    """XFF 'spoofed, real' sau 1 proxy tin cậy → IP là entry cuối.
+
+    Lấy entry đầu như trước đây cho phép attacker đặt IP tùy ý bằng
+    1 header → bypass rate-limit + đầu độc bucket người khác.
+    """
+    from aurel_agents.host import client_ip_from_headers
+
+    assert (
+        client_ip_from_headers("1.2.3.4, 203.0.113.77", "9.9.9.9", hops=1)
+        == "203.0.113.77"
+    )
+    # 2 proxy tin cậy (CDN → Caddy): bỏ 2 entry cuối.
+    assert (
+        client_ip_from_headers("1.2.3.4, 203.0.113.77, 10.0.0.1", "x", hops=2)
+        == "203.0.113.77"
+    )
+    # Không có header → fallback socket peer.
+    assert client_ip_from_headers(None, "10.0.0.9") == "10.0.0.9"
+    assert client_ip_from_headers("", "10.0.0.9") == "10.0.0.9"
+    assert client_ip_from_headers(None, "") == "unknown"
+
+
+def test_ensure_merchant_token_fail_closed():
+    """REQUIRE=1 mà token trống → từ chối khởi động (không phục vụ mở toang)."""
+    from types import SimpleNamespace
+
+    import pytest
+
+    from aurel_agents.host import ensure_merchant_token
+
+    with pytest.raises(RuntimeError):
+        ensure_merchant_token(
+            SimpleNamespace(merchant_token_required=True, merchant_token=None)
+        )
+    with pytest.raises(RuntimeError):
+        ensure_merchant_token(
+            SimpleNamespace(merchant_token_required=True, merchant_token="")
+        )
+    # Dev (không require) và prod đủ token → qua.
+    ensure_merchant_token(
+        SimpleNamespace(merchant_token_required=False, merchant_token=None)
+    )
+    ensure_merchant_token(
+        SimpleNamespace(merchant_token_required=True, merchant_token="s3cret")
+    )
+
+
+def test_shop_alerts_for_filters_by_user_and_kind():
+    """Feed shop chỉ chứa restock/price_drop CỦA CHÍNH session."""
+    from types import SimpleNamespace
+
+    from aurel_agents.host import SHOP_ALERT_KINDS, shop_alerts_for
+
+    assert SHOP_ALERT_KINDS == frozenset({"restock", "price_drop"})
+
+    def mk(kind, user):
+        return SimpleNamespace(kind=kind, data={"user_id": user})
+    alerts = [
+        mk("restock", "shopper:aaaa"),
+        mk("price_drop", "shopper:aaaa"),
+        mk("restock", "shopperbbbb"),
+        mk("low_stock", "shopper:aaaa"),
+        mk("ticket", "shopper:aaaa"),
+        mk("pending_orders", "shopper:aaaa"),
+    ]
+    mine = shop_alerts_for(alerts, "shopper:aaaa")
+    assert len(mine) == 2
+    assert {a.kind for a in mine} == {"restock", "price_drop"}
+
+
+def test_alerts_shop_scope_public_but_filtered():
+    """GET /alerts?scope=shop không cần token nhưng chỉ trả alert của mình."""
+    from fastapi.testclient import TestClient
+
+    import aurel_agents.host as host
+
+    client = TestClient(host.app)
+    # Publish trực tiếp vào feed module-level rồi dọn (tránh rò rỉ state).
+    feed = host._alert_feed
+    before = len(feed.all())
+    mine = feed.publish("restock", "Về hàng", "chi tiết", {"user_id": "shopper:deadbeef"})
+    other = feed.publish("restock", "Về hàng", "chi tiết", {"user_id": "shopper:otherusr"})
+    ops = feed.publish("low_stock", "Tồn kho thấp", "chi tiết", {})
+    try:
+        r = client.get("/alerts", params={"scope": "shop", "session_id": "deadbeef99"})
+        assert r.status_code == 200
+        ids = {a["alert_id"] for a in r.json()["alerts"]}
+        assert mine.alert_id in ids
+        assert other.alert_id not in ids
+        assert ops.alert_id not in ids
+    finally:
+        feed.remove(mine.alert_id, "alert_id")
+        feed.remove(other.alert_id, "alert_id")
+        feed.remove(ops.alert_id, "alert_id")
+        assert len(feed.all()) == before
