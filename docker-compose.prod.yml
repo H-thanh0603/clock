@@ -132,6 +132,8 @@ services:
       PGUSER: ${POSTGRES_USER:-postgres}
       PGDATABASE: ${POSTGRES_DB:-aurel}
       KEEP: ${BACKUP_KEEP:-14}
+      # Passthrough cho scripts/offsite-backup.sh đọc (không dùng trong container).
+      OFFSITE_REMOTE: ${OFFSITE_REMOTE:-}
     entrypoint:
       - /bin/sh
       - -c

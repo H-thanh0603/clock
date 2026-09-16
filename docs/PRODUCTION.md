@@ -70,14 +70,25 @@ Stack prod có sẵn service `db-backup` chạy sẵn trong compose (không cầ
 crontab VPS): pg_dump mỗi sáng 02:00, giữ 14 bản (`BACKUP_KEEP`), file nằm
 ở `./backups/` trên host. Xem log: `docker compose ... logs db-backup`.
 
-Tùy chọn thêm cron rsync nếu vẫn muốn nhân bản ra chỗ khác:
+**Offsite (bắt buộc khi có data khách thật):** backup cùng ổ VPS với DB —
+mất ổ là mất cả hai. Điền `OFFSITE_REMOTE` (rclone remote, vd
+`b2:aurel-backups`) vào `.env.prod`, cài rclone 1 lần (`rclone config`),
+rồi cron đẩy bản mới nhất mỗi sáng:
 
 ```cron
-0 3 * * * rsync -a /opt/clock/backups/ backup-host:/srv/aurel-backups/
+0 3 * * * /opt/clock/scripts/offsite-backup.sh "-f docker-compose.prod.yml --env-file .env.prod"
 ```
 
-Đồng bộ `backups/` ra chỗ khác (rsync/S3) — backup cùng ổ đĩa với DB thì
-mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
+Chưa đặt `OFFSITE_REMOTE` thì script bỏ qua êm (backup local vẫn giữ).
+
+**Restore drill (mỗi quý 1 lần):** backup chưa restore thử = chưa có backup.
+Sidecar tự verify ~tuần 1 lần (restore vào DB scratch + so số bảng). Ngoài
+ra nên drill tay trên DB rỗng mỗi quý:
+
+```bash
+./scripts/restore-db.sh backups/aurel-YYYYMMDD-HHMMSS.sql.gz "-f docker-compose.prod.yml --env-file .env.prod"
+# nhập DELETE để xác nhận → kiểm tra đếm đơn/user → migrate deploy nếu schema cũ
+```
 
 ## 6. Cập nhật / rollback
 
@@ -104,7 +115,19 @@ mất ổ là mất cả hai. Test restore mỗi quý trên DB rỗng.
   Rồi `up -d --build backend frontend`. Bỏ trống cả 2 = noop an toàn.
   Sentry cảnh báo email/Slack ngay khi có lỗi mới — không cần ai trông 24/7.
 
-## 7. Media tĩnh qua CDN (R2/S3 + domain riêng, optional)
+## 8. Xoay secret (khi lộ / nhân sự nghỉ)
+
+Chi tiết ma trận xem `docs/AGENT-PERMISSIONS.md` §6. Tóm tắt thao tác:
+
+| Lộ gì | Làm gì |
+|---|---|
+| Session user / nhân sự nghỉ | Đổi pass user đó (hoặc admin đổi role về CUSTOMER) → `tokenVersion++` giết mọi token cũ ngay |
+| `AGENT_MERCHANT_TOKEN` | Đổi token trong `.env.prod` + restart host agent; token cũ chết ngay |
+| `AGENT_API_KEY` | Xoay ở provider + `agent/.env`, restart host |
+| `JWT_SECRET` | Xoay + restart BE (mọi session/delegation/sig chết cùng lúc — chấp nhận, báo user đăng nhập lại) |
+| `VNPAY_HASH_SECRET` | Đổi ở portal + `.env.prod`, restart BE (xem §4 mục 6) |
+
+## 9. Media tĩnh qua CDN (R2/S3 + domain riêng, optional)
 
 Video hero (mp4 nặng) + ảnh catalog đang serve từ chính VPS — vài nghìn
 lượt xem là hết băng thông. FE đã hỗ trợ prefix qua
@@ -124,7 +147,7 @@ local như cũ, có giá trị = mọi `/images/*` + video hero trỏ sang CDN.
    (đặt cũng vô nghĩa — autoplay vẫn tải). Tiết kiệm thật đến từ CDN
    (băng thông VPS), không phải từ bớt byte (trình duyệt vẫn cần byte đó).
 
-## 8. Các dịch vụ tùy chọn (đều có fallback an toàn khi bỏ trống)
+## 10. Các dịch vụ tùy chọn (đều có fallback an toàn khi bỏ trống)
 
 - **Ảnh upload**: điền `S3_*` trong `.env.prod` để lưu ảnh lên S3/R2/MinIO;
   bỏ trống = lưu disk volume `uploads/` (vẫn an toàn vì có volume mount).
