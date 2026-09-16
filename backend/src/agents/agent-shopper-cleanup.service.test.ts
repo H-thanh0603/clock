@@ -51,3 +51,25 @@ describe('AgentShopperCleanupService', () => {
     expect(deleted).toEqual([]);
   });
 });
+
+describe('AgentShopperCleanupService race', () => {
+  it('đơn tạo đúng lúc xóa (FK) → bỏ qua user đó, vẫn dọn user khác', async () => {
+    const deleted: string[] = [];
+    const prisma = {
+      user: {
+        findMany: async () => [
+          { id: 'race-1', email: 'shop+race@x' },
+          { id: 'ok-1', email: 'shop+ok@x' },
+        ],
+        delete: async ({ where }: { where: { id: string } }) => {
+          if (where.id === 'race-1')
+            throw new Error('FK constraint: đơn vừa được tạo');
+          deleted.push(where.id);
+        },
+      },
+    };
+    const svc = new AgentShopperCleanupService(prisma as never);
+    expect(await svc.cleanup()).toBe(1);
+    expect(deleted).toEqual(['ok-1']);
+  });
+});

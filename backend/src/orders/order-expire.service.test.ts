@@ -62,6 +62,50 @@ const H = 3600_000;
 const old = new Date(Date.now() - 48 * H);
 const fresh = new Date(Date.now() - 1 * H);
 
+describe('OrderExpireService race với settle/admin', () => {
+  it('đơn đọc thấy PENDING nhưng thua conditional update → bỏ qua, không hoàn kho', async () => {
+    const restocked = new Map<string, number>();
+    const events: unknown[] = [];
+    const prisma = {
+      order: {
+        // findMany vẫn trả đơn (đọc trước), nhưng updateMany thua race
+        // (settle/admin đã đổi trạng thái trước) → count 0.
+        findMany: () =>
+          Promise.resolve([
+            {
+              id: 'o-race',
+              code: 'AC-RACE',
+              items: [{ productSlug: 'vip-1', qty: 1 }],
+            },
+          ]),
+        updateMany: () => Promise.resolve({ count: 0 }),
+      },
+      product: {
+        updateMany: ({
+          where,
+        }: {
+          where: { slug: string };
+        }) => {
+          restocked.set(where.slug, (restocked.get(where.slug) ?? 0) + 1);
+          return Promise.resolve({ count: 1 });
+        },
+      },
+      orderEvent: {
+        create: (a: unknown) => {
+          events.push(a);
+          return Promise.resolve({});
+        },
+      },
+      idempotencyKey: { deleteMany: () => Promise.resolve({ count: 0 }) },
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
+    };
+    const svc = new OrderExpireService(prisma as unknown as PrismaService);
+    expect(await svc.expirePending()).toBe(0);
+    expect(restocked.size).toBe(0);
+    expect(events).toHaveLength(0);
+  });
+});
+
 describe('OrderExpireService.expirePending', () => {
   it('đơn PENDING quá 24h → hủy + hoàn kho + event; đơn mới không bị động', async () => {
     const { prisma, restocked, events } = makePrisma([
