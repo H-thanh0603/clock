@@ -229,6 +229,30 @@ export function StagedChangeCard({ change }: { change: StagedChangeSnapshot }) {
     </Card>
   );
 }
+/**
+ * Chip "Đã nhớ" — memory fact agent vừa lưu (G1-2). Viết ra mặt để khách
+ * THẤY concierge nhớ mình, thay vì nhớ âm thầm. Mỗi fact 1 dòng gọn.
+ */
+export function MemoryChip({ facts }: { facts: string[] }) {
+  if (!facts.length) return null;
+  return (
+    <Card className="border-primary/40">
+      <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+        ✦ Đã nhớ về bạn
+      </p>
+      <ul className="mt-space-sm space-y-1">
+        {facts.map((f, i) => (
+          <li key={i} className="font-body-sm text-body-sm text-on-surface">
+            <span className="text-primary">✦</span> {f}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/70">
+        Concierge sẽ dùng những điều này cho lần tư vấn sau — kể cả khi bạn quay lại sau.
+      </p>
+    </Card>
+  );
+}
 export function UxEvent({ event }: { event: Extract<AgentEvent, { type: "ui" }> }) {
   switch (event.component) {
     case "present_products":

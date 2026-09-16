@@ -17,7 +17,9 @@ export type AgentEvent =
   | { type: "ui"; component: string; payload: UxPayload }
   | { type: "cart_update"; cart: CartSnapshot }
   | { type: "change_update"; change: StagedChangeSnapshot }
-  | { type: "memory"; facts: { fact: string }[] }
+  // memory: vendor trả MemoryFact {key, value} qua model_dump(); giữ
+  // {fact} cho tương thích event cũ — đọc bằng memoryFactText().
+  | { type: "memory"; facts: { fact?: string; key?: string; value?: string }[] }
   | { type: "handoff"; ticket_id: string; message: string }
   | { type: "delegation_expired"; message: string }
   | { type: "turn_complete"; stop_reason: string; usage?: unknown }
@@ -169,7 +171,13 @@ export function applyEvent(acc: TurnAccumulator, ev: AgentEvent | null): TurnAcc
     case "change_update":
       return { ...acc, change: ev.change };
     case "memory":
-      return { ...acc, memoryFacts: [...acc.memoryFacts, ...ev.facts.map((f) => f.fact)] };
+      return {
+        ...acc,
+        memoryFacts: [
+          ...acc.memoryFacts,
+          ...ev.facts.map(memoryFactText).filter((t) => t.length > 0),
+        ],
+      };
     case "handoff":
       return { ...acc, handoff: { ticket_id: ev.ticket_id, message: ev.message } };
     case "error":
@@ -205,6 +213,23 @@ export function parseSseBody(body: string): AgentEvent[] {
  */
 export function agentPrice(p: AgentProduct): number {
   return p.priceUsd ?? p.price ?? 0;
+}
+
+/**
+ * Chuẩn hóa 1 memory fact thành text hiển thị. Vendor MemoryFact là
+ * {key, value} (model_dump, KHÔNG có field fact) — đọc thẳng f.fact sẽ ra
+ * "undefined" trên UI. Hàm này chịu cả 2 shape.
+ */
+export function memoryFactText(f: {
+  fact?: string;
+  key?: string;
+  value?: string;
+}): string {
+  if (typeof f.fact === "string" && f.fact.trim()) return f.fact.trim();
+  const v = typeof f.value === "string" ? f.value.trim() : "";
+  if (!v) return "";
+  const k = typeof f.key === "string" ? f.key.trim() : "";
+  return k ? `${k}: ${v}` : v;
 }
 
 /** Nhãn tiếng Việt cho tool vendor (dùng ở biên lai + status). */

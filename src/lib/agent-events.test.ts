@@ -4,6 +4,7 @@ import {
   applyEvent,
   buildReceipt,
   emptyAccumulator,
+  memoryFactText,
   parseAgentEvent,
   parseSseBody,
 } from "@/lib/agent-events";
@@ -172,5 +173,22 @@ describe("buildReceipt — biên lai cuối turn", () => {
       { type: "done" },
     ];
     expect(buildReceipt(evs as never)).toEqual(["Đã thực hiện: Kiểm tra giỏ hàng"]);
+  });
+});
+
+describe("memoryFactText — chuẩn hóa 2 shape fact", () => {
+  it("shape vendor {key, value} → 'key: value'", () => {
+    expect(memoryFactText({ key: "size", value: "40mm" })).toBe("size: 40mm");
+    expect(memoryFactText({ value: "vàng hồng" })).toBe("vàng hồng");
+  });
+
+  it("shape cũ {fact} vẫn đọc được", () => {
+    expect(memoryFactText({ fact: "thích tourbillon" })).toBe("thích tourbillon");
+  });
+
+  it("rác → chuỗi rỗng (caller lọc bỏ)", () => {
+    expect(memoryFactText({})).toBe("");
+    expect(memoryFactText({ key: "x" })).toBe("");
+    expect(memoryFactText({ fact: "   " })).toBe("");
   });
 });

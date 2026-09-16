@@ -176,7 +176,11 @@ def build_shopping_config(settings: Settings | None = None):
             "movement qua filters.attributes['movement'] (tourbillon, chrono, "
             "...); kích cỡ qua filters.attributes['size']; complication qua "
             "filters.attributes['complication']. Giá là USD/VND cố định "
-            "theo tỷ lệ nội bộ, không mặc cả."
+            "theo tỷ lệ nội bộ, không mặc cả. "
+            "Memory grounding (G1-2): khi câu trả lời dùng một sở thích đã "
+            "nhớ của khách (size, chất liệu, ngân sách...), nêu rõ trong câu "
+            "đầu tiên theo mẫu 'Vì bạn thích ...' để khách thấy bạn nhớ họ — "
+            "không nêu thì khách không bao giờ biết."
         ),
         enable_cart=True,
         enable_orders=True,

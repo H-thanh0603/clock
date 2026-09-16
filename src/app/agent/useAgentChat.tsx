@@ -10,8 +10,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { csrfFetch } from "@/lib/api-client";
 import type { AgentEvent, AgentRole } from "@/lib/agent-events";
-import { buildReceipt } from "@/lib/agent-events";
-import { Card, StagedChangeCard, UxEvent, fmtUsd } from "./chat-widgets";
+import { buildReceipt, memoryFactText } from "@/lib/agent-events";
+import { Card, MemoryChip, StagedChangeCard, UxEvent, fmtUsd } from "./chat-widgets";
 
 export const AGENT_HOST =
   process.env.NEXT_PUBLIC_AGENT_URL || "http://127.0.0.1:8100";
@@ -230,6 +230,18 @@ export function useAgentChat() {
                   ux: [...b.ux, { id: uxSeq++, node: <StagedChangeCard change={ev.change} /> }],
                 }));
                 break;
+              case "memory": {
+                // Trước đây event memory bị bỏ qua hoàn toàn (không case) —
+                // khách không bao giờ thấy concierge đã nhớ gì (G1-2).
+                const facts = ev.facts.map(memoryFactText).filter((t) => t.length > 0);
+                if (facts.length > 0) {
+                  patch((b) => ({
+                    ...b,
+                    ux: [...b.ux, { id: uxSeq++, node: <MemoryChip facts={facts} /> }],
+                  }));
+                }
+                break;
+              }
               case "handoff":
                 patch((b) => ({
                   ...b,
