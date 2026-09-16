@@ -295,3 +295,75 @@ def test_alerts_shop_scope_public_but_filtered():
         feed.remove(other.alert_id, "alert_id")
         feed.remove(ops.alert_id, "alert_id")
         assert len(feed.all()) == before
+
+
+def test_budget_block_reason_pure():
+    """Ma trận chặn budget (thuần, không chạm state module)."""
+    from aurel_agents.host import _budget_block_reason
+
+    assert (
+        _budget_block_reason("s1", 100, 0, {}, {}, "2026-09-16") is None
+    )
+    # session vượt cap
+    assert (
+        _budget_block_reason(
+            "s1", 2, 0, {("s1", "2026-09-16"): 2}, {}, "2026-09-16"
+        )
+        == "session"
+    )
+    # global vượt cap — chặn cả session còn quota (trần tiền thật)
+    assert (
+        _budget_block_reason(
+            "s2", 100, 10, {}, {"2026-09-16": 10}, "2026-09-16"
+        )
+        == "global"
+    )
+    # global tắt (0) → không chặn
+    assert (
+        _budget_block_reason(
+            "s1", 100, 0, {}, {"2026-09-16": 99999}, "2026-09-16"
+        )
+        is None
+    )
+
+
+def test_check_budget_session_and_global_flows(monkeypatch):
+    """_check_budget: đếm turn, chặn session 429, chặn global 429 + alert 1 lần."""
+    from fastapi import HTTPException
+
+    import aurel_agents.host as host
+
+    # Dọn state module trước/sau để không rò rỉ giữa các test.
+    host._turn_counts.clear()
+    host._global_counts.clear()
+    host._budget_alerted_dates.clear()
+    published = []
+    monkeypatch.setattr(
+        host._alert_feed, "publish", lambda k, t, d, data=None: published.append(k)
+    )
+    try:
+        # 2 turn đầu qua, turn 3 vượt cap session (=2).
+        host._check_budget("sess-a", 2, 0)
+        host._check_budget("sess-a", 2, 0)
+        try:
+            host._check_budget("sess-a", 2, 0)
+            raise AssertionError("phải 429")
+        except HTTPException as e:
+            assert e.status_code == 429
+            assert "mở phiên mới" not in e.detail
+        # Global cap = 3 (đã dùng 2) → 1 turn session khác qua, turn nữa chặn.
+        host._check_budget("sess-b", 100, 3)
+        try:
+            host._check_budget("sess-c", 100, 3)
+            raise AssertionError("phải 429 global")
+        except HTTPException as e:
+            assert e.status_code == 429
+            assert "ngân sách" in e.detail
+        assert published == ["budget"]
+        # Ngày khác (giả lập bằng key trực tiếp) không dính alert cũ:
+        # prune trong _check_budget chỉ giữ today — kiểm tra dict gọn.
+        assert set(host._global_counts) == {host._today_str()}
+    finally:
+        host._turn_counts.clear()
+        host._global_counts.clear()
+        host._budget_alerted_dates.clear()

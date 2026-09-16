@@ -113,25 +113,77 @@ _monitor = ProactiveMonitor(
     sessions_dir=SESSIONS_DIR,  # retention sweep dọn transcript cũ
 )
 
-# Budget guard: đếm turn mỗi (session, ngày UTC). 1 turn = tối đa
-# max_tool_iterations vòng model call (mỗi vòng tốn thinking + output
-# tokens) — chatbot billing không kiểm soát sẽ cháy tiền khi bị script
-# dập. Reset theo ngày UTC (đơn giản, không cron).
+# Budget guard: đếm turn mỗi (session, ngày UTC) + tổng toàn host/ngày.
+# 1 turn = tối đa max_tool_iterations vòng model call (mỗi vòng tốn thinking
+# + output tokens) — chatbot billing không kiểm soát sẽ cháy tiền khi bị
+# script dập. Reset theo ngày UTC (đơn giản, không cron).
+# Cap theo session bypass được bằng phiên mới → trần toàn host
+# (AGENT_GLOBAL_TURNS_PER_DAY) mới là trần tiền thật (P2-7).
 _turn_counts: dict[tuple[str, str], int] = {}
+_global_counts: dict[str, int] = {}
+# Ngày đã publish alert hết ngân sách (tránh spam feed mỗi request bị chặn).
+_budget_alerted_dates: set[str] = set()
 
 
-def _budget_key(session_id: str) -> tuple[str, str]:
+def _today_str() -> str:
     from datetime import UTC, datetime
 
-    return (sanitize_session_id(session_id), datetime.now(UTC).strftime("%Y-%m-%d"))
+    return datetime.now(UTC).strftime("%Y-%m-%d")
 
 
-def _check_budget(session_id: str, per_day: int) -> None:
-    """Turn count mỗi session/ngày vượt cap → 429 (giống rate limit)."""
-    if per_day <= 0:
-        return
-    key = _budget_key(session_id)
-    if _turn_counts.get(key, 0) >= per_day:
+def _budget_key(session_id: str, today: str) -> tuple[str, str]:
+    return (sanitize_session_id(session_id), today)
+
+
+def _budget_block_reason(
+    session_id: str,
+    per_day: int,
+    global_per_day: int,
+    turn_counts: dict[tuple[str, str], int],
+    global_counts: dict[str, int],
+    today: str,
+) -> str | None:
+    """Thuần, test được: 'global' | 'session' | None (được phép)."""
+    if global_per_day > 0 and global_counts.get(today, 0) >= global_per_day:
+        return "global"
+    if per_day > 0 and turn_counts.get(_budget_key(session_id, today), 0) >= per_day:
+        return "session"
+    return None
+
+
+def _check_budget(session_id: str, per_day: int, global_per_day: int = 0) -> None:
+    """Turn count vượt cap (session hoặc toàn host) → 429."""
+    today = _today_str()
+    # Prune ngày cũ — dict không phình qua thời gian.
+    for k in [k for k in _turn_counts if k[1] != today]:
+        del _turn_counts[k]
+    for d in [d for d in _global_counts if d != today]:
+        del _global_counts[d]
+    for d in [d for d in _budget_alerted_dates if d != today]:
+        _budget_alerted_dates.discard(d)
+    reason = _budget_block_reason(
+        session_id, per_day, global_per_day, _turn_counts, _global_counts, today
+    )
+    if reason == "global":
+        logger.error(
+            "Ngân sách chat toàn host đã hết (%d turn/ngày) — từ chối turn mới. "
+            "Nâng AGENT_GLOBAL_TURNS_PER_DAY nếu đây là traffic thật.",
+            global_per_day,
+        )
+        if today not in _budget_alerted_dates:
+            _budget_alerted_dates.add(today)
+            _alert_feed.publish(
+                "budget",
+                "Hết ngân sách chat hôm nay",
+                f"Host đã dùng hết {global_per_day} turn/ngày — chat mới trả 429 "
+                "đến nửa đêm UTC. Kiểm tra có bị script dập không.",
+                {"cap": global_per_day, "date": today},
+            )
+        raise HTTPException(
+            status_code=429,
+            detail="Hệ thống đã dùng hết ngân sách chat hôm nay — quay lại ngày mai.",
+        )
+    if reason == "session":
         # KHÔNG gợi ý "mở phiên mới" ở đây — đó là đường bypass cap tiền
         # (audit HIGH-05): attacker script mở session mới là có thêm quota.
         raise HTTPException(
@@ -140,7 +192,10 @@ def _check_budget(session_id: str, per_day: int) -> None:
                 f"Phiên chat đã dùng hết {per_day} lượt/ngày — quay lại ngày mai."
             ),
         )
-    _turn_counts[key] = _turn_counts.get(key, 0) + 1
+    _turn_counts[_budget_key(session_id, today)] = (
+        _turn_counts.get(_budget_key(session_id, today), 0) + 1
+    )
+    _global_counts[today] = _global_counts.get(today, 0) + 1
 
 
 def _new_session_id() -> str:
@@ -576,9 +631,10 @@ async def health() -> dict:
 
 @app.post("/shop/chat")
 async def shop_chat(req: ChatRequest, request: Request):
-    _check_rate(request, get_settings().chat_rate_limit_per_min)
+    settings = get_settings()
+    _check_rate(request, settings.chat_rate_limit_per_min)
     session_id = sanitize_session_id(req.session_id or _new_session_id())
-    _check_budget(session_id, get_settings().chat_turns_per_day)
+    _check_budget(session_id, settings.chat_turns_per_day, settings.global_turns_per_day)
     agent = _require_agent("shopping")
     pool = _state.get("shop_pool")
     if req.delegation_token:
@@ -599,11 +655,12 @@ async def shop_chat(req: ChatRequest, request: Request):
 
 @app.post("/merchant/chat")
 async def merchant_chat(req: ChatRequest, request: Request):
-    _check_rate(request, get_settings().chat_rate_limit_per_min)
+    settings = get_settings()
+    _check_rate(request, settings.chat_rate_limit_per_min)
     _check_merchant_auth(request)
     agent = _require_agent("merchant")
     session_id = sanitize_session_id(req.session_id or _new_session_id())
-    _check_budget(session_id, get_settings().chat_turns_per_day)
+    _check_budget(session_id, settings.chat_turns_per_day, settings.global_turns_per_day)
     return StreamingResponse(
         _run_merchant_turn(agent, req.message, session_id),
         media_type="text/event-stream",

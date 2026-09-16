@@ -230,6 +230,8 @@ services:
       # mở endpoint vận hành ra Internet). Nhớ đặt AGENT_MERCHANT_TOKEN.
       AGENT_REQUIRE_MERCHANT_TOKEN: "1"
       AGENT_CHAT_RATE_LIMIT_PER_MIN: ${AGENT_CHAT_RATE_LIMIT_PER_MIN:-60}
+      # Trần tiền LLM toàn host (turn/ngày). 0 = tắt (không khuyến nghị).
+      AGENT_GLOBAL_TURNS_PER_DAY: ${AGENT_GLOBAL_TURNS_PER_DAY:-1000}
       AGENT_SHOPPER_EMAIL: ${AGENT_SHOPPER_EMAIL:-agent-shopper@aurel.local}
       AGENT_SHOPPER_PASSWORD: ${AGENT_SHOPPER_PASSWORD:-}
       AGENT_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@aurel.local}

@@ -90,6 +90,10 @@ class Settings:
     # Budget chat: số turn mỗi chat-session/ngày (midnight reset, 0 = tắt).
     # Chống 1 user/cú script đốt token LLM qua vòng tool-call 8 lần/turn.
     chat_turns_per_day: int = 100
+    # Trần toàn host: tổng turn mọi session/ngày (0 = tắt). Cap theo session
+    # bypass được bằng cách mở phiên mới — trần này mới là trần tiền thật.
+    # Prod nên đặt (VD 1000); vượt thì chat trả 429 + alert lên feed ops.
+    global_turns_per_day: int = 0
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -116,6 +120,7 @@ class Settings:
             monitor_interval_s=int(os.getenv("AGENT_MONITOR_INTERVAL_S") or 300),
             retention_days=int(os.getenv("AGENT_RETENTION_DAYS") or 30),
             chat_turns_per_day=int(os.getenv("AGENT_CHAT_TURNS_PER_DAY") or 100),
+            global_turns_per_day=int(os.getenv("AGENT_GLOBAL_TURNS_PER_DAY") or 0),
         )
 
 
