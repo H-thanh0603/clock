@@ -4,6 +4,7 @@ import Image from "next/image";
 import { getProduct } from "@/lib/db";
 import VaultAddButton from "@/components/VaultAddButton";
 import AskConciergeButton from "@/components/AskConciergeButton";
+import { compareQuestion, watchQuestion } from "@/lib/agent-link";
 import { notFound } from "next/navigation";
 import { collectionLabels, formatUsd } from "@/data/products";
 import { linePrice } from "@/lib/pricing";
@@ -202,9 +203,24 @@ export default async function Page({
 </div>
 </div>
 <DetailPurchase product={product} />
-{/* Agentic web: hỏi AI concierge ngay từ trang sản phẩm — agent nhận
+{/* Agentic web: quick-action theo ngữ cảnh (G1-3) — mỗi nút là 1 việc
+    agent làm giỏi nhất ở trang này, bấm là thấy agent LÀM VIỆC. Agent nhận
     context trang (PageContext product) khi mở /agent. */}
-<AskConciergeButton slug={product.slug} name={product.name} />
+<div className="flex flex-wrap gap-space-sm">
+  <AskConciergeButton slug={product.slug} name={product.name} />
+  <AskConciergeButton
+    slug={product.slug}
+    name={product.name}
+    question={compareQuestion(product.name)}
+    label="⚖ So với 2 chiếc cùng tầm giá"
+  />
+  <AskConciergeButton
+    slug={product.slug}
+    name={product.name}
+    question={watchQuestion(product.name)}
+    label="◷ Báo khi giảm 10%"
+  />
+</div>
 {/* Security & Atelier Assurances */}
 <div className="grid grid-cols-1 gap-space-xs pt-space-xs font-body-sm text-body-sm text-on-surface-variant">
 <div className="flex items-center gap-space-sm p-space-xs rounded bg-surface-container-low">

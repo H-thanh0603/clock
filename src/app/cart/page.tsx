@@ -4,6 +4,8 @@
 import Link from "next/link";
 import { useCart } from "@/components/CartProvider";
 import VaultItemCard from "@/components/VaultItemCard";
+import AskConciergeButton from "@/components/AskConciergeButton";
+import { cartQuestion } from "@/lib/agent-link";
 import { formatUsd, formatVnd } from "@/data/products";
 
 export default function Page() {
@@ -377,6 +379,15 @@ export default function Page() {
 <span className="material-symbols-outlined text-[14px]">support_agent</span>
 <span>Cần trợ giúp riêng? Kết nối trực tiếp Giám đốc Salon Genève (+41 22 819 0000)</span>
 </a>
+</div>
+{/* Agentic web: hỏi concierge về chính giỏ này (G1-3). Đã đăng nhập (+ bật
+    "Dùng tài khoản của tôi" ở trang agent) thì concierge thấy được giỏ thật
+    qua delegation; khách vãng lai vẫn được tư vấn chung. */}
+<div className="pt-space-xs">
+<AskConciergeButton
+  question={cartQuestion()}
+  label="✦ Hỏi concierge về giỏ này"
+/>
 </div>
 </div>
 {/* Trust & Origin Micro-Card */}
