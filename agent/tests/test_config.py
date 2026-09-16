@@ -45,3 +45,9 @@ def test_no_key_no_base_url():
     """Không key → client vẫn tạo được (health OK, chat mới 503)."""
     client = build_anthropic_client(Settings())
     assert client.api_key is None
+
+
+def test_no_default_admin_password():
+    """Không default mật khẩu admin — thiếu env thì rỗng, không lén dùng yếu."""
+    assert Settings().admin_password == ""
+    assert "Admin123" not in Settings().admin_password

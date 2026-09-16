@@ -56,7 +56,9 @@ class Settings:
     shopper_email: str = "agent-shopper@aurel.local"
     shopper_password: str = "AgentShopper1!"
     admin_email: str = "admin@aurel.local"
-    admin_password: str = "Admin123!"
+    # Không default mật khẩu admin — thiếu AGENT_ADMIN_PASSWORD thì merchant
+    # agent không login được (503 rõ ràng) thay vì lén dùng "Admin123!".
+    admin_password: str = ""
 
     # host
     host: str = "127.0.0.1"
@@ -108,7 +110,7 @@ class Settings:
             shopper_email=os.getenv("AGENT_SHOPPER_EMAIL") or "agent-shopper@aurel.local",
             shopper_password=os.getenv("AGENT_SHOPPER_PASSWORD") or "AgentShopper1!",
             admin_email=os.getenv("AGENT_ADMIN_EMAIL") or "admin@aurel.local",
-            admin_password=os.getenv("AGENT_ADMIN_PASSWORD") or "Admin123!",
+            admin_password=os.getenv("AGENT_ADMIN_PASSWORD") or "",
             host=os.getenv("AGENT_HOST") or "127.0.0.1",
             port=int(os.getenv("AGENT_PORT") or 8100),
             merchant_token=os.getenv("AGENT_MERCHANT_TOKEN") or None,
