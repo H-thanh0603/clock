@@ -61,12 +61,14 @@ from aurel_agents.paths import (
     LEDGER_FILE,
     MEMORY_STORE_FILE,
     SESSIONS_DIR,
+    TASKS_FILE,
     TICKETS_FILE,
     WATCHES_FILE,
 )
 from aurel_agents.proactive import (
     AlertFeed,
     ProactiveMonitor,
+    TaskStore,
     Ticket,
     TicketStore,
     WatchStore,
@@ -107,6 +109,8 @@ _rate = RateLimiter()
 _watch_store = WatchStore(WATCHES_FILE)
 _alert_feed = AlertFeed(ALERTS_FILE)
 _ticket_store = TicketStore(TICKETS_FILE)
+# Task store (việc khách giao rồi đi — G2-5).
+_task_store = TaskStore(TASKS_FILE)
 # AI Activity Log: tool-call nào, của ai/session nào, ok/fail, bao lâu.
 # Ghi bởi adapter (pool + AurelMerchant) khi host wire vào ở lifespan.
 _activity_log = ActivityLog(ACTIVITY_FILE)
@@ -116,6 +120,7 @@ _monitor = ProactiveMonitor(
     ticket_store=_ticket_store,
     settings=None,  # set trong lifespan (settings cần env)
     sessions_dir=SESSIONS_DIR,  # retention sweep dọn transcript cũ
+    task_store=_task_store,
 )
 
 # Budget guard: đếm turn mỗi (session, ngày UTC) + tổng toàn host/ngày.
@@ -271,6 +276,7 @@ async def _make_shopping_agent(pool: PooledStorefront):
     from commerce_common.memory import JsonFileMemoryStore
     from shopping_agent_runtime import ShoppingAgent
 
+    from aurel_agents.shopping.task_tool import build_task_extensions
     from aurel_agents.shopping.watch_tool import build_watch_extension
 
     settings = get_settings()
@@ -281,7 +287,10 @@ async def _make_shopping_agent(pool: PooledStorefront):
         config=build_shopping_config(settings),
         client=build_anthropic_client(settings),
         memory_store=JsonFileMemoryStore(MEMORY_STORE_FILE),
-        extra_presentation_tools=(build_watch_extension(_watch_store),),
+        extra_presentation_tools=(
+            build_watch_extension(_watch_store),
+            *build_task_extensions(_task_store),
+        ),
     )
     return agent
 
@@ -329,6 +338,7 @@ async def lifespan(app: FastAPI):
     ensure_merchant_token(settings)
     logger.info("Agent host: backend=%s model=%s", settings.backend_url, settings.model)
     _monitor._settings = settings  # noqa: SLF001 — wire settings khi startup
+    _monitor._task_store = _task_store  # noqa: SLF001 — wire task store
     # Single-instance guard: store JSON là single-writer — instance thứ 2
     # phải fail ngay thay vì đè dữ liệu instance 1.
     lock = acquire_single_instance_lock(DATA_DIR / "host.lock")

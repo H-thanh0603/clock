@@ -192,3 +192,25 @@ describe("memoryFactText — chuẩn hóa 2 shape fact", () => {
     expect(memoryFactText({ fact: "   " })).toBe("");
   });
 });
+
+describe("buildReceipt — task", () => {
+  it("ui task_saved → dòng lưu việc", () => {
+    const evs = [
+      { type: "tool_call", tool: "save_task", id: "t1" },
+      { type: "ui", component: "task_saved", payload: { title: "So 3 chiếc" } },
+      { type: "done" },
+    ];
+    expect(buildReceipt(evs as never)).toEqual([
+      "Đã lưu việc — quay lại bất cứ lúc nào để tiếp tục",
+    ]);
+  });
+
+  it("ui task_completed → dòng xong việc", () => {
+    const evs = [
+      { type: "tool_call", tool: "complete_task", id: "t1" },
+      { type: "ui", component: "task_completed", payload: {} },
+      { type: "done" },
+    ];
+    expect(buildReceipt(evs as never)).toEqual(["Đã xong 1 việc được giao"]);
+  });
+});

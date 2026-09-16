@@ -22,7 +22,10 @@ LEDGER_FILE = DATA_DIR / "ledger-merchant.json"
 ALERTS_FILE = DATA_DIR / "alerts.json"
 WATCHES_FILE = DATA_DIR / "watches.json"
 TICKETS_FILE = DATA_DIR / "tickets.json"
-# AI Activity Log: 1 dòng JSONL/tool-call (actor, session, ok/fail, ms).
+# Task store (việc khách giao rồi đi — G2-5).
+TASKS_FILE = DATA_DIR / "tasks.json"
+# AI Activity Log: tool-call nào, của ai/session nào, ok/fail, bao lâu.
+# Ghi bởi adapter (pool + AurelMerchant) khi host wire vào ở lifespan.
 ACTIVITY_FILE = DATA_DIR / "activity.jsonl"
 
 # vendor/ chứa 5 package của commerce-agents (đã pin trong requirements)
@@ -38,6 +41,8 @@ __all__ = [
     "SESSIONS_DIR",
     "LEDGER_FILE",
     "ACTIVITY_FILE",
+    "ALERTS_FILE",
+    "TASKS_FILE",
     "ALERTS_FILE",
     "WATCHES_FILE",
     "TICKETS_FILE",

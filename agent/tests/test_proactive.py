@@ -11,12 +11,13 @@ import pytest
 
 
 def _mk_stores(tmp_path):
-    from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+    from aurel_agents.proactive import AlertFeed, TaskStore, TicketStore, WatchStore
 
     return (
         WatchStore(tmp_path / "watches.json"),
         AlertFeed(tmp_path / "alerts.json"),
         TicketStore(tmp_path / "tickets.json"),
+        TaskStore(tmp_path / "tasks.json"),
     )
 
 
@@ -24,7 +25,7 @@ def _mk_stores(tmp_path):
 
 
 def test_watch_store_add_and_dedupe(tmp_path):
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     w = watches.add("u1", "chrono-x", "restock")
     assert w.active is True
     with pytest.raises(ValueError, match="đã nhờ"):
@@ -38,7 +39,7 @@ def test_watch_store_add_and_dedupe(tmp_path):
 
 
 def test_watch_store_cap_per_user(tmp_path):
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     for i in range(20):
         watches.add("u1", f"p{i}", "restock")
     with pytest.raises(ValueError, match="quá nhiều"):
@@ -46,9 +47,9 @@ def test_watch_store_cap_per_user(tmp_path):
 
 
 def test_watch_store_persist_roundtrip(tmp_path):
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     watches.add("u1", "chrono-x", "price_drop", price_drop_pct=15, baseline_price=99000)
-    watches2, _, _ = _mk_stores(tmp_path)
+    watches2, _, _, _ = _mk_stores(tmp_path)
     loaded = watches2.for_user("u1")
     assert len(loaded) == 1
     assert loaded[0].baseline_price == 99000
@@ -56,7 +57,7 @@ def test_watch_store_persist_roundtrip(tmp_path):
 
 
 def test_watch_store_deactivate(tmp_path):
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     w = watches.add("u1", "chrono-x", "restock")
     assert watches.deactivate(w.watch_id) is not None
     assert watches.active() == []
@@ -67,7 +68,7 @@ def test_watch_store_deactivate(tmp_path):
 
 
 def test_alert_feed_recent_order_desc(tmp_path):
-    _, alerts, _ = _mk_stores(tmp_path)
+    _, alerts, _, _ = _mk_stores(tmp_path)
     alerts.publish("low_stock", "T1", "D1")
     time.sleep(0.01)
     alerts.publish("restock", "T2", "D2")
@@ -76,7 +77,7 @@ def test_alert_feed_recent_order_desc(tmp_path):
 
 
 def test_ticket_store_open_dedupe_and_resolve(tmp_path):
-    _, _, tickets = _mk_stores(tmp_path)
+    _, _, tickets, _ = _mk_stores(tmp_path)
     t1 = tickets.open("u1", "đồng hồ bị trầy", order_id="AC-2026-000001")
     t2 = tickets.open("u1", "nhắc lại", order_id="AC-2026-000001")
     assert t1.ticket_id == t2.ticket_id  # dedupe cùng user + đơn
@@ -97,7 +98,7 @@ def _product(stock=0, price=99000, in_boutique=True, name="Chrono X"):
 
 def test_check_watches_restock_fires_when_back_in_stock(tmp_path):
 
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     w = watches.add("u1", "chrono-x", "restock")
     fired = []
     from aurel_agents.proactive import check_watches
@@ -114,7 +115,7 @@ def test_check_watches_restock_fires_when_back_in_stock(tmp_path):
 
 
 def test_check_watches_price_drop_threshold(tmp_path):
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     w = watches.add("u1", "chrono-x", "price_drop", price_drop_pct=10, baseline_price=100000)
     from aurel_agents.proactive import check_watches
 
@@ -130,7 +131,7 @@ def test_check_watches_price_drop_threshold(tmp_path):
 
 
 def test_check_watches_unknown_product_ignored(tmp_path):
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     w = watches.add("u1", "khong-ton-tai", "restock")
     from aurel_agents.proactive import check_watches
 
@@ -169,7 +170,7 @@ def test_watch_tool_enrich_gates_on_provenance(tmp_path):
     """product_id chưa từng thấy trong session → ValueError (fence)."""
     from aurel_agents.shopping.watch_tool import build_watch_extension
 
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     ext = build_watch_extension(watches)
 
     class _State:
@@ -195,7 +196,7 @@ def test_watch_tool_enrich_gates_on_provenance(tmp_path):
 def test_watch_tool_enrich_creates_watch(tmp_path):
     from aurel_agents.shopping.watch_tool import build_watch_extension
 
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     ext = build_watch_extension(watches)
 
     from shopping_agent import Product
@@ -236,7 +237,7 @@ def test_watch_tool_definition_shape(tmp_path):
     """Extension đúng shape PresentationExtension: tên, schema, required."""
     from aurel_agents.shopping.watch_tool import build_watch_extension
 
-    watches, _, _ = _mk_stores(tmp_path)
+    watches, _, _, _ = _mk_stores(tmp_path)
     ext = build_watch_extension(watches)
     assert ext.name == "set_watch"
     tool = ext.tool_definition()
@@ -951,3 +952,59 @@ def test_watch_cancel_requires_owner_session(tmp_path):
     # watch không tồn tại → 404
     r = client.post("/shop/watches/w-nope-0000/cancel?session_id=owner123xx")
     assert r.status_code == 404
+
+
+def test_task_tool_save_and_complete(tmp_path):
+    """save_task tạo task, complete_task đánh done, check quyền sở hữu."""
+    from aurel_agents.shopping.task_tool import build_task_extensions
+
+    _, _, _, tasks = _mk_stores(tmp_path)
+    save_ext, complete_ext = build_task_extensions(tasks)
+
+    class _State:
+        seen_products = {}
+
+    class _Ctx:
+        session = type("S", (), {"user_id": "shopper:abc", "session_id": "sess123"})()
+        state = type("St", (), {"seen_products": {}})()
+
+    import asyncio
+
+    # save_task
+    async def run_save():
+        from aurel_agents.shopping.task_tool import SaveTaskPayload
+
+        return await save_ext.enrich(
+            SaveTaskPayload(title="So sánh 3 chiếc", goal="Dưới $20k, mặt 40mm"),
+            _Ctx(),
+        )
+
+    created = asyncio.run(run_save())
+    assert created["task_id"] is not None
+    assert created["title"] == "So sánh 3 chiếc"
+
+    # complete_task
+    async def run_complete():
+        from aurel_agents.shopping.task_tool import CompleteTaskPayload
+
+        return await complete_ext.enrich(
+            CompleteTaskPayload(task_id=created["task_id"]), _Ctx()
+        )
+
+    completed = asyncio.run(run_complete())
+    assert completed["status"] == "done"
+
+    # user khác không thể complete task của user khác
+    class _OtherCtx:
+        session = type("S", (), {"user_id": "shopper:other", "session_id": "sess999"})()
+        state = type("St", (), {"seen_products": {}})()
+
+    async def run_complete_other():
+        from aurel_agents.shopping.task_tool import CompleteTaskPayload
+
+        return await complete_ext.enrich(
+            CompleteTaskPayload(task_id=created["task_id"]), _OtherCtx()
+        )
+
+    with pytest.raises(ValueError, match="Không tìm thấy việc"):
+        asyncio.run(run_complete_other())

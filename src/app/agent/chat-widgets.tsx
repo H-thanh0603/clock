@@ -253,6 +253,48 @@ export function MemoryChip({ facts }: { facts: string[] }) {
     </Card>
   );
 }
+/**
+ * Card "Việc đã giao" — khách nhờ agent chuẩn bị rồi đi, quay lại tiếp tục
+ * (G2-5). Toàn bộ hội thoại đã lưu theo session nên mở lại là có context cũ.
+ */
+export function TaskSaved({
+  title,
+  goal,
+  taskId,
+}: {
+  title?: string;
+  goal?: string;
+  taskId?: string;
+}) {
+  if (!title) return null;
+  return (
+    <Card className="border-primary/40">
+      <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+        ✦ Việc đã giao · {taskId ?? ""}
+      </p>
+      <p className="font-headline-md text-headline-md text-on-surface mt-1">{title}</p>
+      {goal && (
+        <p className="font-body-sm text-body-sm text-on-surface-variant mt-space-sm">{goal}</p>
+      )}
+      <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/70">
+        Bạn cứ đi — quay lại bất cứ lúc nào, concierge nhớ đúng chỗ đang dở.
+      </p>
+    </Card>
+  );
+}
+/** Card "Việc đã xong" — task hoàn thành. */
+export function TaskCompleted({ taskId }: { taskId?: string }) {
+  return (
+    <Card className="border-primary/40">
+      <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+        ✓ Việc đã xong{taskId ? ` · ${taskId}` : ""}
+      </p>
+      <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/70">
+        Cảm ơn bạn đã giao việc — cần gì thêm cứ nói.
+      </p>
+    </Card>
+  );
+}
 export function UxEvent({ event }: { event: Extract<AgentEvent, { type: "ui" }> }) {
   switch (event.component) {
     case "present_products":
@@ -301,6 +343,16 @@ export function UxEvent({ event }: { event: Extract<AgentEvent, { type: "ui" }> 
           </p>
         </Card>
       );
+    case "task_saved":
+      return (
+        <TaskSaved
+          title={event.payload.title}
+          goal={event.payload.goal}
+          taskId={event.payload.task_id}
+        />
+      );
+    case "task_completed":
+      return <TaskCompleted taskId={event.payload.task_id} />;
     default:
       return null; // host bỏ qua component không biết — đúng hợp đồng upstream
   }

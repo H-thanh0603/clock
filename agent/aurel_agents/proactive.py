@@ -78,6 +78,24 @@ class Ticket(BaseModel):
     created_at: float = Field(default_factory=time.time)
 
 
+class Task(BaseModel):
+    """Việc khách giao cho agent rồi đi ("tối tôi xem", "chuẩn bị giúp...").
+
+    Khác watch (điều kiện giá/kho do monitor check): task là brief có thể
+    tiếp tục — transcript đầy đủ đã persist theo session nên mở lại là có
+    ngay context cũ. Không tốn LLM nền: agent không chạy khi không ai chat.
+    """
+
+    task_id: str
+    user_id: str
+    session_id: str  # chat session tạo task — resume mở đúng transcript
+    title: str
+    goal: str
+    status: str = "open"  # open | done
+    created_at: float = Field(default_factory=time.time)
+    updated_at: float = Field(default_factory=time.time)
+
+
 # --- store JSON (pattern TranscriptStore: load/cache/save, không bao giờ raise) -------
 
 
@@ -270,6 +288,62 @@ class TicketStore(_JsonListStore):
         return [t for t in self.all() if isinstance(t, Ticket) and t.status == "open"]
 
 
+MAX_OPEN_TASKS_PER_USER = 10
+
+
+class TaskStore(_JsonListStore):
+    """Việc khách giao (G2-5): tạo bởi tool save_task, resume bằng session_id."""
+
+    def __init__(self, path: Path) -> None:
+        super().__init__(path, Task, MAX_OPEN_TASKS_PER_USER * 30)
+
+    def add(self, user_id: str, session_id: str, title: str, goal: str) -> Task:
+        """Giao việc mới (quá cap open/user → lỗi để model báo khách gọn bớt)."""
+        title = (title or "").strip()[:120]
+        goal = (goal or "").strip()[:500]
+        if not title or not goal:
+            raise ValueError("Thiếu tiêu đề hoặc nội dung công việc")
+        mine_open = [
+            t
+            for t in self.all()
+            if isinstance(t, Task) and t.user_id == user_id and t.status == "open"
+        ]
+        if len(mine_open) >= MAX_OPEN_TASKS_PER_USER:
+            raise ValueError("Bạn đang giao quá nhiều việc — hãy xong bớt trước")
+        task = Task(
+            task_id=f"task-{int(time.time() * 1000) % 10**9:09d}-{len(self.all()):04d}",
+            user_id=user_id,
+            session_id=session_id,
+            title=title,
+            goal=goal,
+        )
+        self._add(task)
+        return task
+
+    def get(self, task_id: str) -> Task | None:
+        for t in self.all():
+            if isinstance(t, Task) and t.task_id == task_id:
+                return t
+        return None
+
+    def for_user(self, user_id: str, status: str = "open") -> list[Task]:
+        items = [
+            t
+            for t in self.all()
+            if isinstance(t, Task) and t.user_id == user_id and t.status == status
+        ]
+        return sorted(items, key=lambda t: t.updated_at, reverse=True)
+
+    def complete(self, task_id: str) -> Task | None:
+        for t in self.all():
+            if isinstance(t, Task) and t.task_id == task_id and t.status == "open":
+                t.status = "done"
+                t.updated_at = time.time()
+                self.save()
+                return t
+        return None
+
+
 # --- các kiểm tra điều kiện (thuần, test được, không đụng network) ----------------------
 
 
@@ -376,20 +450,28 @@ def cleanup_expired(
     ticket_store: TicketStore,
     alert_feed: AlertFeed,
     retention_days: int,
+    task_store: TaskStore | None = None,
 ) -> dict[str, int]:
-    """Dọn dữ liệu cá nhân cũ hơn TTL (transcript/watch/ticket/alert).
+    """Dọn dữ liệu cá nhân cũ hơn TTL (transcript/watch/ticket/alert/task).
 
     GDPR-ish: hội thoại khách không nằm vô hạn trên disk. Transcript
     không watch active → xóa file. Watch active nhưng cũ thì vẫn giữ
-    (khách còn đang chờ báo). Gọi mỗi vòng monitor; trả về số item dọn.
+    (khách còn đang chờ báo). Task open cũng giữ transcript (resume cần
+    context cũ); task done cũ thì dọn. Gọi mỗi vòng monitor; trả về số
+    item dọn.
     """
     if retention_days <= 0:
         return {}
     cutoff = time.time() - retention_days * 86400
-    removed = {"transcripts": 0, "watches": 0, "tickets": 0, "alerts": 0}
+    removed = {"transcripts": 0, "watches": 0, "tickets": 0, "alerts": 0, "tasks": 0}
 
-    # 1) Transcript: file cũ + user không còn watch active nào → xóa.
+    # 1) Transcript: file cũ + user không còn watch active / task open nào → xóa.
     active_watch_users = {w.user_id for w in watch_store.active()}
+    open_task_users = (
+        {t.user_id for t in task_store.all() if isinstance(t, Task) and t.status == "open"}
+        if task_store is not None
+        else set()
+    )
     if sessions_dir.is_dir():
         for path in sessions_dir.glob("*.json"):
             try:
@@ -398,8 +480,8 @@ def cleanup_expired(
                 # user của session = shopper:<8 prefix đầu file name>
                 sid = path.stem
                 user_id = f"shopper:{sid[:8]}"
-                if user_id in active_watch_users:
-                    continue  # còn watch chờ báo — giữ transcript
+                if user_id in active_watch_users or user_id in open_task_users:
+                    continue  # còn watch chờ báo / task đang mở — giữ transcript
                 path.unlink(missing_ok=True)
                 removed["transcripts"] += 1
             except Exception:
@@ -422,6 +504,18 @@ def cleanup_expired(
     # 4) Alert feed tự cap 500 (MAX_ALERTS) — chỉ trim thêm theo TTL.
     trimmed = alert_feed.trim_before(cutoff)
     removed["alerts"] = trimmed
+
+    # 5) Task done cũ (việc xong quá TTL — chỉ còn làm data rác). Task open
+    # dù cũ vẫn giữ: đó là cam kết đang chờ khách quay lại.
+    if task_store is not None:
+        for t in task_store.all():
+            if (
+                isinstance(t, Task)
+                and t.status == "done"
+                and t.updated_at < cutoff
+            ):
+                task_store.remove(t.task_id, "task_id")
+                removed["tasks"] += 1
 
     total = sum(removed.values())
     if total:
@@ -480,10 +574,12 @@ class ProactiveMonitor:
         settings,
         sessions_dir: Path | None = None,
         activity_log=None,
+        task_store=None,
     ) -> None:
         self._watches = watch_store
         self._alerts = alert_feed
         self._tickets = ticket_store
+        self._task_store = task_store
         self._settings = settings
         # AI Activity Log (host wire vào ở lifespan) — retention sweep dọn
         # dòng cũ cùng vòng quét. None = không dọn (test không cần).
@@ -623,6 +719,7 @@ class ProactiveMonitor:
                 ticket_store=self._tickets,
                 alert_feed=self._alerts,
                 retention_days=self._settings.retention_days,
+                task_store=self._task_store,
             )
             if self._activity_log is not None and self._settings.retention_days > 0:
                 self._activity_log.trim_before(

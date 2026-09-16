@@ -62,6 +62,10 @@ export type UxPayload = {
   watch_id?: string;
   confirmed?: string;
   baseline_price?: number | null;
+  /** task_saved (save_task) / task_completed (complete_task) */
+  task_id?: string;
+  goal?: string;
+  status?: string;
   /** watch_confirmed / dùng chung cho các component khác */
   product_id?: string;
 };
@@ -266,6 +270,8 @@ export function buildReceipt(events: AgentEvent[]): string[] {
   let cartQty = 0;
   let memoryCount = 0;
   let watchSet = false;
+  let taskSaved = false;
+  let taskDone = false;
   let handoff = false;
   let changeStaged = false;
 
@@ -280,6 +286,10 @@ export function buildReceipt(events: AgentEvent[]): string[] {
         compared += ev.payload.entries?.length ?? 0;
       } else if (ev.component === "watch_confirmed") {
         watchSet = true;
+      } else if (ev.component === "task_saved") {
+        taskSaved = true;
+      } else if (ev.component === "task_completed") {
+        taskDone = true;
       }
     } else if (ev.type === "cart_update") {
       cartQty = (ev.cart.items ?? []).reduce((s, it) => s + (it.quantity ?? 0), 0);
@@ -314,6 +324,12 @@ export function buildReceipt(events: AgentEvent[]): string[] {
   if (watchSet || (toolCounts.get("set_watch") ?? 0) > 0) {
     lines.push("Đã đặt theo dõi (sẽ báo khi khớp điều kiện)");
   }
+  if (taskSaved || (toolCounts.get("save_task") ?? 0) > 0) {
+    lines.push("Đã lưu việc — quay lại bất cứ lúc nào để tiếp tục");
+  }
+  if (taskDone || (toolCounts.get("complete_task") ?? 0) > 0) {
+    lines.push("Đã xong 1 việc được giao");
+  }
   const policyHits = toolCounts.get("search_policies") ?? 0;
   if (policyHits > 0) lines.push("Đã tra cứu chính sách");
   const orderHits =
@@ -331,6 +347,8 @@ export function buildReceipt(events: AgentEvent[]): string[] {
     "get_product_details",
     "add_to_cart",
     "set_watch",
+    "save_task",
+    "complete_task",
     "search_policies",
     "get_orders",
     "get_order_status",
