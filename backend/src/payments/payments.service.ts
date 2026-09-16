@@ -153,9 +153,11 @@ export class PaymentsService {
       amountVnd: expectedVnd,
       orderInfo: `Thanh toan don ${order.code} Aurel Co`,
       returnUrl: `${backendBaseUrl()}/payments/vnpay/return`,
+      // req.ip đã là client thật sau trust-proxy (main.ts) — ưu tiên nó,
+      // fallback XFF như cũ khi chạy trước proxy không chuẩn.
       ipAddr:
-        req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ??
         req.ip ??
+        req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ??
         '127.0.0.1',
     });
     return { url };

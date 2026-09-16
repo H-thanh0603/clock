@@ -9,6 +9,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { initObservability } from './common/observability';
+import { trustProxySetting } from './common/trust-proxy';
 
 function parseOrigins(): string[] {
   const raw = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
@@ -33,6 +34,11 @@ async function bootstrap() {
     bodyParser: true,
     rawBody: false,
   });
+  // Trust proxy nội bộ (loopback + RFC1918 docker/LAN) để `req.ip`
+  // là IP client thật sau Caddy — throttler rate-limit đúng theo từng IP
+  // (audit SEC-CRIT-02). Không dùng `true`/số-hop để tránh tin XFF giả
+  // khi có kết nối trực tiếp (dev publish port).
+  app.getHttpAdapter().getInstance().set('trust proxy', trustProxySetting);
   app.useBodyParser('json', { limit: '256kb' });
   app.useBodyParser('urlencoded', { limit: '256kb', extended: true });
   // Phục vụ ảnh upload (volume). Prod sau Caddy: /backend/uploads/*.
