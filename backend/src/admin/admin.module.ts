@@ -6,10 +6,16 @@ import { StorageService } from '../common/storage.service';
 import { ProductsModule } from '../products/products.module';
 import { SearchModule } from '../search/search.module';
 import { AgentShopperCleanupService } from '../agents/agent-shopper-cleanup.service';
+import { PromotionExpireService } from './promotion-expire.service';
 
 @Module({
   imports: [ProductsModule, SearchModule], // AdminService dùng ProductsService.list + Meili sync
-  providers: [AdminService, StorageService, AgentShopperCleanupService],
+  providers: [
+    AdminService,
+    StorageService,
+    AgentShopperCleanupService,
+    PromotionExpireService,
+  ],
   controllers: [AdminController, UploadsController],
 })
 export class AdminModule {}

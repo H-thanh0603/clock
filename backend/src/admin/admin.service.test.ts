@@ -154,6 +154,9 @@ describe('AdminService.updateStatus', () => {
 
 describe('AdminService.promotions', () => {
   const basePrisma = () => ({
+    product: {
+      findMany: () => Promise.resolve([]),
+    },
     promotion: {
       create: ({ data }: { data: Record<string, unknown> }) =>
         Promise.resolve({ id: 'promo-1', ...data }),
@@ -255,5 +258,224 @@ describe('AdminService.metrics', () => {
     const svc = new AdminService({} as never, {} as never, { upsertProduct: async () => {} } as never);
     const r = await svc.metrics('traffic', 'day', 30);
     expect(r.points).toEqual([]);
+  });
+});
+
+describe('AdminService.promotions expiry', () => {
+  /** Fake đủ cho create/close promotion: product + event + tx. */
+  function makePromoPrisma(opts: {
+    products: Record<string, number>;
+    promos: Record<string, unknown>;
+    dueIds?: string[];
+  }) {
+    const products = new Map(Object.entries(opts.products));
+    const promos = new Map(Object.entries(opts.promos));
+    const events: unknown[] = [];
+    const created: unknown[] = [];
+    const tx = {
+      product: {
+        findUnique: ({ where }: { where: { slug: string } }) => {
+          const priceUsd = products.get(where.slug);
+          return Promise.resolve(
+            priceUsd === undefined ? null : { priceUsd },
+          );
+        },
+        update: ({
+          where,
+          data,
+        }: {
+          where: { slug: string };
+          data: { priceUsd: number };
+        }) => {
+          products.set(where.slug, data.priceUsd);
+          return Promise.resolve({ slug: where.slug, ...data });
+        },
+      },
+      productEvent: {
+        create: ({ data }: { data: unknown }) => {
+          events.push(data);
+          return Promise.resolve({});
+        },
+      },
+      promotion: {
+        update: ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: { active: boolean };
+        }) => {
+          const p = promos.get(where.id) as Record<string, unknown>;
+          promos.set(where.id, { ...p, ...data });
+          return Promise.resolve(promos.get(where.id));
+        },
+      },
+    };
+    const prisma = {
+      product: {
+        findMany: ({
+          where,
+        }: {
+          where: { slug: { in: string[] } };
+        }) =>
+          Promise.resolve(
+            where.slug.in
+              .filter((s: string) => products.has(s))
+              .map((s: string) => ({ slug: s, priceUsd: products.get(s) })),
+          ),
+        findUnique: ({ where }: { where: { slug: string } }) => {
+          const priceUsd = products.get(where.slug);
+          return Promise.resolve(
+            priceUsd === undefined
+              ? null
+              : { slug: where.slug, priceUsd, priceVnd: BigInt(priceUsd * 25200) },
+          );
+        },
+      },
+      productEvent: tx.productEvent,
+      promotion: {
+        findMany: () =>
+          Promise.resolve(
+            (opts.dueIds ?? []).map((id) => ({ id })),
+          ),
+        findUnique: ({ where }: { where: { id: string } }) =>
+          Promise.resolve(promos.get(where.id) ?? null),
+        create: ({ data }: { data: Record<string, unknown> }) => {
+          created.push(data);
+          return Promise.resolve({ id: 'promo-new', ...data });
+        },
+        update: tx.promotion.update,
+      },
+      $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(tx),
+    };
+    const meili = { upsertProduct: async () => {} };
+    return { prisma, products, promos, events, created, meili };
+  }
+
+  const svcOf = (f: ReturnType<typeof makePromoPrisma>) =>
+    new AdminService(
+      f.prisma as never,
+      {} as never,
+      { upsertProduct: f.meili.upsertProduct } as never,
+    );
+
+  it('tạo promotion snapshot giá gốc + chặn promotion chồng lên SP đang chạy', async () => {
+    const f = makePromoPrisma({
+      products: { a: 100000, b: 50000 },
+      promos: {},
+      dueIds: [],
+    });
+    // findMany overlap: giả có promo active khác đang giữ slug 'a'.
+    (f.prisma.promotion as { findMany: unknown }).findMany = () =>
+      Promise.resolve([
+        { id: 'p-old', name: 'Tet 5%', listingSlugs: ['a'] },
+      ]);
+    const svc = svcOf(f);
+    await expect(
+      svc.createPromotion(
+        {
+          name: 'Mới',
+          listingSlugs: ['a'],
+          discountPct: 10,
+          startsAt: '2026-09-01',
+          endsAt: '2026-09-30',
+        },
+        'admin-1',
+      ),
+    ).rejects.toThrow(/đang chạy/);
+    // Không chồng thì tạo được + snapshot giá gốc.
+    const r = await svc.createPromotion(
+      {
+        name: 'Mới',
+        listingSlugs: ['b'],
+        discountPct: 10,
+        startsAt: '2026-09-01',
+        endsAt: '2026-09-30',
+      },
+      'admin-1',
+    );
+    expect((r.priceSnapshot as Record<string, number>).b).toBe(50000);
+  });
+
+  it('closePromotion hồi giá đã đổi, bỏ qua giá đã đúng, tắt active', async () => {
+    const f = makePromoPrisma({
+      // a đang giá KM 90000 (gốc 100000) → hồi; b đã đúng 50000 → bỏ qua.
+      products: { a: 90000, b: 50000 },
+      promos: {
+        'p-1': {
+          id: 'p-1',
+          name: 'Sale 10%',
+          listingSlugs: ['a', 'b'],
+          priceSnapshot: { a: 100000, b: 50000 },
+          active: true,
+        },
+      },
+    });
+    const svc = svcOf(f);
+    const r = await svc.closePromotion('p-1', 'Hết hạn (test)');
+    expect(r.restored).toBe(1);
+    expect(f.products.get('a')).toBe(100000);
+    expect(f.products.get('b')).toBe(50000);
+    expect((f.promos.get('p-1') as { active: boolean }).active).toBe(false);
+    expect(
+      (f.events as { action: string }[]).filter((e) => e.action === 'PROMO_END'),
+    ).toHaveLength(1);
+  });
+
+  it('setPromotionActive(false) cũng hồi giá (tắt tay giữa chừng)', async () => {
+    const f = makePromoPrisma({
+      products: { a: 90000 },
+      promos: {
+        'p-1': {
+          id: 'p-1',
+          name: 'Sale',
+          listingSlugs: ['a'],
+          priceSnapshot: { a: 100000 },
+          active: true,
+        },
+      },
+    });
+    const svc = svcOf(f);
+    await svc.setPromotionActive('p-1', false);
+    expect(f.products.get('a')).toBe(100000);
+    expect((f.promos.get('p-1') as { active: boolean }).active).toBe(false);
+  });
+});
+
+describe('PromotionExpireService', () => {
+  it('đóng mọi promotion quá hạn, bỏ qua cái lỗi (không dừng vòng)', async () => {
+    const { PromotionExpireService } = await import(
+      './promotion-expire.service'
+    );
+    const closed: string[] = [];
+    const prisma = {
+      promotion: {
+        findMany: () =>
+          Promise.resolve([{ id: 'p-1' }, { id: 'p-2' }, { id: 'p-3' }]),
+      },
+    };
+    const admin = {
+      closePromotion: async (id: string) => {
+        if (id === 'p-2') throw new Error('kẹt');
+        closed.push(id);
+        return { id, restored: 1 };
+      },
+    };
+    const svc = new PromotionExpireService(
+      prisma as never,
+      admin as never,
+    );
+    expect(await svc.expireDue()).toBe(2);
+    expect(closed).toEqual(['p-1', 'p-3']);
+  });
+
+  it('không có promotion quá hạn → 0, không gọi close', async () => {
+    const { PromotionExpireService } = await import(
+      './promotion-expire.service'
+    );
+    const prisma = { promotion: { findMany: () => Promise.resolve([]) } };
+    const admin = { closePromotion: async () => ({ restored: 0 }) };
+    const svc = new PromotionExpireService(prisma as never, admin as never);
+    expect(await svc.expireDue()).toBe(0);
   });
 });

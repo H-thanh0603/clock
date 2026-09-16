@@ -189,7 +189,9 @@ model ProductEvent {
 
 /// Khuyến mãi theo khung ngày (merchant agent stage/apply).
 /// Apply = tạo bản ghi + cập nhật giá SP về giá KM (guardrail cap
-/// max_promotion_discount_pct ở agent ledger). Giá gốc nằm ở ProductEvent audit.
+/// max_promotion_discount_pct ở agent ledger). Giá gốc snapshot ở
+/// priceSnapshot ({slug: priceUsd}) lúc tạo — cron hết hạn hồi giá từ đây
+/// (audit BIZ-HIGH-02: trước đây giá KM ở lại vĩnh viễn sau endsAt).
 model Promotion {
   id          String   @id @default(cuid())
   name        String
@@ -198,6 +200,8 @@ model Promotion {
   startsAt    DateTime
   endsAt      DateTime
   active      Boolean  @default(true)
+  /// Snapshot giá gốc USD theo slug lúc tạo promotion (để hồi giá khi hết hạn).
+  priceSnapshot Json?
   createdById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
