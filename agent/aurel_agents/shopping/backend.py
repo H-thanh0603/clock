@@ -14,8 +14,9 @@ Cách map (xem ``vendor/docs/backends.md``):
   BE tự tra giá DB (không tin giá client) nên adapter chỉ truyền display price.
 - Đơn: ``/orders/mine`` cho user đăng nhập; tra cứu theo mã ``AC-YYYY-NNNNNN``
   qua ``/orders/by-code`` cho khách vãng lai (rate-limit 30/phút của BE).
-- Chính sách: clock không có API policy — 3 trang legal FE (terms/privacy/complaints)
-  được dựng thành ``Policy`` tĩnh ở đây (nội dung đồng bộ với ``src/app/legal/``).
+- Chính sách: clock không có API policy — 4 trang legal FE
+  (terms/privacy/complaints/shipping) được dựng thành ``Policy`` tĩnh ở đây
+  (nội dung đồng bộ với ``src/app/legal/``).
 """
 
 from __future__ import annotations
@@ -87,9 +88,23 @@ POLICIES: list[Policy] = [
         title="Vận chuyển & bàn giao",
         category="vận chuyển",
         content=(
-            "Bàn giao qua Private Salon (Hà Nội / Sài Gòn / Genève) theo khung giờ "
-            "khách chọn: 10:00–12:00, 14:30–16:30, hoặc 19:00–21:00. Đơn vãng lai "
-            "tra cứu theo mã đơn AC-YYYY-NNNNNN trên web."
+            "Miễn phí toàn quốc, vận chuyển an ninh có bảo hiểm 100%. Đơn "
+            "CONFIRMED/PAID bàn giao trong 2 giờ làm việc nội thành, 24–48 giờ "
+            "liên tỉnh theo khung giờ khách chọn. Kiểm tra ngoại quan khi nhận; "
+            "vấn đề ngoại quan ghi nhận trong 48 giờ. Đổi mới 7 ngày nếu lỗi "
+            "NSX/giao sai; hàng bespoke/khắc tên không đổi trả trừ lỗi chế tác. "
+            "Đơn vãng lai tra cứu theo mã AC-YYYY-NNNNNN trên web."
+        ),
+    ),
+    Policy(
+        policy_id="bespoke",
+        title="Hàng bespoke & đặt chế tác riêng",
+        category="bespoke",
+        content=(
+            "Đơn bespoke qua configurator là yêu cầu tư vấn, chưa phải đơn mua — "
+            "concierge phản hồi bản dựng kỹ thuật và giá chốt trong 48 giờ làm "
+            "việc. Giá chốt chỉ hiệu lực khi hai bên xác nhận bằng email; sau đó "
+            "đặt cọc 20%, chế tác 14–24 tháng."
         ),
     ),
 ]

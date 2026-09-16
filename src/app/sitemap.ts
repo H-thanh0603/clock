@@ -48,6 +48,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.1,
     },
+    {
+      url: `${base}/legal/shipping`,
+      lastModified: now,
+      changeFrequency: "yearly",
+      priority: 0.1,
+    },
   ];
 
   // Catalog: mọi SP public (backend tự lọc inBoutique=true).

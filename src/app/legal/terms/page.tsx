@@ -62,7 +62,23 @@ export default function TermsPage() {
         </p>
       </section>
       <section>
-        <h2>6. Quyền sở hữu trí tuệ</h2>
+        <h2>6. Hàng bespoke & đặt chế tác riêng</h2>
+        <ul>
+          <li>
+            Đơn bespoke gửi qua configurator là yêu cầu tư vấn, chưa phải đơn
+            mua — concierge phản hồi bản dựng kỹ thuật và giá chốt trong 48 giờ
+            làm việc qua email/điện thoại đã đăng ký.
+          </li>
+          <li>
+            Giá chốt chỉ có hiệu lực khi hai bên xác nhận bằng văn bản (email);
+            sau xác nhận mới đặt cọc 20% và đưa vào chế tác (14–24 tháng tùy
+            cấu hình).
+          </li>
+          <li>Hàng bespoke/khắc tên riêng không đổi trả trừ lỗi chế tác.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>7. Quyền sở hữu trí tuệ</h2>
         <p>
           Mọi hình ảnh, nội dung và thiết kế trên website thuộc bản quyền của
           Aurel &amp; Co. Manufacture Horlogère. Không sao chép cho mục đích
