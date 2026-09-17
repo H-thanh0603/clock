@@ -107,8 +107,9 @@ export default function Page() {
             data.error ??
             "Lỗi tạo đơn hàng"
         );
-      // Đã nhận response (đơn mới hay replay) → key hoàn thành sứ mệnh.
-      clearCheckoutKey(fp);
+      // Key chỉ clear SAU bước cuối (audit NV-2): VNPay fail → retry giữ
+      // key cũ để BE replay đơn cũ thay vì tạo đơn trùng.
+      if (pay !== "vnpay") clearCheckoutKey(fp);
       // Đơn VNPay: KHÔNG clear giỏ lúc này — giỏ chỉ clear khi settle
       // success (bỏ thanh toán giữa chừng vẫn giữ giỏ).
       if (pay !== "vnpay") clear();
@@ -132,6 +133,8 @@ export default function Page() {
               "Lỗi tạo thanh toán VNPay"
           );
         window.location.href = pd.url as string;
+        // Redirect khỏi trang = terminal: key tiêu thụ xong.
+        clearCheckoutKey(fp);
         return;
       }
       setProcessing("Mã hóa PCI-DSS Level 1...");

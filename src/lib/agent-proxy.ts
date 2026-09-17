@@ -46,3 +46,20 @@ export function agentUpstreamUrl(host: string, sub: string, query: string): stri
   const base = host.replace(/\/$/, "");
   return `${base}/${sub}${query ? `?${query}` : ""}`;
 }
+
+/**
+ * Chọn upstream host cho proxy ops (audit NV-1).
+ * Chỉ dùng host nội bộ (AGENT_INTERNAL_URL) hoặc loopback dev — KHÔNG BAO GIỜ
+ * fallback về NEXT_PUBLIC_AGENT_URL vì đó là URL public browser cũng thấy,
+ * làm sập giả định "ops và shop khác base".
+ */
+export function resolveAgentUpstreamHost(env: {
+  AGENT_INTERNAL_URL?: string | undefined;
+  [key: string]: string | undefined;
+}): string {
+  const internal = (env.AGENT_INTERNAL_URL ?? "").trim();
+  if (internal) return internal.replace(/\/$/, "");
+  // ponytail: dev mặc định loopback cùng máy; prod thiếu AGENT_INTERNAL_URL
+  // sẽ fail-closed tự nhiên vì loopback trong container FE không phải agent.
+  return "http://127.0.0.1:8100";
+}

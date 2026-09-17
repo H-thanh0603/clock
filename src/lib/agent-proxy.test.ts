@@ -3,6 +3,7 @@ import {
   agentUpstreamUrl,
   isOpsPathAllowed,
   normalizeSubPath,
+  resolveAgentUpstreamHost,
 } from "./agent-proxy";
 
 describe("normalizeSubPath", () => {
@@ -47,8 +48,21 @@ describe("isOpsPathAllowed", () => {
   });
 });
 
-describe("agentUpstreamUrl", () => {
-  it("giữ query, bỏ slash thừa", () => {
+describe("resolveAgentUpstreamHost", () => {
+  it("ưu tiên AGENT_INTERNAL_URL, bỏ slash thừa", () => {
+    expect(
+      resolveAgentUpstreamHost({ AGENT_INTERNAL_URL: "http://agent:8100/" })
+    ).toBe("http://agent:8100");
+  });
+  it("KHÔNG fallback public URL — thiếu internal → loopback dev", () => {
+    expect(resolveAgentUpstreamHost({})).toBe("http://127.0.0.1:8100");
+    expect(resolveAgentUpstreamHost({ AGENT_INTERNAL_URL: "  " })).toBe(
+      "http://127.0.0.1:8100"
+    );
+  });
+});
+
+describe("agentUpstreamUrl", () => {  it("giữ query, bỏ slash thừa", () => {
     expect(agentUpstreamUrl("http://agent:8100/", "alerts", "limit=20")).toBe(
       "http://agent:8100/alerts?limit=20"
     );

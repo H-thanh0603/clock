@@ -4,6 +4,7 @@ import {
   agentUpstreamUrl,
   isOpsPathAllowed,
   normalizeSubPath,
+  resolveAgentUpstreamHost,
 } from "@/lib/agent-proxy";
 import { apiUrl } from "@/lib/api-client";
 
@@ -50,10 +51,8 @@ async function proxy(
   if (!(await isAdmin())) {
     return Response.json({ error: "Khu vực vận hành — cần quyền admin" }, { status: 403 });
   }
-  const host =
-    process.env.AGENT_INTERNAL_URL ??
-    process.env.NEXT_PUBLIC_AGENT_URL ??
-    "http://127.0.0.1:8100";
+  // Upstream ops: chỉ host nội bộ (audit NV-1) — không fallback public URL.
+  const host = resolveAgentUpstreamHost(process.env);
   const qs = req.nextUrl.search ? req.nextUrl.search.slice(1) : "";
   const upstream = await fetch(
     agentUpstreamUrl(host, sub as string, qs),
