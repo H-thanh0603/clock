@@ -11,6 +11,8 @@ export function backendBase(): string {
 }
 
 export function apiUrl(path: string): string {
+  // NV-3: không prefix lần 2 nếu caller lỡ truyền URL tuyệt đối.
+  if (/^https?:\/\//i.test(path)) return path;
   const base = backendBase().replace(/\/$/, "");
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }

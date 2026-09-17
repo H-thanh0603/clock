@@ -75,6 +75,22 @@ export class RequiredAuthGuard implements CanActivate {
   }
 }
 
+/** Bắt buộc phiên đăng nhập đầy đủ (session cookie) — delegation không đủ.
+ * Dùng cho nơi cấp delegation: vé 30 phút không được tự đẻ vé kế tiếp. */
+@Injectable()
+export class SessionOnlyGuard implements CanActivate {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const session = await verifySessionToken(req.cookies?.[SESSION_COOKIE]);
+    const user = await verifiedUser(this.prisma, session);
+    if (!user) throw new UnauthorizedException('Chưa đăng nhập');
+    req.sessionUser = session;
+    return true;
+  }
+}
+
 /** Bắt buộc role ADMIN (401 chưa login, 403 không đủ quyền — check role trong DB). */
 @Injectable()
 export class AdminGuard implements CanActivate {

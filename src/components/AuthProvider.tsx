@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await csrfFetch(apiUrl("/auth/logout"), {
+    await csrfFetch("/auth/logout", {
       method: "POST",
       credentials: "include",
     });

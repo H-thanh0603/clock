@@ -10,6 +10,11 @@ import {
 
 const TYPES = new Set(['SALON', 'BESPOKE']);
 
+/** Escape text trước khi ghép vào tin Telegram parse_mode=HTML (audit NV-2). */
+export function escapeTelegramHtml(v: string): string {
+  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /**
  * Form "Đặt lịch Private Salon" (trang chủ/atelier) và đơn bespoke
  * (configurator). Public POST (rate-limited toàn app) — lưu DB, đẩy
@@ -43,16 +48,15 @@ export class InquiriesController {
     // Thông báo concierge — qua hàng đợi NotifyService (không chặn response,
     // Telegram/SMTP fail thì retry với backoff thay vì mất thông báo).
     const label = type === 'BESPOKE' ? 'Đơn bespoke' : 'Yêu cầu đặt lịch';
+    const esc = escapeTelegramHtml;
     const lines = [
       `📬 <b>${label} mới</b> (${inquiry.id.slice(-6)})`,
-      `Khách: ${inquiry.name} — ${inquiry.phone}${inquiry.email ? ` — ${inquiry.email}` : ''}`,
+      `Khách: ${esc(inquiry.name)} — ${esc(inquiry.phone)}${inquiry.email ? ` — ${esc(inquiry.email)}` : ''}`,
     ];
-    if (inquiry.message) lines.push(`Ghi chú: ${inquiry.message}`);
+    if (inquiry.message) lines.push(`Ghi chú: ${esc(inquiry.message)}`);
     if (payload) {
       // Payload đã sanitize ở trên (4KB, scalar, sâu ≤3) — render an toàn
       // vì Telegram parse_mode=HTML: escape thẻ trước khi ghép vào chuỗi.
-      const esc = (v: string) =>
-        v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const opts = Object.entries(payload)
         .map(([k, v]) => `${esc(k)}: ${esc(String(v))}`)
         .join(' • ');

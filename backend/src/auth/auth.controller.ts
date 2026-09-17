@@ -17,7 +17,7 @@ import {
   cookieOptions,
   clearCookieOptions,
 } from '../common/session';
-import { OptionalSessionGuard, RequiredAuthGuard } from '../common/guards';
+import { OptionalSessionGuard, RequiredAuthGuard, SessionOnlyGuard } from '../common/guards';
 import { CSRF_COOKIE, newCsrfToken } from '../common/csrf.middleware';
 import { CurrentUser } from '../common/current-user.decorator';
 import type { SessionUser } from '../common/session';
@@ -88,9 +88,11 @@ export class AuthController {
    */
   @Post('delegation')
   @HttpCode(200)
-  @UseGuards(RequiredAuthGuard)
+  @UseGuards(SessionOnlyGuard)
   @Throttle({ default: { limit: 6, ttl: 60_000 } })
   async delegation(@CurrentUser() user: SessionUser) {
+    // ponytail: vé delegation không tự gia hạn được nữa vì guard chỉ nhận
+    // session cookie; nâng cấp khi cần bằng cách bind parent-session jti.
     if (user.role === 'ADMIN') {
       throw new ForbiddenException('Admin không delegate cho agent shopping');
     }
