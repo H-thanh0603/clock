@@ -49,7 +49,9 @@ Chạy test:
 ```bash
 npm test                        # FE (vitest)
 cd backend && npm test          # BE — 200+ test: tiền, auth, csrf, expire, promotions/campaigns/metrics, meili search...
-cd agent && pytest              # AI agents — 39 test adapter + 150 test upstream
+cd agent && pytest              # AI agents — adapter + upstream + memory lock + ticket SLA
+./scripts/tests/run.sh          # ops scripts: backup/restore/offsite/migration-drift
+                                # (shell, chèn docker+rclone giả — không cần daemon)
 npx tsc --noEmit                 # typecheck FE
 cd backend && npx tsc --noEmit -p tsconfig.json   # typecheck BE
 npm run test:e2e                # E2E Playwright: guest mua deposit → tra đơn → reveal → hủy

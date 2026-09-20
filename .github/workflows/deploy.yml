@@ -43,6 +43,11 @@ jobs:
             # Migrate DB TRƯỚC khi container mới chạy (ảnh backend
             # đã có prisma CLI + migrations; chạy one-shot, thoát ngay).
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm --no-deps backend npx prisma migrate deploy
+            # Drift check SAU migrate: file migration mới = DB đã apply, và
+            # schema.prisma khớp file. Lệch → DỪNG trước khi swap container
+            # (rollback dễ hơn nhiều so với code mới chạy trên schema lệch).
+            ./scripts/check-migration-drift.sh "-f docker-compose.prod.yml --env-file .env.prod" \
+              || { echo "❌ Migration drift sau migrate — dừng deploy"; exit 1; }
 
       # Bước 4: mới thay container — schema đã sẵn, code mới chạy ngay.
       # Chỉ up service stateless + meili + db-offsite: KHÔNG đụng db/db-backup

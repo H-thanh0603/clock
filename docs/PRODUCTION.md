@@ -118,6 +118,13 @@ rclone copy "b2:aurel-backups/aurel-<stamp>.sql.gz" /tmp/ \
   `up -d --build backend frontend agent caddy meilisearch` — KHÔNG `up -d`
   toàn file (tránh restart `db`/`db-backup` không cần thiết). Xong kiểm tra
   smoke: backend `/health` + trang chủ 200 (CI deploy tự làm bước này).
+- **Drift check**: trước/sau khi migrate nên chạy
+  `./scripts/check-migration-drift.sh "-f docker-compose.prod.yml --env-file .env.prod"`
+  — bắt 3 loại lệch: file migration chưa `migrate deploy`, DB có migration
+  mà repo không còn, và model trong `schema.prisma` chưa sinh migration.
+  CI deploy dùng nó như **gate**: lệch → dừng trước khi swap container.
+  Exit 0 = khớp, 1 = lệch, 2 = không đọc được DB. Shell test harness cho
+  toàn bộ scripts: `./scripts/tests/run.sh` (không cần Docker).
 - Rollback: `docker compose ... up -d --build` lại ở commit cũ
   (`git checkout <sha>`). Migrate DOWN không tự động — chỉ rollback code
   khi migration mới tương thích ngược; ngược lại phải viết migration sửa.
