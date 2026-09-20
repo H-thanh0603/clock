@@ -331,7 +331,7 @@ def classify(
         noul = answers.get("is_complaint", {}).get("noul")
         if not isinstance(noul, (int, float)):
             return None
-        if noul < threshold:
+        if threshold is not None and noul < threshold:
             return JevVerdict(is_complaint=False, confidence=float(noul))
         choice = answers.get("department", {}).get("choice")
         severity = answers.get("severity", {}).get("choice")
