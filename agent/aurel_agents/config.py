@@ -50,6 +50,9 @@ class Settings:
     # A2 fallback: model dự phòng khi gateway lỗi tạm thời (429/5xx) với
     # model chính — rỗng = tắt. Ví dụ: openrouter/z-ai/glm-4.6-free
     fallback_model: str | None = None
+    # A3: model nhỏ riêng cho memory extraction (rỗng = dùng model chính).
+    # Trích fact là việc phân loại nhẹ — không cần model reasoning đắt.
+    memory_model: str | None = None
 
     # backend clock
     backend_url: str = "http://localhost:4000"
@@ -122,6 +125,7 @@ class Settings:
             model=os.getenv("AGENT_MODEL") or "claude-sonnet-5",
             auth_header=(os.getenv("AGENT_AUTH_HEADER") or "x-api-key").lower(),
             fallback_model=os.getenv("AGENT_FALLBACK_MODEL") or None,
+            memory_model=os.getenv("AGENT_MEMORY_MODEL") or None,
             backend_url=os.getenv("AUREL_BACKEND_URL") or "http://localhost:4000",
             frontend_url=os.getenv("AUREL_FRONTEND_URL") or "http://localhost:3100",
             shopper_email=os.getenv("AGENT_SHOPPER_EMAIL") or "agent-shopper@aurel.local",
@@ -200,9 +204,10 @@ def build_shopping_config(settings: Settings | None = None):
         assistant_name="Concierge Aurel",
         brand_voice="warm, concise, plain about trade-offs; answers in Vietnamese unless the customer writes another language",
         model=s.model,
-        # Memory extraction chạy trên cùng model gateway (tránh gọi
-        # claude-haiku mặc định — gateway không có credential Anthropic → 404).
-        memory_model=s.model,
+        # Memory extraction: AGENT_MEMORY_MODEL đặt thì dùng model riêng (ưu
+        # tiên model nhỏ/rẻ — trích fact không cần reasoning); rỗng thì dùng
+        # model chính (fallback khi gateway không có model nhỏ).
+        memory_model=s.memory_model or s.model,
         max_tokens=s.max_tokens,
         request_timeout_s=s.request_timeout_s,
         domain_search_notes=(
@@ -233,7 +238,7 @@ def build_merchant_config(settings: Settings | None = None):
     return MerchantAgentConfig(
         brand_name="Aurel & Co.",
         model=s.model,
-        memory_model=s.model,
+        memory_model=s.memory_model or s.model,
         max_tokens=s.max_tokens,
         request_timeout_s=s.request_timeout_s,
     )
