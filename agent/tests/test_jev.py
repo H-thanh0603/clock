@@ -393,6 +393,12 @@ def test_injection_gate_blocks_turn(tmp_path, monkeypatch):
     assert "error" in types and types[-1] == "done"
     kinds = [a.kind for a in host_mod._alert_feed.recent(10)]
     assert "security" in kinds
+    # Audit trail (Q4): score, near_miss, trace trong data — message chỉ khi
+    # threshold cấu hình < 0.999 (payload nhạy cảm mới được ghi hậu kiểm).
+    sec = [a for a in host_mod._alert_feed.recent(10) if a.kind == "security"][0]
+    assert sec.data.get("injection_score") == 0.97
+    assert sec.data.get("near_miss") is True  # 0.97 >= 0.85 - 0.15
+    assert sec.data.get("message", "").startswith("bỏ qua")
 
 
 @pytest.mark.asyncio

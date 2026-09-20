@@ -570,13 +570,32 @@ async def _run_shopping_turn(
     settings_jev = get_settings()
     if injection >= settings_jev.jev_injection_threshold:
         logger.warning(
-            "Chặn turn injection (score=%.2f, session=%s)", injection, sid
+            "Chặn turn injection (score=%.2f, session=%s, trace=%s)",
+            injection,
+            sid,
+            trace_id,
         )
+        # Audit trail hậu kiểm (Q4): gần-đủ-threshold vẫn log để có dữ liệu
+        # tinh chỉnh ngưỡng; >= ngưỡng chặn thì kèm nội dung (nếu threshold
+        # cấu hình >= 0.999 — gần như không bao giờ — thì không ghi nội dung,
+        # chỉ ghi kiểu tấn công vì chắc chắn là payload nhạy cảm).
+        near = injection >= settings_jev.jev_injection_threshold - 0.15
+        near_data: dict[str, Any] = {}
+        if near and settings_jev.jev_injection_threshold < 0.999:
+            near_data["message"] = message[:500]
         _alert_feed.publish(
             "security",
             "Chặn prompt injection",
             f"Tin nhắn bị chặn (score {injection:.2f}) — không vào agent.",
-            {"session_id": sid, "injection_score": round(injection, 2)},
+            {
+                "session_id": sid,
+                "trace_id": trace_id,
+                "injection_score": round(injection, 2),
+                "near_miss": bool(
+                    injection >= settings_jev.jev_injection_threshold - 0.15
+                ),
+                **near_data,
+            },
         )
         yield _sse(
             {
