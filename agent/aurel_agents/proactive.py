@@ -20,11 +20,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+try:
+    import fcntl  # POSIX file lock — Linux/macOS (môi trường deploy của host)
+except ImportError:  # Windows dev: không có lock, vẫn còn atomic rename
+    fcntl = None  # type: ignore[assignment]
 
 logger = logging.getLogger("aurel-agents.proactive")
 
@@ -153,43 +159,115 @@ class _JsonListStore:
         except Exception:
             self._items = []
 
-    def save(self) -> None:
+    def save(self, *, _purge=None) -> None:
+        """Ghi file an toàn cho đa tiến trình.
+
+        - Atomic rename (``os.replace``): file đích luôn là file hoàn chỉnh —
+          FE poll cùng lúc host ghi không bao giờ đọc được JSON dở dang.
+        - ``fcntl.flock`` quanh (đọc-disk → hợp nhất → lọc xóa → ghi): 2
+          process cùng chạy không ghi đè mất item của nhau (đúng smoke đa
+          tiến trình). Windows dev không có fcntl → vẫn còn atomic rename.
+
+        ``_purge``: predicate dùng nội bộ bởi ``remove``/``trim_before`` —
+        gọi trên **mọi** item (cache + disk) dưới lock, để xóa không bị
+        merge hồi sinh lại.
+        """
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(
-                    [x.model_dump(mode="json") for x in self._items],
-                    ensure_ascii=False,
-                    default=str,
-                ),
-                encoding="utf-8",
-            )
+            if fcntl is not None:
+                lock_path = self._path.with_suffix(self._path.suffix + ".lock")
+                lock_path.parent.mkdir(parents=True, exist_ok=True)
+                with lock_path.open("w") as lock:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+                    self._merge_from_disk_locked()
+                    if _purge is not None:
+                        self._items = [x for x in self._items if not _purge(x)]
+                    self._write_locked(self._dump())
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            else:
+                if _purge is not None:
+                    self._items = [x for x in self._items if not _purge(x)]
+                self._write_locked(self._dump())
         except Exception:
             pass
+
+    def _dump(self) -> str:
+        return json.dumps(
+            [x.model_dump(mode="json") for x in self._items],
+            ensure_ascii=False,
+            default=str,
+        )
+
+    def _merge_from_disk_locked(self) -> None:
+        """Hợp nhất item trên disk mà cache chưa có (process khác vừa ghi).
+
+        Merge theo ``id_field`` đầu tiên của model: item disk trùng id và
+        ``updated_at``/``created_at`` mới hơn thì thắng (model phải có ít
+        nhất 1 trong 2 field). Không xóa item cache — xóa là việc của
+        ``remove()`` (xóa dưới chính lock này).
+        """
+        if not self._path.exists():
+            return
+        try:
+            raw = json.loads(self._path.read_text(encoding="utf-8"))
+        except Exception:
+            return
+        if not isinstance(raw, list):
+            return
+        id_field = next(iter(self._model.model_fields), None)
+        if id_field is None:
+            return
+        mine = {}
+        for x in self._items:
+            key = getattr(x, id_field, None)
+            if key is not None:
+                mine[key] = x
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            try:
+                other = self._model.model_validate(entry)
+            except Exception:
+                continue
+            key = getattr(other, id_field, None)
+            if key is None or key in mine:
+                continue
+            self._items.append(other)
+            mine[key] = other
+        self._items = self._items[-self._cap :]
+
+    def _write_locked(self, payload: str) -> None:
+        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        tmp.write_text(payload, encoding="utf-8")
+        os.replace(tmp, self._path)
 
     def all(self) -> list[BaseModel]:
         return list(self._items)
 
     def remove(self, item_id: str, id_field: str) -> bool:
-        """Xóa 1 item theo id. Trả True nếu xóa được."""
+        """Xóa 1 item theo id (dưới lock: merge trước, purge sau khi merge)."""
         before = len(self._items)
         self._items = [
             x for x in self._items if getattr(x, id_field, None) != item_id
         ]
         changed = len(self._items) < before
         if changed:
-            self.save()
+            self.save(
+                _purge=lambda x: getattr(x, id_field, None) == item_id
+            )
         return changed
 
     def trim_before(self, cutoff: float, ts_field: str = "created_at") -> int:
         """Xóa item timestamp cũ hơn cutoff. Trả số item xóa."""
         before = len(self._items)
-        self._items = [
-            x for x in self._items if float(getattr(x, ts_field, 0) or 0) >= cutoff
-        ]
+
+        def _old(x) -> bool:
+            return float(getattr(x, ts_field, 0) or 0) < cutoff
+
+        self._items = [x for x in self._items if not _old(x)]
         removed = before - len(self._items)
         if removed:
-            self.save()
+            self.save(_purge=_old)
         return removed
 
     def _add(self, item: BaseModel) -> None:
