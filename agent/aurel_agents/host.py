@@ -273,6 +273,40 @@ def _check_merchant_auth(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Thiếu/sai x-agent-token cho merchant API")
 
 
+def _jev_watch_gate():
+    """#1: Jev gate cho set_watch — phân loại lại ý định watch bằng
+    decision model (noul + choice) khi diễn đạt tự nhiên làm model chính
+    chọn sai kind. Trả ``(kind, pct)``; mọi lỗi (thiếu key, Jev chết)
+    → giữ nguyên tham số model chọn (fail-safe)."""
+
+    async def gate(message: str, kind: str, pct: float | None):
+        from aurel_agents import jev
+
+        settings = get_settings()
+        verdict = await asyncio.to_thread(
+            jev.classify_watch_intent,
+            message,
+            api_key=settings.jev_api_key,
+            base_url=settings.jev_url,
+            model=settings.jev_model,
+            timeout_s=settings.jev_timeout_s,
+        )
+        if verdict is None or not verdict.is_watch_intent:
+            return kind, pct
+        new_kind = verdict.watch_type or kind
+        new_pct: float | None = pct
+        if new_kind == "price_drop":
+            if verdict.price_drop_pct is not None:
+                new_pct = float(verdict.price_drop_pct)
+            elif pct is None:
+                # Jev bảo là price_drop nhưng không suy ra được % — đặt
+                # 5% (bucket "rẻ hơn chút") để watch có điều kiện rõ.
+                new_pct = 5.0
+        return new_kind, new_pct
+
+    return gate
+
+
 async def _make_shopping_agent(pool: PooledStorefront):
     from shopping_agent_runtime import ShoppingAgent
 
@@ -289,7 +323,7 @@ async def _make_shopping_agent(pool: PooledStorefront):
         client=build_anthropic_client(settings),
         memory_store=LockedJsonFileMemoryStore(MEMORY_STORE_FILE),
         extra_presentation_tools=(
-            build_watch_extension(_watch_store),
+            build_watch_extension(_watch_store, jev_gate=_jev_watch_gate()),
             *build_task_extensions(_task_store),
         ),
     )

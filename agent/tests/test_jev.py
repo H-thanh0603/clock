@@ -118,6 +118,122 @@ async def test_async_jev_confirms_implicit_complaint(tmp_path, monkeypatch):
     assert alerts[0].data.get("sentiment") == "upset"
 
 
+# --- #1 watch intent -----------------------------------------------------------------
+
+
+def test_watch_intent_confirmed(respx_mock):
+    """"Báo khi rẻ hơn" → Jev xác nhận price_drop + bucket %."""
+    respx_mock.post(BASE).respond(
+        json={
+            "answers": {
+                "is_watch_intent": {"type": "noul", "noul": 0.9},
+                "watch_type": {"type": "choice", "choice": "price_drop"},
+                "price_drop_pct": {"type": "choice", "choice": "10"},
+            }
+        }
+    )
+    v = jev.classify_watch_intent("báo tôi khi chiếc này rẻ hơn", **_kw())
+    assert v is not None and v.is_watch_intent is True
+    assert v.watch_type == "price_drop"
+    assert v.price_drop_pct == 10
+
+
+def test_watch_intent_not_watch(respx_mock):
+    respx_mock.post(BASE).respond(
+        json={"answers": {"is_watch_intent": {"type": "noul", "noul": 0.1}}}
+    )
+    v = jev.classify_watch_intent("cho xem giá hiện tại", **_kw())
+    assert v is not None and v.is_watch_intent is False
+    assert v.watch_type is None
+
+
+def test_watch_intent_no_key_returns_none():
+    assert jev.classify_watch_intent("báo khi về hàng", **_kw(api_key=None)) is None
+
+
+def test_watch_intent_http_error_returns_none(respx_mock):
+    respx_mock.post(BASE).respond(status_code=500)
+    assert jev.classify_watch_intent("báo khi về hàng", **_kw()) is None
+
+
+def _watch_ctx(page_query: str, product_price: float = 100.0):
+    """EnrichmentContext giả đủ page.query + state.seen_products cho gate."""
+
+    class _Page:
+        query = page_query
+
+    class _State:
+        seen_products = {"p1": type("P", (), {"price": product_price})()}
+
+    class _Session:
+        page = _Page()
+        user_id = "shopper:t"
+
+    class _Ctx:
+        session = _Session()
+        state = _State()
+
+    return _Ctx()
+
+
+@pytest.mark.asyncio
+async def test_watch_gate_fixes_kind(tmp_path, monkeypatch):
+    """Model tick restock nhưng khách nói "báo khi rẻ hơn" → Jev sửa price_drop."""
+    from aurel_agents.shopping.watch_tool import build_watch_extension
+
+    host = _reset_host_stores(tmp_path)
+    monkeypatch.setattr(
+        "aurel_agents.jev.classify_watch_intent",
+        lambda *a, **k: jev.WatchIntentVerdict(
+            is_watch_intent=True, watch_type="price_drop", price_drop_pct=10
+        ),
+    )
+    monkeypatch.setattr(host, "get_settings", lambda: Settings(jev_api_key="k"))
+    ext = build_watch_extension(host._watch_store, jev_gate=host._jev_watch_gate())
+    out = await ext.enrich(
+        type("P", (), {"product_id": "p1", "kind": "restock", "price_drop_pct": None, "note": None})(),
+        _watch_ctx("báo tôi khi chiếc này rẻ hơn"),
+    )
+    assert out["kind"] == "price_drop"
+    assert out["price_drop_pct"] == 10
+
+
+@pytest.mark.asyncio
+async def test_watch_gate_failsafe_keeps_model_choice(tmp_path, monkeypatch):
+    """Jev chết (classify_raise) → enrich vẫn ghi watch với tham số model chọn."""
+    from aurel_agents.shopping.watch_tool import build_watch_extension
+
+    host = _reset_host_stores(tmp_path)
+
+    def _boom(*a, **k):
+        raise RuntimeError("jev down")
+
+    monkeypatch.setattr("aurel_agents.jev.classify_watch_intent", _boom)
+    monkeypatch.setattr(host, "get_settings", lambda: Settings(jev_api_key="k"))
+    ext = build_watch_extension(host._watch_store, jev_gate=host._jev_watch_gate())
+    out = await ext.enrich(
+        type("P", (), {"product_id": "p1", "kind": "restock", "price_drop_pct": None, "note": None})(),
+        _watch_ctx("báo tôi khi có hàng"),
+    )
+    assert out["kind"] == "restock"
+
+
+@pytest.mark.asyncio
+async def test_watch_gate_absent_keeps_old_behavior(tmp_path):
+    """jev_gate=None (mặc định) → hành vi cũ nguyên vẹn."""
+    from aurel_agents.shopping.watch_tool import build_watch_extension
+
+    host = _reset_host_stores(tmp_path)
+    ext = build_watch_extension(host._watch_store)
+    out = await ext.enrich(
+        type("P", (), {"product_id": "p1", "kind": "price_drop", "price_drop_pct": 15, "note": None})(),
+        _watch_ctx("báo khi giảm giá"),
+    )
+    assert out["kind"] == "price_drop"
+    assert out["price_drop_pct"] == 15
+    assert out["baseline_price"] == 100.0
+
+
 @pytest.mark.asyncio
 async def test_async_jev_down_fallback_no_ticket(tmp_path, monkeypatch):
     """Jev chết → None, không ticket rác (giữ đúng hành vi heuristic cũ)."""

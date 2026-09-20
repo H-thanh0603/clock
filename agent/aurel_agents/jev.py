@@ -80,6 +80,94 @@ class JevVerdict:
     sentiment: str | None = None
 
 
+# --- #1 watch intent (Jev phân loại loại watch khi heuristic/model trượt) ------------
+
+QUESTIONS_WATCH = {
+    "is_watch_intent": {
+        "type": "noul",
+        "instructions": (
+            "Khách có đang nhờ theo dõi một sản phẩm để được báo sau không "
+            "(báo khi về hàng, báo khi giảm giá)?"
+        ),
+    },
+    "watch_type": {
+        "type": "choice",
+        "instructions": "Loại theo dõi khách muốn?",
+        "criteria": {
+            "restock": "Báo khi sản phẩm có lại hàng (hết hàng, về lại)",
+            "price_drop": "Báo khi giá giảm (rẻ hơn, giảm giá, xuống dưới mức nào đó)",
+        },
+    },
+    "price_drop_pct": {
+        "type": "choice",
+        "instructions": (
+            "Nếu là báo giảm giá: mức giảm tối thiểu khách chấp nhận? "
+            "Chọn bucket gần nhất với lời khách."
+        ),
+        "criteria": {
+            "5": "Chỉ cần rẻ hơn chút ('giảm chút', 'rẻ hơn tí', không nói mức)",
+            "10": "Khoảng 10% hoặc 'giảm 10%'",
+            "20": "Giảm sâu ('mới đáng mua', 'giảm nhiều', ~20%+)",
+        },
+    },
+}
+
+
+@dataclass(frozen=True)
+class WatchIntentVerdict:
+    is_watch_intent: bool
+    watch_type: str | None = None
+    price_drop_pct: int | None = None
+
+
+def classify_watch_intent(
+    message: str,
+    *,
+    api_key: str | None,
+    base_url: str,
+    model: str,
+    timeout_s: float,
+    threshold: float = 0.6,
+) -> WatchIntentVerdict | None:
+    """#1: phân loại ý định watch. None = Jev chết/thiếu key → caller giữ
+    nguyên kind model đã chọn (fail-safe); is_watch_intent=False nghĩa là
+    Jev chấm thấp — cũng giữ nguyên, chỉ là không tinh chỉnh."""
+    if not api_key:
+        return None
+    try:
+        resp = httpx.post(
+            base_url.rstrip("/"),
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": model, "state": message[:2000], "questions": QUESTIONS_WATCH},
+            timeout=timeout_s,
+        )
+        resp.raise_for_status()
+        answers = resp.json().get("answers", {})
+        noul = answers.get("is_watch_intent", {}).get("noul")
+        if not isinstance(noul, (int, float)):
+            return None
+        if float(noul) < threshold:
+            return WatchIntentVerdict(is_watch_intent=False)
+        wtype = answers.get("watch_type", {}).get("choice")
+        pct_raw = answers.get("price_drop_pct", {}).get("choice")
+        pct: int | None = None
+        if isinstance(pct_raw, str):
+            try:
+                pct = int(pct_raw)
+            except ValueError:
+                pct = None
+        elif isinstance(pct_raw, (int, float)):
+            pct = int(pct_raw)
+        return WatchIntentVerdict(
+            is_watch_intent=True,
+            watch_type=wtype if isinstance(wtype, str) else None,
+            price_drop_pct=pct,
+        )
+    except Exception:
+        logger.warning("Jev watch-intent lỗi (giữ kind model chọn)", exc_info=True)
+        return None
+
+
 def classify(
     message: str,
     *,

@@ -10,16 +10,29 @@ check định kỳ và publish alert khi điều kiện khớp.
 Tại sao đây là tính năng agent-only: chatbot trả lời xong là quên — nó
 không có tiến trình dài hạn để kiểm tra lại, cũng không có tool ghi
 trạng thái để vòng sau đọc.
+
+``jev_gate``: async callback ``(message, kind, pct) → (kind, pct)`` do host
+cắm vào — hỏi Jev phân loại lại ý định watch (noul + choice) và sửa
+kind/pct nếu model chính chọn sai diễn đạt tự nhiên ("báo khi rẻ hơn" là
+price_drop dù model tick restock). Callback raise ``PresentationRefused``
+khi cần hỏi lại khách (chưa rõ điều kiện, chưa có key...); lỗi khác trong
+callback được nuốt — watch luôn ghi được, Jev không bao giờ chặn việc.
 """
 
 from __future__ import annotations
 
-from typing import Any
+import logging
+from typing import Any, Awaitable, Callable
 
 from commerce_common.presentation import PresentationExtension
 from pydantic import BaseModel, Field
 
 from aurel_agents.proactive import WatchStore
+
+logger = logging.getLogger("aurel-agents.watch")
+
+# Callback Jev gate: async (message, kind, pct) -> (kind, pct)
+JevWatchGate = Callable[[str, str, float | None], Awaitable[tuple[str, float | None]]]
 
 
 class SetWatchPayload(BaseModel):
@@ -34,12 +47,15 @@ class SetWatchPayload(BaseModel):
 def build_watch_extension(
     watch_store: WatchStore,
     user_id_of: Any = None,
+    jev_gate: JevWatchGate | None = None,
 ) -> PresentationExtension:
     """``set_watch`` presentation extension.
 
     ``user_id_of``: callable(session) → user_id (mặc định lấy
     ``session.user_id`` — đúng với ShoppingSessionContext).
     ``enrich`` chạy trong executor của agent với session thật.
+    ``jev_gate``: callback host cắm, hỏi Jev phân loại lại ý định
+    (xem module docstring). None = tắt gate (test cũ chạy như trước).
     """
 
     async def enrich(payload: SetWatchPayload, context: Any) -> dict[str, Any]:
@@ -53,22 +69,36 @@ def build_watch_extension(
                 f"product_id {payload.product_id} chưa từng được tìm trong phiên "
                 "này — hãy search/get_product_details trước khi đặt watch."
             )
+        kind = payload.kind
+        pct = payload.price_drop_pct
         baseline: float | None = None
-        if payload.kind == "price_drop":
+        if kind == "price_drop":
             product = context.state.seen_products.get(payload.product_id)
             baseline = float(product.price) if product else None
+        if jev_gate is not None:
+            # Jev gate (async — PresentationExtension enrich đã là coroutine):
+            # LỖI BẤT KỲ (key rỗng, Jev chết, parse lỗi) → nuốt, giữ kind/pct
+            # model chọn. Jev chỉ là gate tinh chỉnh, không bao giờ chặn việc.
+            try:
+                user_message = (getattr(context.session.page, "query", None) or "").strip()
+                if user_message:
+                    kind, pct = await jev_gate(user_message, kind, pct)
+            except Exception:
+                logger.warning(
+                    "Jev watch gate lỗi — giữ kind/pct model chọn", exc_info=True
+                )
         watch = watch_store.add(
             user_id=user_id,
             product_id=payload.product_id,
-            kind=payload.kind,
-            price_drop_pct=payload.price_drop_pct,
-            baseline_price=baseline,
+            kind=kind,
+            price_drop_pct=pct,
+            baseline_price=baseline if kind == "price_drop" else None,
         )
-        if payload.kind == "restock":
+        if watch.kind == "restock":
             confirm = "sản phẩm về lại hàng"
         else:
-            pct = payload.price_drop_pct or 0
-            confirm = f"giá giảm ít nhất {pct:g}% so với ${baseline or 0:,.0f}"
+            final_pct = watch.price_drop_pct or 0
+            confirm = f"giá giảm ít nhất {final_pct:g}% so với ${baseline or 0:,.0f}"
         return {
             "watch_id": watch.watch_id,
             "product_id": watch.product_id,
