@@ -727,6 +727,8 @@ class ProactiveMonitor:
         # Dedupe alert merchant: fingerprint → timestamp lần cuối publish.
         # Không có cái này, 1 tình trạng tồn kho thấp lặp lại mỗi vòng quét.
         self._alert_seen: dict[str, float] = {}
+        # Heartbeat: True khi vòng quét chậm quá 3× interval (health đọc).
+        self._stale: bool = False
 
     def start(self) -> None:
         if self._settings is None or self._settings.monitor_interval_s <= 0:
@@ -795,6 +797,7 @@ class ProactiveMonitor:
         """
         failures = 0
         was_down = False
+        was_stale = False
         while not self._stop.is_set():
             try:
                 await asyncio.wait_for(
@@ -803,6 +806,28 @@ class ProactiveMonitor:
                 break  # stop() được gọi
             except TimeoutError:
                 pass
+            # Heartbeat: vòng quét quá 3× interval (dù backoff) → host qua
+            # /health báo degraded; không có cái này monitor treo im lặng
+            # (BE chết có alert, monitor chết thì không ai báo).
+            try:
+                stale_limit = 3 * max(self._settings.monitor_interval_s, 1)
+                self._stale = (
+                    self.last_run is None
+                    or (time.time() - self.last_run) > stale_limit
+                )
+                if self._stale and not was_stale:
+                    self._alerts.publish(
+                        "monitor_status",
+                        "Vòng quét agent chậm bất thường",
+                        (
+                            "Lần quét cuối cách đây quá "
+                            f"{stale_limit}s — monitor có thể bị treo/backoff sâu."
+                        ),
+                        {"status": "stale"},
+                    )
+                was_stale = self._stale
+            except Exception:  # noqa: BLE001 — heartbeat không làm chết loop
+                logger.debug("heartbeat check lỗi (bỏ qua)", exc_info=True)
             try:
                 await self.run_once()
                 failures = 0

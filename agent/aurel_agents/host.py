@@ -924,12 +924,17 @@ async def index() -> dict:
 async def health() -> dict:
     backend = _state.get("merchant_backend")
     pending = len(backend._ledger.pending()) if backend is not None else 0
+    # Monitor heartbeat (A1): vòng quét chậm quá 3× interval → degraded
+    # (trả 200 để compose không restart yểu, nhưng FE/dashboard thấy mà).
+    monitor_stale = bool(getattr(_monitor, "_stale", False))
     return {
         "ok": True,
+        "degraded": monitor_stale,
         "shopping_agent": _state.get("shopping") is not None,
         "merchant_agent": _state.get("merchant") is not None,
         "merchant_pending_changes": pending,
         "monitor_last_run": _monitor.last_run,
+        "monitor_stale": monitor_stale,
         "active_watches": len(_watch_store.active()),
         "open_tickets": len(_ticket_store.open_tickets()),
     }
