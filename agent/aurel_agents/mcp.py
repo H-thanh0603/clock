@@ -54,9 +54,8 @@ def build_shop_server(host: str = "127.0.0.1", port: int = 8200):
     """FastMCP storefront server trên catalog/cart/orders thật của clock."""
     import sys as _sys
 
-    from commerce_common.memory import JsonFileMemoryStore
-
     from aurel_agents.config import build_shopping_config, get_settings
+    from aurel_agents.memory_store import LockedJsonFileMemoryStore
     from aurel_agents.paths import DATA_DIR
 
     vendor_mcp = (
@@ -75,7 +74,7 @@ def build_shop_server(host: str = "127.0.0.1", port: int = 8200):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     return build_server(
         backend=backend,
-        memory_store=JsonFileMemoryStore(DATA_DIR / "shop-mcp-memory.json"),
+        memory_store=LockedJsonFileMemoryStore(DATA_DIR / "shop-mcp-memory.json"),
         config=build_shopping_config(settings),
         host=host,
         port=port,
@@ -86,8 +85,7 @@ def build_merchant_server(host: str = "127.0.0.1", port: int = 8201):
     """FastMCP merchant server trên admin API thật của clock."""
     import sys as _sys
 
-    from commerce_common.memory import JsonFileMemoryStore
-
+    from aurel_agents.memory_store import LockedJsonFileMemoryStore
     from aurel_agents.paths import DATA_DIR
 
     vendor_mcp = (
@@ -112,7 +110,7 @@ def build_merchant_server(host: str = "127.0.0.1", port: int = 8201):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     return build_server(
         backend=backend,
-        memory_store=JsonFileMemoryStore(DATA_DIR / "merchant-mcp-memory.json"),
+        memory_store=LockedJsonFileMemoryStore(DATA_DIR / "merchant-mcp-memory.json"),
         config=cfg,
         host=host,
         port=port,

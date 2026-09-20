@@ -274,9 +274,9 @@ def _check_merchant_auth(request: Request) -> None:
 
 
 async def _make_shopping_agent(pool: PooledStorefront):
-    from commerce_common.memory import JsonFileMemoryStore
     from shopping_agent_runtime import ShoppingAgent
 
+    from aurel_agents.memory_store import LockedJsonFileMemoryStore
     from aurel_agents.shopping.task_tool import build_task_extensions
     from aurel_agents.shopping.watch_tool import build_watch_extension
 
@@ -287,7 +287,7 @@ async def _make_shopping_agent(pool: PooledStorefront):
         skills_dir=SHOPPING_SKILLS,
         config=build_shopping_config(settings),
         client=build_anthropic_client(settings),
-        memory_store=JsonFileMemoryStore(MEMORY_STORE_FILE),
+        memory_store=LockedJsonFileMemoryStore(MEMORY_STORE_FILE),
         extra_presentation_tools=(
             build_watch_extension(_watch_store),
             *build_task_extensions(_task_store),
@@ -297,10 +297,10 @@ async def _make_shopping_agent(pool: PooledStorefront):
 
 
 async def _make_merchant_agent():
-    from commerce_common.memory import JsonFileMemoryStore
     from merchant_agent_runtime import MerchantAgent
 
     from aurel_agents.clock_client import ClockClient
+    from aurel_agents.memory_store import LockedJsonFileMemoryStore
     from aurel_agents.merchant.backend import AurelMerchant
 
     settings = get_settings()
@@ -321,7 +321,7 @@ async def _make_merchant_agent():
         skills_dir=MERCHANT_SKILLS,
         config=build_merchant_config(settings),
         client=build_anthropic_client(settings),
-        memory_store=JsonFileMemoryStore(MEMORY_STORE_FILE.with_name("memory-merchant.json")),
+        memory_store=LockedJsonFileMemoryStore(MEMORY_STORE_FILE.with_name("memory-merchant.json")),
     )
     return agent, client, backend
 
@@ -910,13 +910,13 @@ async def shop_forget(req: ForgetRequest) -> dict:
     chạm được dữ liệu session khác. Memory merchant (subject "aurel"
     chung) và transcript merchant KHÔNG xóa ở đây.
     """
-    from commerce_common.memory import JsonFileMemoryStore
+    from aurel_agents.memory_store import LockedJsonFileMemoryStore
 
     sid = sanitize_session_id(req.session_id)
     user_id = f"shopper:{sid[:8]}"
     removed_transcript = _transcripts.delete(sid)
     # Memory: subject = session.user_id (shopping) — xem executor.memory_subject.
-    store = JsonFileMemoryStore(MEMORY_STORE_FILE)
+    store = LockedJsonFileMemoryStore(MEMORY_STORE_FILE)
     try:
         await store.clear(user_id)
         removed_memory = True

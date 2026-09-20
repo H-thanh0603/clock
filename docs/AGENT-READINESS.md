@@ -74,7 +74,7 @@ Kết quả: **19/20 PASS** — 1 mục có lưu ý (16. Audit logs: actor-attri
 
 ### 7. Memory ✅
 
-- `JsonFileMemoryStore` (`agent/data/memory-store.json` shopping, `memory-merchant.json` merchant riêng) — persist qua restart.
+- `LockedJsonFileMemoryStore` (bọc `JsonFileMemoryStore` của upstream, `agent/data/memory-store.json` shopping, `memory-merchant.json` merchant riêng) — persist qua restart; **file lock `flock` + ghi atomic** nên an toàn khi 2 worker/nhiều process cùng ghi (trước đây read-modify-write đua nhau → mất fact).
 - `update_memory` chạy sau turn, kết quả phát event `memory` ra FE để user thấy agent nhớ gì.
 - Memory có write-filter + tier cap (`memory_tier_one_cap=8` — constraint tiềm ẩn trước, facts mới sau) + `memory_blocked_patterns` chặn ghi identifiers nhạy cảm.
 - Subject keyed đúng: shopping theo `user_id` (per-session shopper), merchant theo `merchant_id` — không lẫn memory giữa customer với merchant.
@@ -182,7 +182,7 @@ Có, 2 lớp, nhưng actor-attribution lệch nhau:
 ## Điểm cần theo dõi (không chặn)
 
 1. **Actor attribution 2 lớp** (mục 16) — seed `AGENT_ADMIN_EMAIL` riêng cho agent ở prod để `ProductEvent.byUserId` truy được thẳng operator.
-2. **Throttler/budget in-memory** — 1 instance agent host (đã có single-instance lock `host.lock` fail-fast), nhiều instance cần store chung.
+2. **Throttler/budget in-memory** — 1 instance agent host (đã có single-instance lock `host.lock` fail-fast), nhiều instance cần store chung. _Memory store đã xử lý (file lock) nhưng transcript/watch/alert vẫn dựa trên 1 instance._
 3. **Fuzz test chạy manual** — nên thêm vào CI tuần/tháng với key riêng khi có budget, vì nó verify fencing với model thật (hiện 2 test deselect khi thiếu key — đúng hành vi).
 4. **Monitor scan dùng admin account chung** — cần account riêng khi tách operator thật (trùng vấn đề 1).
 5. **Ticket/Watch store cap** — có cap nhưng nên verify cap đủ khi traffic thật lớn (feed cap ghi rõ trong code).
