@@ -703,12 +703,17 @@ class ProactiveMonitor:
         sessions_dir: Path | None = None,
         activity_log=None,
         task_store=None,
+        alert_gate=None,
     ) -> None:
         self._watches = watch_store
         self._alerts = alert_feed
         self._tickets = ticket_store
         self._task_store = task_store
         self._settings = settings
+        # #3: gate Jev chấm alert merchant-scan có đáng lên feed không.
+        # Async callable (kind, title, detail) → bool (True = publish).
+        # None = tắt lọc (publish như cũ). Gate tự fail-safe: lỗi → True.
+        self._alert_gate = alert_gate
         # AI Activity Log (host wire vào ở lifespan) — retention sweep dọn
         # dòng cũ cùng vòng quét. None = không dọn (test không cần).
         self._activity_log = activity_log
@@ -747,6 +752,23 @@ class ProactiveMonitor:
                     pass
         self._shopper = None
         self._admin = None
+
+    async def _should_publish(self, kind: str, title: str, detail: str) -> bool:
+        """#3: hỏi Jev alert có đáng lên feed không (chỉ merchant-scan).
+
+        Tick mỗi alert mỗi vòng quét (mặc định interval 300s) nên chi phí
+        bị chặn bằng số alert thực phát sinh — thường 0-2/vòng. Gate lỗi
+        (Jev chết/thiếu key) → True: không bao giờ MẤT alert vì Jev.
+        """
+        if self._alert_gate is None:
+            return True
+        try:
+            return await self._alert_gate(kind, title, detail)
+        except Exception:
+            logger.warning(
+                "alert gate lỗi — publish như cũ (fail-safe)", exc_info=True
+            )
+            return True
 
     def _publish_once(self, kind: str, title: str, detail: str, data: dict[str, Any]) -> bool:
         """Publish alert merchant-scan đúng 1 lần cho 1 tình trạng.
@@ -943,10 +965,11 @@ class ProactiveMonitor:
             for a in await merchant.get_inventory_alerts(session)
         ]
         for alert in check_merchant_snapshot(snapshot, inventory):
-            if self._publish_once(
-                alert.kind, alert.title, alert.detail, alert.data
-            ):
-                published += 1
+            if await self._should_publish(alert.kind, alert.title, alert.detail):
+                if self._publish_once(
+                    alert.kind, alert.title, alert.detail, alert.data
+                ):
+                    published += 1
         # Ticket quá SLA → alert (lặp được, _publish_once khử trùng).
         for alert in check_ticket_sla(
             self._tickets.open_tickets(), sla_hours=self._settings.ticket_sla_hours

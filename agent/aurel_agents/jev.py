@@ -21,6 +21,7 @@ model ``typesafe/jev`` — cả hai đều Bearer auth + cùng shape questions).
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 
@@ -165,6 +166,60 @@ def classify_watch_intent(
         )
     except Exception:
         logger.warning("Jev watch-intent lỗi (giữ kind model chọn)", exc_info=True)
+        return None
+
+
+# --- #3 lọc nhiễu alert merchant-scan ------------------------------------------------
+
+QUESTIONS_ALERT = {
+    "is_noteworthy": {
+        "type": "noul",
+        "instructions": (
+            "Alert vận hành này có ĐÁNG để chủ cửa hàng biết NGAY không "
+            "(ảnh hưởng tiền, khách chờ, mất bán) — hay là nhiễu lặp lại "
+            "đã biết từ trước?"
+        ),
+    },
+}
+
+
+@dataclass(frozen=True)
+class AlertVerdict:
+    is_noteworthy: bool
+
+
+def classify_alert(
+    alert_kind: str,
+    alert_title: str,
+    alert_detail: str,
+    *,
+    api_key: str | None,
+    base_url: str,
+    model: str,
+    timeout_s: float,
+) -> AlertVerdict | None:
+    """#3: chấm alert merchant-scan có đáng lên feed không. None = Jev
+    chết/thiếu key → caller publish như cũ (fail-safe, không mất alert)."""
+    if not api_key:
+        return None
+    state = json.dumps(
+        {"kind": alert_kind, "title": alert_title, "detail": alert_detail},
+        ensure_ascii=False,
+    )[:2000]
+    try:
+        resp = httpx.post(
+            base_url.rstrip("/"),
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": model, "state": state, "questions": QUESTIONS_ALERT},
+            timeout=timeout_s,
+        )
+        resp.raise_for_status()
+        noul = resp.json().get("answers", {}).get("is_noteworthy", {}).get("noul")
+        if not isinstance(noul, (int, float)):
+            return None
+        return AlertVerdict(is_noteworthy=float(noul) >= 0.5)
+    except Exception:
+        logger.warning("Jev alert-classify lỗi (publish như cũ)", exc_info=True)
         return None
 
 

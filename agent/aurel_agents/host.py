@@ -115,6 +115,31 @@ _task_store = TaskStore(TASKS_FILE)
 # AI Activity Log: tool-call nào, của ai/session nào, ok/fail, bao lâu.
 # Ghi bởi adapter (pool + AurelMerchant) khi host wire vào ở lifespan.
 _activity_log = ActivityLog(ACTIVITY_FILE)
+def _jev_alert_gate():
+    """#3: gate Jev chấm alert merchant-scan (low_stock/pending) có đáng
+    lên feed ops không. Mọi lỗi → True (không bao giờ MẤT alert vì Jev)."""
+
+    async def gate(kind: str, title: str, detail: str) -> bool:
+        from aurel_agents import jev
+
+        settings = get_settings()
+        verdict = await asyncio.to_thread(
+            jev.classify_alert,
+            kind,
+            title,
+            detail,
+            api_key=settings.jev_api_key,
+            base_url=settings.jev_url,
+            model=settings.jev_model,
+            timeout_s=settings.jev_timeout_s,
+        )
+        if verdict is None:
+            return True  # Jev tắt/chết → publish như cũ
+        return verdict.is_noteworthy
+
+    return gate
+
+
 _monitor = ProactiveMonitor(
     watch_store=_watch_store,
     alert_feed=_alert_feed,
@@ -122,6 +147,7 @@ _monitor = ProactiveMonitor(
     settings=None,  # set trong lifespan (settings cần env)
     sessions_dir=SESSIONS_DIR,  # retention sweep dọn transcript cũ
     task_store=_task_store,
+    alert_gate=_jev_alert_gate(),
 )
 
 # Budget guard: đếm turn mỗi (session, ngày UTC) + tổng toàn host/ngày.

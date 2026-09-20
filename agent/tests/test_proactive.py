@@ -392,6 +392,38 @@ def test_handoff_ticket_ignores_policy_question(tmp_path):
 # --- bug 1: merchant scan không spam alert lặp -------------------------------------------
 
 
+def test_should_publish_alert_gate(tmp_path):
+    """#3: alert gate = None → publish; gate chặn/cho qua; gate lỗi → publish."""
+    import asyncio
+
+    from aurel_agents.proactive import AlertFeed, ProactiveMonitor
+
+    feed = AlertFeed(tmp_path / "a.json")
+
+    async def _block(*a):
+        return False
+
+    async def _allow(*a):
+        return True
+
+    async def _boom(*a):
+        raise RuntimeError("jev down")
+
+    monitor = ProactiveMonitor(
+        watch_store=None,  # type: ignore[arg-type]
+        alert_feed=feed,
+        ticket_store=None,  # type: ignore[arg-type]
+        settings=None,
+    )
+    assert asyncio.run(monitor._should_publish("low_stock", "t", "d")) is True
+    monitor._alert_gate = _block
+    assert asyncio.run(monitor._should_publish("low_stock", "t", "d")) is False
+    monitor._alert_gate = _allow
+    assert asyncio.run(monitor._should_publish("low_stock", "t", "d")) is True
+    monitor._alert_gate = _boom
+    assert asyncio.run(monitor._should_publish("low_stock", "t", "d")) is True
+
+
 def test_merchant_scan_alert_dedupe(tmp_path):
     """Cùng 1 tình trạng (tồn kho thấp) chỉ publish 1 lần trong cooldown."""
     from aurel_agents.proactive import AlertFeed, ProactiveMonitor

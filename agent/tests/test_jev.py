@@ -234,6 +234,51 @@ async def test_watch_gate_absent_keeps_old_behavior(tmp_path):
     assert out["baseline_price"] == 100.0
 
 
+# --- #3 lọc nhiễu alert merchant-scan ------------------------------------------------
+
+
+def _akw(**over):
+    kw = {k: v for k, v in _kw().items() if k != "threshold"}
+    kw.update(over)
+    return kw
+
+
+def test_alert_filter_noteworthy(respx_mock):
+    respx_mock.post(BASE).respond(
+        json={"answers": {"is_noteworthy": {"type": "noul", "noul": 0.9}}}
+    )
+    v = jev.classify_alert(
+        "low_stock",
+        "2 sản phẩm tồn kho thấp",
+        "M 时 bronze (còn 1), Skyline (còn 2)",
+        **_akw(),
+    )
+    assert v is not None and v.is_noteworthy is True
+
+
+def test_alert_filter_noise(respx_mock):
+    respx_mock.post(BASE).respond(
+        json={"answers": {"is_noteworthy": {"type": "noul", "noul": 0.1}}}
+    )
+    v = jev.classify_alert(
+        "low_stock",
+        "1 sản phẩm tồn kho thấp",
+        "item đã biết từ hôm qua",
+        **_akw(),
+    )
+    assert v is not None and v.is_noteworthy is False
+
+
+def test_alert_filter_no_key_publishes():
+    """Thiếu key → None → caller publish như cũ (không mất alert)."""
+    assert jev.classify_alert("low_stock", "t", "d", **_akw(api_key=None)) is None
+
+
+def test_alert_filter_error_publishes(respx_mock):
+    respx_mock.post(BASE).respond(status_code=500)
+    assert jev.classify_alert("low_stock", "t", "d", **_akw()) is None
+
+
 @pytest.mark.asyncio
 async def test_async_jev_down_fallback_no_ticket(tmp_path, monkeypatch):
     """Jev chết → None, không ticket rác (giữ đúng hành vi heuristic cũ)."""
