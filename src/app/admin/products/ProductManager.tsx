@@ -82,6 +82,18 @@ function splitCommas(v: string) {
     .filter(Boolean);
 }
 
+/** Giá trị trong diff audit (old/new) → chuỗi ngắn, an toàn để hiển thị. */
+function fmtDiff(v: unknown): string {
+  if (v === null || v === undefined) return "∅";
+  if (typeof v === "boolean") return v ? "có" : "không";
+  if (typeof v === "object") {
+    const s = JSON.stringify(v);
+    return s && s.length > 60 ? `${s.slice(0, 60)}…` : (s ?? "∅");
+  }
+  const s = String(v);
+  return s.length > 60 ? `${s.slice(0, 60)}…` : s;
+}
+
 export function ProductManager({
   items,
   total,
@@ -103,7 +115,14 @@ export function ProductManager({
   const [error, setError] = useState("");
   const [search, setSearch] = useState(q);
   const [history, setHistory] = useState<
-    { id: string; action: string; summary: string | null; createdAt: string }[]
+    {
+      id: string;
+      action: string;
+      summary: string | null;
+      byUserId?: string | null;
+      changes?: Record<string, { from: unknown; to: unknown }> | null;
+      createdAt: string;
+    }[]
   >([]);
   const pageCount = Math.max(1, Math.ceil(total / limit));
 
@@ -360,15 +379,48 @@ export function ProductManager({
               {isNew ? "Thêm sản phẩm" : `Sửa ${editing.slug}`}
             </h2>
             {!isNew && history.length > 0 && (
-              <p className="font-body-sm text-body-sm mt-2 text-on-surface-variant/70">
-                Lịch sử:{" "}
-                {history
-                  .map(
-                    (h) =>
-                      `${h.action}${h.summary ? ` (${h.summary})` : ""}`
-                  )
-                  .join(" • ")}
-              </p>
+              <div className="font-body-sm text-body-sm mt-3 rounded border border-outline-variant/40 px-4 py-3 text-on-surface-variant/80">
+                <p className="mb-1 tracking-wider uppercase opacity-70">
+                  Lịch sử thay đổi
+                </p>
+                <ul className="space-y-1">
+                  {history.slice(0, 8).map((h) => (
+                    <li key={h.id} className="leading-snug">
+                      <span className="opacity-60">
+                        {new Date(h.createdAt).toLocaleString("vi-VN")}
+                      </span>{" "}
+                      <span>{h.action}</span>
+                      {h.byUserId && (
+                        <span
+                          className={
+                            h.byUserId.startsWith("agent/")
+                              ? "ml-1 rounded bg-primary/15 px-1.5 py-0.5 text-primary"
+                              : "ml-1 opacity-60"
+                          }
+                        >
+                          {h.byUserId.startsWith("agent/")
+                            ? `🤖 ${h.byUserId}`
+                            : h.byUserId.slice(0, 8)}
+                        </span>
+                      )}
+                      {h.changes && Object.keys(h.changes).length > 0 ? (
+                        <span className="ml-1 opacity-80">
+                          {Object.entries(h.changes).map(([k, d]) => (
+                            <span key={k} className="mr-2 whitespace-nowrap">
+                              {k}: {fmtDiff(d.from)} → {fmtDiff(d.to)}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        h.summary &&
+                        h.summary !== "no-change" && (
+                          <span className="ml-1 opacity-70">({h.summary})</span>
+                        )
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             {error && (
               <p className="font-body-sm text-body-sm mt-4 rounded border border-error/40 bg-error-container/20 px-4 py-3 text-error">

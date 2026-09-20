@@ -44,6 +44,7 @@ async def _merchant_backend():
         settings.admin_email,
         settings.admin_password,
         register_if_new=False,
+        actor="agent/merchant",
     )
     await client.ensure_session()
     return AurelMerchant(client), client, build_merchant_config(settings)

@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminGuard } from '../common/guards';
-import { CurrentUser } from '../common/current-user.decorator';
+import { ActorId, CurrentUser } from '../common/current-user.decorator';
 import type { SessionUser } from '../common/session';
 
 @Controller('admin')
@@ -85,9 +85,9 @@ export class AdminController {
   @HttpCode(201)
   createProduct(
     @Body() body: Record<string, unknown>,
-    @CurrentUser() user: SessionUser,
+    @ActorId() actor: string | undefined,
   ) {
-    return this.admin.createProduct(body, user.id);
+    return this.admin.createProduct(body, actor);
   }
 
   @Patch('products/:slug')
@@ -95,9 +95,9 @@ export class AdminController {
   updateProduct(
     @Param('slug') slug: string,
     @Body() body: Record<string, unknown>,
-    @CurrentUser() user: SessionUser,
+    @ActorId() actor: string | undefined,
   ) {
-    return this.admin.updateProduct(slug, body, user.id);
+    return this.admin.updateProduct(slug, body, actor);
   }
 
   @Get('products/:slug/events')
@@ -116,9 +116,9 @@ export class AdminController {
   @HttpCode(201)
   createPromotion(
     @Body() body: Record<string, unknown>,
-    @CurrentUser() user: SessionUser,
+    @ActorId() actor: string | undefined,
   ) {
-    return this.admin.createPromotion(body, user.id);
+    return this.admin.createPromotion(body, actor);
   }
 
   @Patch('promotions/:id')
@@ -139,9 +139,9 @@ export class AdminController {
   @HttpCode(201)
   createCampaign(
     @Body() body: Record<string, unknown>,
-    @CurrentUser() user: SessionUser,
+    @ActorId() actor: string | undefined,
   ) {
-    return this.admin.createCampaign(body, user.id);
+    return this.admin.createCampaign(body, actor);
   }
 
   @Patch('campaigns/:id')

@@ -197,8 +197,13 @@ model ProductEvent {
   id        String   @id @default(cuid())
   slug      String
   action    String
+  /// Danh tính: user id, hoặc `id:agent/shopping` khi agent thay user
+  /// (delegation). Xem `resolveActor` ở backend/src/common/session.ts.
   byUserId  String?
   summary   String?
+  /// Diff old/new từng field của lần sửa này (audit tự nhận: trước đây
+  /// chỉ ghi tên field đổi). null cho event cũ / event không phải UPDATE.
+  changes   Json?
   createdAt DateTime @default(now())
 
   @@index([slug, createdAt])

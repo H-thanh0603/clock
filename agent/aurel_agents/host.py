@@ -309,6 +309,7 @@ async def _make_merchant_agent():
         settings.admin_email,
         settings.admin_password,
         register_if_new=False,
+        actor="agent/merchant",
     )
     await client.ensure_session()
     backend = AurelMerchant(client)

@@ -758,6 +758,7 @@ class ProactiveMonitor:
                 self._settings.admin_email,
                 self._settings.admin_password,
                 register_if_new=False,
+                actor="agent/merchant",
             )
         if not self._admin.user:
             await self._admin.ensure_session()

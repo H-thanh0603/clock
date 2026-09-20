@@ -179,6 +179,7 @@ class PooledStorefront:
                 "",
                 register_if_new=False,
                 delegation_token=token,
+                actor="agent/shopping",
             )
             await client.ensure_session()
             backend = AurelStorefront(client)

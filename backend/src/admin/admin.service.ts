@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../generated/prisma/client';
 import { serializeOrder } from '../orders/orders.service';
 import { linePrice } from '../common/pricing';
 import { ProductsService } from '../products/products.service';
@@ -23,6 +24,54 @@ const STATUSES = [
 // Cache dashboard 60s trong memory (số liệu tổng quan không cần realtime).
 let statsCache: { at: number; data: unknown } | null = null;
 const STATS_TTL_MS = 60_000;
+
+/**
+ * Diff old→new cho audit trail ProductEvent (audit tự nhận: trước đây chỉ
+ * ghi tên field đổi, admin không thấy giá đổi từ đâu về đâu).
+ *
+ * Chỉ ghi field thực sự khác, value đã JSON-safe (BigInt/undefined bị loại),
+ * và bỏ qua field có giá trị quá lớn (specs/narrative có thể dài) — cắt bớt
+ * để 1 event không phình ra; summary vẫn liệt kê đủ tên field.
+ */
+const DIFF_VALUE_MAX = 500;
+
+export function productDiff(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  fields: string[],
+): Record<string, { from: unknown; to: unknown }> {
+  const safe = (v: unknown): unknown => {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'bigint') return Number(v);
+    if (typeof v === 'string')
+      return v.length > DIFF_VALUE_MAX ? `${v.slice(0, DIFF_VALUE_MAX)}…` : v;
+    if (Array.isArray(v))
+      return v.length > 20 ? [...v.slice(0, 20), `…+${v.length - 20}`] : v;
+    if (typeof v === 'object') {
+      const s = JSON.stringify(v);
+      return s && s.length > DIFF_VALUE_MAX
+        ? `${s.slice(0, DIFF_VALUE_MAX)}…`
+        : v;
+    }
+    return v;
+  };
+  const out: Record<string, { from: unknown; to: unknown }> = {};
+  // BigInt không JSON.stringify được → so sánh bằng chuỗi có gắn kiểu.
+  const same = (a: unknown, b: unknown) => {
+    try {
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+      return String(a) === String(b);
+    }
+  };
+  for (const f of fields) {
+    const a = before?.[f] ?? null;
+    const b = after?.[f] ?? null;
+    if (same(a, b)) continue;
+    out[f] = { from: safe(a), to: safe(b) };
+  }
+  return out;
+}
 
 @Injectable()
 export class AdminService {
@@ -411,6 +460,7 @@ export class AdminService {
         action: 'UPDATE',
         byUserId: byUserId ?? null,
         summary: changed || 'no-change',
+        changes: productDiff(exists, row, Object.keys(data)) as Prisma.InputJsonValue,
       },
     });
     // Đồng bộ Meili: row đã update đủ field index cần (merge exists+data

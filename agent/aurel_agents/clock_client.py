@@ -27,6 +27,7 @@ SESSION_COOKIE = "aurel_session"
 DELEGATION_COOKIE = "aurel_delegation"
 CSRF_COOKIE = "aurel_csrf"
 CSRF_HEADER = "x-csrf-token"
+ACTOR_HEADER = "x-aurel-actor"
 
 WRITE_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 # Các route được CSRF middleware bỏ qua (chưa/không cần session)
@@ -74,6 +75,7 @@ class ClockClient:
         register_if_new: bool = True,
         delegation_token: str | None = None,
         timeout: float = 15.0,
+        actor: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._email = email
@@ -82,6 +84,10 @@ class ClockClient:
         self._delegation_token = delegation_token
         self._user: dict[str, Any] | None = None
         self._csrf_token: str | None = None
+        # Nhãn audit cho merchant path: BE chỉ tin khi phiên là delegation
+        # (xem `resolveActor`); gửi kèm mỗi request ghi dưới dạng
+        # ``x-aurel-actor: agent/merchant``.
+        self._actor = actor
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=timeout,
@@ -193,6 +199,10 @@ class ClockClient:
             if not self._csrf_token:
                 await self._fetch_csrf()
             headers[CSRF_HEADER] = self._csrf_token or ""
+        # Chỉ khai danh tính agent trên request ghi — BE bỏ qua header này
+        # với phiên browser, chỉ nhận khi phiên là delegation (chống giả danh).
+        if self._actor and method.upper() in WRITE_METHODS:
+            headers[ACTOR_HEADER] = self._actor
 
         resp = await self._http.request(method, path, json=json, params=params, headers=headers)
 

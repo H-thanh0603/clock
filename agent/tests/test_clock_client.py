@@ -123,3 +123,46 @@ async def test_api_error_raised(respx_mock):
         with pytest.raises(ClockApiError) as err:
             await c.product("x")
         assert "Không thấy sản phẩm" in str(err.value)
+
+
+@pytest.mark.asyncio
+async def test_actor_header_only_on_writes(respx_mock):
+    """Client có `actor` → request ghi kèm x-aurel-actor, request đọc thì không."""
+    respx_mock.post(f"{BASE}/auth/login").respond(
+        json={"user": {"id": "u1", "email": "a@test", "role": "ADMIN"}}
+    )
+    respx_mock.get(f"{BASE}/auth/csrf").respond(json={"csrfToken": "t" * 16})
+    seen: list[tuple[str, str | None]] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.headers.get("x-aurel-actor")))
+        return httpx.Response(200, json={})
+
+    respx_mock.patch(f"{BASE}/admin/products/p1").mock(side_effect=record)
+    respx_mock.get(f"{BASE}/admin/products").mock(side_effect=record)
+
+    async with ClockClient(
+        BASE, "a@test", "pass", register_if_new=False, actor="agent/merchant"
+    ) as c:
+        await c.ensure_session()
+        await c.admin_product_update("p1", {"narrative": "x"})
+        await c.admin_products(q="p1")
+
+    assert ("PATCH", "agent/merchant") in seen
+    assert ("GET", None) in seen
+
+
+@pytest.mark.asyncio
+async def test_no_actor_header_when_unset(respx_mock):
+    """Không khai actor (client shopping thường) → tuyệt đối không gửi header."""
+    respx_mock.post(f"{BASE}/auth/login").respond(
+        json={"user": {"id": "u1", "email": "a@test"}}
+    )
+    respx_mock.get(f"{BASE}/auth/csrf").respond(json={"csrfToken": "t" * 16})
+    cart = respx_mock.post(f"{BASE}/cart").respond(json=[])
+
+    async with _client() as c:
+        await c.ensure_session()
+        await c.cart_add("p1", 1, 100, "img.jpg")
+
+    assert cart.calls.last.request.headers.get("x-aurel-actor") is None

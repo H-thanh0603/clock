@@ -174,3 +174,31 @@ Còn mở có chủ đích (chưa làm): by-code public giữ nguyên (đã có 
 contact-verify + sig — siết thêm khi traffic lớn); invoice `PENDING_ISSUE`
 kế toán làm tay qua portal (chưa có UI backoffice riêng); Redis/BullMQ khi
 >500 đơn/ngày hoặc 2 BE.
+
+---
+
+## 9. Đợt vá 20/09/2026 — actor attribution + audit trail (P1 từ đề xuất nâng cấp)
+
+**Vấn đề (tự nhận):** mọi thao tác ghi của merchant agent đều mang `byUserId`
+= id của **admin dùng chung** (`AGENT_ADMIN_EMAIL`) — audit trail không phân
+biệt được "agent sửa" với "người sửa tay". Đồng thời `ProductEvent` chỉ ghi
+tên field đổi (`summary`), không có giá trị old/new.
+
+| Việc | Cách làm | File |
+|---|---|---|
+| Khai danh tính agent | `x-aurel-actor` gửi kèm request ghi | `agent/aurel_agents/clock_client.py` |
+| BE chỉ tin header khi phiên là delegation | `SessionUser.viaAgent` (set bởi `verifyDelegationToken`); `resolveActor()` whitelist định dạng `agent/xxx` — browser không thể giả danh | `backend/src/common/session.ts` |
+| Ghi qua decorator | `@ActorId()` thay `@CurrentUser().id` ở create/update product + promotion + campaign | `backend/src/common/current-user.decorator.ts`, `admin.controller.ts` |
+| Diff old/new | `ProductEvent.changes` (JSONB) = `productDiff()` — chỉ field thật đổi, value dài bị cắt, BigInt-safe | `backend/src/admin/admin.service.ts`, migration `20260919000000_product_event_changes` |
+| Hiển thị | Admin product drawer: lịch sử có badge 🤖 `agent/merchant` + `field: old → new` | `src/app/admin/products/ProductManager.tsx` |
+
+**Bảo mật:** header chỉ có tác dụng khi token là delegation (`aud=aurel-agent`,
+`scope=shop-on-behalf`). Session cookie browser **luôn** bị bỏ qua header →
+không thể tự nhận là agent. Chuỗi phải khớp `^[a-z_]{1,32}/[A-Za-z0-9_.:@-]{1,96}$`,
+không nhận free-text (chống nhét PII vào audit).
+
+Test: BE 229 pass (thêm `actor.test.ts` 5 ca + `productDiff` 5 ca), agent 248
+pass (thêm 2 ca header on-write/off-read); `tsc` FE + BE xanh.
+
+**Còn mở:** `merchant_id` thật tách khỏi admin chung (cần account riêng — trùng
+vấn đề 1 trong AGENT-READINESS §19).

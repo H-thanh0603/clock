@@ -21,7 +21,20 @@ export type SessionUser = {
   role: string;
   /** Phiên bản token — logout/đổi pass tăng version để vô hiệu token cũ. */
   v: number;
+  /**
+   * True khi request đến từ delegation token (agent hành động thay user),
+   * false/undefined khi là phiên browser thật. Dùng để quyết định có tin
+   * header `x-aurel-actor` hay không (chống giả danh từ browser).
+   */
+  viaAgent?: boolean;
 };
+
+/**
+ * Header do agent host gửi để tự khai danh tính khi hành động thay user.
+ * CHỈ được tin khi phiên là delegation (`viaAgent`) — browser không thể
+ * set header này để giả danh vì session cookie thật không có `viaAgent`.
+ */
+export const ACTOR_HEADER = 'x-aurel-actor';
 
 export function sessionSecret(): Uint8Array {
   const s = process.env.JWT_SECRET;
@@ -80,10 +93,31 @@ export async function verifyDelegationToken(
       email: payload.email,
       role: (payload.role as string) ?? 'CUSTOMER',
       v: typeof payload.v === 'number' ? payload.v : 0,
+      viaAgent: true,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Danh tính ghi vào audit trail của 1 hành động ghi.
+ *
+ * - Browser thật (session cookie) → luôn dùng `byUserId` của phiên, KHÔNG
+ *   bao giờ đọc `x-aurel-actor` (tránh giả danh).
+ * - Delegation (agent thay user) → nếu agent gửi `x-aurel-actor` hợp lệ
+ *   thì ghi `id:agent/...` để phân biệt với thao tác thủ công của user.
+ *   Whitelist định dạng, không nhận chuỗi tự do → không thể nhét rác/PII.
+ */
+export function resolveActor(
+  user: SessionUser | null | undefined,
+  rawActor?: string | null,
+): string | undefined {
+  if (!user) return undefined;
+  if (!user.viaAgent) return user.id;
+  const claimed = typeof rawActor === 'string' ? rawActor.trim() : '';
+  if (!/^[a-z_]{1,32}\/[A-Za-z0-9_.:@-]{1,96}$/.test(claimed)) return user.id;
+  return claimed;
 }
 
 /** Xác thực token → SessionUser | null. Token rỗng/sai/hết hạn → null. */
