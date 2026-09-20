@@ -263,17 +263,27 @@ def classify_intent(
     base_url: str,
     model: str,
     timeout_s: float,
+    prior_turns: list[str] | None = None,
 ) -> IntentVerdict | None:
     """#4: pre-router 1 call — bucket intent. Host dùng làm hint `progress`
     sớm cho FE (model reasoning mất 1-3s mới có token đầu). None = Jev
-    tắt/chết → không hint, agent chạy như cũ."""
+    tắt/chết → không hint, agent chạy như cũ.
+
+    ``prior_turns``: 3 lượt chat gần nhất của phiên (mỗi lượt cắt 300 ký tự)
+    — Q5 multi-turn injection: dàn tấn công qua nhiều tin ghép ý chỉ lộ khi
+    đọc context, Jev chấm trên toàn cảnh chứ không phải 1 tin cô lập.
+    """
     if not api_key:
         return None
+    state = message[:2000]
+    if prior_turns:
+        tail = " | ".join(t[:300] for t in prior_turns[-3:])
+        state = f"[context 3 tin gần nhất] {tail}\n[tin nhắn hiện tại] {message[:1500]}"
     try:
         resp = httpx.post(
             base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model, "state": message[:2000], "questions": QUESTIONS_INTENT},
+            json={"model": model, "state": state, "questions": QUESTIONS_INTENT},
             timeout=timeout_s,
         )
         resp.raise_for_status()

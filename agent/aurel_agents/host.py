@@ -484,11 +484,15 @@ def _sse(payload: dict[str, Any] | str) -> str:
     return f"data: {body}\n\n"
 
 
-def _jev_classify_intent_sync(message: str) -> tuple[str | None, float]:
+def _jev_classify_intent_sync(
+    message: str, prior_turns: list[str] | None = None
+) -> tuple[str | None, float]:
     """#4+#5: Jev pre-router — (hint text, injection score).
 
     Không bao giờ raise: Jev lỗi → (None, 0.0) → turn bỏ qua hint, agent
     như cũ. Injection score để turn chặn ở ngưỡng jev_injection_threshold.
+    ``prior_turns``: tail phiên (user messages) — multi-turn injection
+    (Q5) chỉ lộ khi đọc context dàn ý.
     """
     from aurel_agents import jev
 
@@ -500,6 +504,7 @@ def _jev_classify_intent_sync(message: str) -> tuple[str | None, float]:
             base_url=settings.jev_url,
             model=settings.jev_model,
             timeout_s=settings.jev_timeout_s,
+            prior_turns=prior_turns,
         )
     except Exception:
         logger.warning("Jev intent hint lỗi (bỏ qua)", exc_info=True)
@@ -561,9 +566,15 @@ async def _run_shopping_turn(
     # model reasoning (1-3s) → FE hiện status line ngay. Đồng thời score
     # injection: trượt ngưỡng → chặn turn, không cho message vào agent.
     try:
+        prior_turns = [
+            str(m.get("content", ""))[:300]
+            for m in transcript[:-1]
+            if isinstance(m, dict) and m.get("role") == "user"
+        ]
         hint, injection = await asyncio.to_thread(
             _jev_classify_intent_sync,
             message,
+            prior_turns,
         )
     except Exception:
         hint, injection = None, 0.0
