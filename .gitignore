@@ -50,3 +50,9 @@ agent/.pytest_cache/
 agent/.ruff_cache/
 agent/data/
 *.egg-info/
+
+# tool cục bộ (mỗi máy một kiểu, không vào repo)
+.agents/
+.claude/
+.qoder/
+skills-lock.json
