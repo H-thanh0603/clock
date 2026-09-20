@@ -32,6 +32,9 @@ describe("isOpsPathAllowed", () => {
     ).toBe(true);
     expect(isOpsPathAllowed("alerts", "GET")).toBe(true);
     expect(isOpsPathAllowed("shop/monitor/run", "POST")).toBe(true);
+    expect(isOpsPathAllowed("activity", "GET")).toBe(true);
+    expect(isOpsPathAllowed("shop/watches", "GET")).toBe(true);
+    expect(isOpsPathAllowed("shop/watches/w-1/cancel", "POST")).toBe(true);
   });
   it("chặn sai method", () => {
     expect(isOpsPathAllowed("merchant/chat", "GET")).toBe(false);

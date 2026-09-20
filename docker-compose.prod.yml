@@ -320,6 +320,72 @@ services:
       retries: 3
       start_period: 20s
 
+  # MCP public: agent bên thứ ba gọi vào qua HTTPS cùng origin (/mcp/*).
+  # - shop: catalog/giỏ công khai (không token, đúng như API public của BE);
+  # - merchant: token gate x-agent-token (mcp_auth.py) + approval từng
+  #   apply_change — mở port trong compose KHÔNG đồng nghĩa mở dữ liệu.
+  # Cả hai đều KHÔNG expose ra Internet trực tiếp (không có `ports:`) —
+  # chỉ Caddy route /mcp/* vào, Caddy cũng là lớp rate-limit/TLS.
+  mcp-shop:
+    build: ./agent
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      AUREL_BACKEND_URL: "http://backend:4000"
+      AGENT_SHOPPER_EMAIL: ${AGENT_SHOPPER_EMAIL:-agent-shopper@aurel.local}
+      AGENT_SHOPPER_PASSWORD: ${AGENT_SHOPPER_PASSWORD:-}
+      # Vendor chặn bind ngoài-loopback trừ khi có cờ này (fail-closed của
+      # upstream). Shop là dữ liệu công khai + chạy sau Caddy (TLS/rate-limit)
+      # nên bật cờ là đúng; merchant KHÔNG bật — giữ vendor gate nguyên.
+      STOREFRONT_MCP_UNSAFE_ALLOW_NO_AUTH: "1"
+    volumes:
+      - agent-data:/app/data
+    command: ["python", "-m", "aurel_agents.mcp", "shop", "--host", "0.0.0.0", "--port", "8200"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  mcp-merchant:
+    build: ./agent
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      AUREL_BACKEND_URL: "http://backend:4000"
+      AGENT_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@aurel.local}
+      AGENT_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Token gate bắt buộc: thiếu → container crash-loop với log rõ ràng
+      # (fail-closed) thay vì mở endpoint ghi tiền/kho không auth.
+      # KHÔNG set MERCHANT_MCP_UNSAFE_ALLOW_NO_AUTH: giữ vendor gate — bind
+      # 0.0.0.0 trong compose vẫn bị vendor chặn; Caddy là gateway duy nhất
+      # (xem routes /mcp/* bên dưới), token gate là lớp thứ hai.
+      AGENT_MERCHANT_TOKEN: ${AGENT_MERCHANT_TOKEN:?AGENT_MERCHANT_TOKEN chưa đặt trong .env.prod}
+    volumes:
+      - agent-data:/app/data
+    command: ["python", "-m", "aurel_agents.mcp", "merchant", "--host", "0.0.0.0", "--port", "8201"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8201/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped

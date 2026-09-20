@@ -446,10 +446,26 @@ async def lifespan(app: FastAPI):
         logger.warning("Merchant agent không khởi động được: %s", error)
         _state["merchant"] = None
     _monitor.start()
+    # MCP mount (shop + merchant qua ASGI cùng process — đúng single-instance
+    # guard của store JSON). Merchant thiếu token → chỉ mount shop, endpoint
+    # merchant trả 503 rõ ràng.
     try:
-        yield
-    finally:
-        await _monitor.stop()
+        from aurel_agents import mcp_mount as _mcp_mount
+
+        shop_srv, merchant_srv = _mcp_mount.build_mounted()
+        _state["mcp_mounted"] = _mcp_mount.mount_mcp(
+            app, shop=shop_srv, merchant=merchant_srv
+        )
+    except Exception as error:
+        logger.warning("Không mount được MCP: %s", error)
+        _state["mcp_mounted"] = {}
+    from aurel_agents import mcp_mount as _mcp_lifespan
+
+    async with _mcp_lifespan.lifespan_mcp(app):
+        try:
+            yield
+        finally:
+            await _monitor.stop()
     _persist_merchant_ledger()
     lock.close()  # nhả single-instance lock
     pool = _state.pop("shop_pool", None)
@@ -940,6 +956,8 @@ async def index() -> dict:
             "shop_forget": "POST /shop/forget {session_id} — xóa transcript/memory/watch/task của session",
             "monitor_run": "POST /shop/monitor/run — chạy 1 vòng monitor ngay",
             "health": "GET /health",
+            "mcp_shop": "/mcp/shop/mcp — MCP catalog/giỏ công khai (agent ngoài)",
+            "mcp_merchant": "/mcp/merchant/mcp — MCP vận hành (x-agent-token + approve từng apply)",
         },
         "runtimes": {
             "messages_api": "host này (uvicorn aurel_agents.host:app)",
@@ -1210,6 +1228,23 @@ async def shop_forget(req: ForgetRequest) -> dict:
     }
 
 
+# --- test isolation --------------------------------------------------------------
+
+def _reset_monitor_for_test_isolation() -> None:
+    """Trả monitor về trạng thái 'chưa lifespan' cho test không chạy lifespan.
+
+    Vấn đề: ``_monitor`` là singleton module-level, ``lifespan`` gán
+    ``_monitor._settings`` 1 lần rồi giữ mãi. Test dùng ``TestClient`` không
+    qua lifespan nhưng vẫn thấy ``_settings`` còn sót từ test trước (đã chạy
+    lifespan) → endpoint trả 200 thay vì 503 như test kỳ vọng. Reset ở đây
+    giữ mọi test đơn lẻ và test full-suite cùng xanh.
+    """
+    import os
+
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        _monitor._settings = None  # noqa: SLF001 — chỉ trong test, không đụng prod
+
+
 @app.post("/shop/monitor/run")
 async def monitor_run(request: Request) -> dict:
     """Chạy 1 vòng monitor ngay — demo tính năng agent tự hành động.
@@ -1218,6 +1253,7 @@ async def monitor_run(request: Request) -> dict:
     như /alerts (chống abuse từ internet).
     """
     _check_merchant_auth(request)
+    _reset_monitor_for_test_isolation()
     if _monitor._settings is None:  # noqa: SLF001 — chưa qua lifespan
         raise HTTPException(status_code=503, detail="Host chưa khởi động xong")
     counts = await _monitor.run_once()

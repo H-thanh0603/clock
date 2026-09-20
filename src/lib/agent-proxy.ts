@@ -16,6 +16,11 @@ export const OPS_ROUTES: { prefix: string; methods: string[] }[] = [
   // Feed ops (scope mặc định). Feed shop (scope=shop) gọi thẳng host, public.
   { prefix: "alerts", methods: ["GET"] },
   { prefix: "shop/monitor/run", methods: ["POST"] },
+  // Activity log ops (lọc theo trace_id khi debug 1 turn).
+  { prefix: "activity", methods: ["GET"] },
+  // Watch của chính session qua proxy cùng-origin (tránh CORS khi host
+  // khác origin; vẫn check chủ sở hữu bằng session_id như bản public).
+  { prefix: "shop/watches", methods: ["GET", "POST"] },
 ];
 
 /** Chuẩn hóa sub-path từ catch-all segments. null = path bẩn (traversal). */
