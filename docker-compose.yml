@@ -85,6 +85,16 @@ services:
       AGENT_API_KEY: ${AGENT_API_KEY:-}
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5}
       AGENT_AUTH_HEADER: ${AGENT_AUTH_HEADER:-x-api-key}
+      # Jev TypeSafe (decision model: handoff/triage/alert-gate/injection/intent).
+      # Thiếu key → Jev tắt im lặng, fallback heuristic — KHÔNG lỗi.
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_URL: ${JEV_URL:-https://api.typesafe.ai/v1/systemone}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+      JEV_THRESHOLD: ${JEV_THRESHOLD:-0.7}
+      JEV_TIMEOUT_S: ${JEV_TIMEOUT_S:-5.0}
+      # Fallback + memory model (rỗng = tắt / dùng model chính).
+      AGENT_FALLBACK_MODEL: ${AGENT_FALLBACK_MODEL:-}
+      AGENT_MEMORY_MODEL: ${AGENT_MEMORY_MODEL:-}
       AGENT_MERCHANT_TOKEN: ${AGENT_MERCHANT_TOKEN:-}
       AGENT_CHAT_RATE_LIMIT_PER_MIN: ${AGENT_CHAT_RATE_LIMIT_PER_MIN:-60}
     ports:
