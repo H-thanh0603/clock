@@ -123,6 +123,8 @@ class PooledStorefront:
         # chat; _backend_for đọc binding này (giỏ thật của user thay vì
         # shopper rác).
         self._delegation_tokens: dict[str, str] = {}
+        # session_id → trace id của turn đang chạy (đổi mỗi turn chat).
+        self._traces: dict[str, str] = {}
 
     def bind_delegation(self, session_id: str, token: str) -> None:
         """Gắn delegation token cho session (mỗi turn chat cập nhật)."""
@@ -141,6 +143,23 @@ class PooledStorefront:
                 except RuntimeError:
                     pass
 
+    def bind_trace(self, session_id: str, trace_id: str | None) -> None:
+        """Gắn trace id cho turn hiện tại của session.
+
+        Client được tái dùng qua nhiều turn → phải set lại mỗi turn. Gọi
+        *trước* khi lấy backend để request đầu tiên của turn đã mang trace.
+        """
+        sid = sanitize_session_id(session_id)
+        if trace_id:
+            self._traces[sid] = trace_id
+        else:
+            self._traces.pop(sid, None)
+
+    def _apply_trace(self, client: Any, sid: str) -> None:
+        setter = getattr(client, "set_trace", None)
+        if callable(setter):
+            setter(self._traces.get(sid))
+
     async def delegated_backend(self, session_id: str, token: str):
         """AurelStorefront chạy trên behalf-of user (delegation token).
 
@@ -158,11 +177,13 @@ class PooledStorefront:
                 time.monotonic() - created < self.DELEGATED_TTL_S
                 and client.delegation_token == token
             ):
+                self._apply_trace(client, sid)
                 return backend
         lock = self._locks.setdefault(f"delegated:{sid}", asyncio.Lock())
         async with lock:
             existing = self._delegated.get(sid)
             if existing is not None and existing[0].delegation_token == token:
+                self._apply_trace(existing[0], sid)
                 return existing[1]
             # Token mới/TTL quá → drop client cũ, tạo mới
             if existing is not None:
@@ -180,6 +201,7 @@ class PooledStorefront:
                 register_if_new=False,
                 delegation_token=token,
                 actor="agent/shopping",
+                trace_id=self._traces.get(sid),
             )
             await client.ensure_session()
             backend = AurelStorefront(client)
@@ -239,12 +261,14 @@ class PooledStorefront:
         async with lock:
             backend = self._backends.get(sid)
             if backend is not None:
+                self._apply_trace(self._clients.get(sid), sid)
                 return backend
             client = ClockClient(
                 self._settings.backend_url,
                 self._email_for(sid),
                 self._settings.shopper_password,
                 register_if_new=True,
+                trace_id=self._traces.get(sid),
             )
             await client.ensure_session()
             backend = AurelStorefront(client)

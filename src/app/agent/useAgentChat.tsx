@@ -19,6 +19,17 @@ import { Card, MemoryChip, StagedChangeCard, UxEvent, fmtUsd } from "./chat-widg
 export const AGENT_HOST =
   process.env.NEXT_PUBLIC_AGENT_URL || "http://127.0.0.1:8100";
 
+/**
+ * Trace id cho 1 turn chat (FE → agent host → BE). Dùng ``crypto.randomUUID``
+ * khi có (secure context), fallback đủ dài để host không thay bằng id khác.
+ * Chỉ [A-Za-z0-9-] — khớp whitelist ``_sanitize_trace_id`` phía host.
+ */
+function newTraceId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export type Bubble = {
   role: "user" | "assistant";
   text: string;
@@ -149,6 +160,8 @@ export function useAgentChat() {
           body: JSON.stringify({
             message: text,
             session_id: sessionIdRef.current,
+            // Trace xuyên FE → host → BE: 1 id/turn, nối log FE/host/BE/Sentry.
+            trace_id: newTraceId(),
             delegation_token: role === "shop" ? delegationRef.current : undefined,
             product_id: role === "shop" ? pageProductRef.current ?? undefined : undefined,
             page_type: role === "shop" && pageProductRef.current ? "product" : "other",

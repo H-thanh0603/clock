@@ -70,7 +70,13 @@ export class RequestIdMiddleware implements NestMiddleware {
   private readonly log = new Logger('Http');
 
   use(req: Request, res: Response, next: NextFunction) {
-    const id = randomUUID().slice(0, 8);
+    // Ưu tiên id do caller gửi (agent host / FE) để nối trace xuyên service;
+    // chỉ nhận id hợp lệ (ngắn, ký tự an toàn) tránh log/header injection.
+    // Không có/không hợp lệ → tự sinh như cũ.
+    const incoming = String(req.headers['x-request-id'] ?? '');
+    const id = /^[A-Za-z0-9._-]{8,64}$/.test(incoming)
+      ? incoming
+      : randomUUID().slice(0, 8);
     req.requestId = id;
     res.setHeader('X-Request-Id', id);
 

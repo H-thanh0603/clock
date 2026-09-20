@@ -97,6 +97,24 @@ class ChatRequest(BaseModel):
     # Trang FE đang xem (agentic web: agent biết context người dùng).
     page_type: str | None = None
     product_id: str | None = None
+    # Id trace FE sinh cho turn này (FE → host → BE). Bỏ trống thì host tự sinh.
+    trace_id: str | None = None
+
+
+def _sanitize_trace_id(raw: str | None) -> str:
+    """Chuẩn hoá trace id từ client: chỉ [A-Za-z0-9._-], tối đa 64 ký tự.
+
+    Trace id bị đưa vào log + header gọi BE, nên không được nhận free-text
+    (chống log injection / header injection). Sai định dạng → sinh mới.
+    """
+    import re as _re
+    import uuid as _uuid
+
+    if raw:
+        cleaned = _re.sub(r"[^A-Za-z0-9._-]", "", raw)[:64]
+        if len(cleaned) >= 8:
+            return cleaned
+    return _uuid.uuid4().hex[:16]
 
 
 # --- state khởi động -----------------------------------------------------------
@@ -623,6 +641,13 @@ async def _run_merchant_turn(agent: Any, message: str, session_id: str):
     )
     state = MerchantSessionState()
 
+    # Trace id: gắn lên client admin dùng chung cho turn này (đổi mỗi turn).
+    merchant_backend = _state.get("merchant_backend")
+    if merchant_backend is not None:
+        setter = getattr(merchant_backend._client, "set_trace", None)
+        if callable(setter):
+            setter(_state.get("merchant_trace"))
+
     yield _sse({"type": "session", "session_id": sid})
     try:
         async for event in agent.stream_turn(transcript, context, state):
@@ -908,6 +933,10 @@ async def shop_chat(req: ChatRequest, request: Request):
     _check_budget(session_id, settings.chat_turns_per_day, settings.global_turns_per_day)
     agent = _require_agent("shopping")
     pool = _state.get("shop_pool")
+    # Trace: FE gửi kèm → host truyền xuống BE trên mọi request của turn này.
+    trace_id = _sanitize_trace_id(req.trace_id)
+    if pool is not None:
+        pool.bind_trace(session_id, trace_id)
     if req.delegation_token:
         if pool is None:
             raise HTTPException(status_code=503, detail="Pool shopper chưa sẵn sàng")
@@ -932,6 +961,7 @@ async def merchant_chat(req: ChatRequest, request: Request):
     agent = _require_agent("merchant")
     session_id = sanitize_session_id(req.session_id or _new_session_id())
     _check_budget(session_id, settings.chat_turns_per_day, settings.global_turns_per_day)
+    _state["merchant_trace"] = _sanitize_trace_id(req.trace_id)
     return StreamingResponse(
         _run_merchant_turn(agent, req.message, session_id),
         media_type="text/event-stream",

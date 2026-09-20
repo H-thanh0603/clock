@@ -28,6 +28,10 @@ DELEGATION_COOKIE = "aurel_delegation"
 CSRF_COOKIE = "aurel_csrf"
 CSRF_HEADER = "x-csrf-token"
 ACTOR_HEADER = "x-aurel-actor"
+# Trace xuyên FE → agent host → BE: FE sinh 1 id/turn, host truyền vào
+# client, client gắn lên MỌI request BE. Log BE + activity log agent + Sentry
+# đều mang cùng id → nối được 1 turn chat với mọi call DB/HTTP nó gây ra.
+TRACE_HEADER = "x-request-id"
 
 WRITE_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 # Các route được CSRF middleware bỏ qua (chưa/không cần session)
@@ -76,6 +80,7 @@ class ClockClient:
         delegation_token: str | None = None,
         timeout: float = 15.0,
         actor: str | None = None,
+        trace_id: str | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._email = email
@@ -88,6 +93,8 @@ class ClockClient:
         # (xem `resolveActor`); gửi kèm mỗi request ghi dưới dạng
         # ``x-aurel-actor: agent/merchant``.
         self._actor = actor
+        # Id trace của turn hiện tại — đổi được giữa chừng qua set_trace().
+        self._trace_id = trace_id
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=timeout,
@@ -105,6 +112,18 @@ class ClockClient:
     @property
     def delegation_token(self) -> str | None:
         return self._delegation_token
+
+    @property
+    def trace_id(self) -> str | None:
+        return self._trace_id
+
+    def set_trace(self, trace_id: str | None) -> None:
+        """Đổi trace id của turn hiện tại (host gọi mỗi turn chat).
+
+        Session pool tái dùng 1 client cho nhiều turn → phải set lại mỗi
+        turn, nếu không request của turn sau mang trace của turn trước.
+        """
+        self._trace_id = trace_id or None
 
     # -- Phiên ------------------------------------------------------------------
 
@@ -203,6 +222,9 @@ class ClockClient:
         # với phiên browser, chỉ nhận khi phiên là delegation (chống giả danh).
         if self._actor and method.upper() in WRITE_METHODS:
             headers[ACTOR_HEADER] = self._actor
+        # Trace id: gắn lên MỌI request (kể cả GET) để log BE nối được.
+        if self._trace_id:
+            headers[TRACE_HEADER] = self._trace_id
 
         resp = await self._http.request(method, path, json=json, params=params, headers=headers)
 
