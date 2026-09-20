@@ -284,6 +284,18 @@ services:
       AGENT_API_KEY: ${AGENT_API_KEY:-}
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5}
       AGENT_AUTH_HEADER: ${AGENT_AUTH_HEADER:-x-api-key}
+      # Jev TypeSafe (decision model: handoff/triage/alert-gate/injection/intent).
+      # Thiếu key → Jev tắt im lặng, fallback heuristic — KHÔNG lỗi, nhưng
+      # recall khiếu nại ngầm ý tụt từ 4/6 về 1/6 (benchmark 2026-09-20).
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_URL: ${JEV_URL:-https://api.typesafe.ai/v1/systemone}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+      JEV_THRESHOLD: ${JEV_THRESHOLD:-0.7}
+      JEV_TIMEOUT_S: ${JEV_TIMEOUT_S:-5.0}
+      # Model fallback khi gateway 429/overloaded (rỗng = không fallback).
+      AGENT_FALLBACK_MODEL: ${AGENT_FALLBACK_MODEL:-}
+      # Model riêng cho memory extraction (rỗng = dùng AGENT_MODEL).
+      AGENT_MEMORY_MODEL: ${AGENT_MEMORY_MODEL:-}
       AGENT_MERCHANT_TOKEN: ${AGENT_MERCHANT_TOKEN:-}
       # Fail-closed: thiếu token merchant thì host không khởi động (tránh
       # mở endpoint vận hành ra Internet). Nhớ đặt AGENT_MERCHANT_TOKEN.
