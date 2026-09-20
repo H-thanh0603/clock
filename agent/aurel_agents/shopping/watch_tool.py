@@ -22,7 +22,8 @@ callback được nuốt — watch luôn ghi được, Jev không bao giờ ch�
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from commerce_common.presentation import PresentationExtension
 from pydantic import BaseModel, Field
