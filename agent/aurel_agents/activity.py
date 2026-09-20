@@ -52,6 +52,7 @@ class ActivityLog:
         ms: int,
         detail: str | None = None,
         error: str | None = None,
+        trace_id: str | None = None,
     ) -> None:
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +66,9 @@ class ActivityLog:
                 "ok": ok,
                 "ms": ms,
                 "error": error,
+                # Trace xuyên FE → host → BE. None với log cũ / turn không
+                # qua host (test/REPL) — đọc lọc vẫn tương thích bản cũ.
+                "trace_id": trace_id,
             }
             with open(self._path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
@@ -115,6 +119,7 @@ class ActivityLog:
         role: str | None = None,
         session_id: str | None = None,
         ok: bool | None = None,
+        trace_id: str | None = None,
     ) -> list[dict[str, Any]]:
         items = self._read_all()
         if role is not None:
@@ -123,6 +128,8 @@ class ActivityLog:
             items = [x for x in items if x.get("session_id") == session_id]
         if ok is not None:
             items = [x for x in items if bool(x.get("ok")) is ok]
+        if trace_id is not None:
+            items = [x for x in items if x.get("trace_id") == trace_id]
         return items[-max(1, limit) :][::-1]
 
     def trim_before(self, cutoff: float) -> int:
@@ -151,6 +158,16 @@ def _actor_of(session: Any) -> str:
 
 def _session_of(session: Any) -> str:
     return str(getattr(session, "session_id", "?"))[:64]
+
+def _trace_of(client: Any) -> str | None:
+    """Trace id của turn đang chạy (đọc từ client trên backend).
+
+    ``getattr`` an toàn vì decorator cũng chạy với backend test (mock không
+    có client) — lúc đó trả None, không crash turn.
+    """
+    get = getattr(getattr(client, "_client", client), "trace_id", None)
+    value = get() if callable(get) else get
+    return str(value)[:64] if value else None
 
 
 def log_activity(
@@ -193,6 +210,7 @@ def log_activity(
                     ms=int((time.monotonic() - t0) * 1000),
                     detail=d,
                     error=err,
+                    trace_id=_trace_of(self),
                 )
 
         return wrapper

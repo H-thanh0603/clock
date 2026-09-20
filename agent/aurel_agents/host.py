@@ -112,8 +112,11 @@ def _sanitize_trace_id(raw: str | None) -> str:
 
     if raw:
         cleaned = _re.sub(r"[^A-Za-z0-9._-]", "", raw)[:64]
-        if len(cleaned) >= 8:
-            return cleaned
+        if 8 <= len(cleaned) <= 64 and set(cleaned) != {".", "_", "-"}:
+            # Từ chối id chỉ toàn ký tự phân tách ("..."/"---" vô nghĩa)
+            # và id quá dài (>32, FE UUID tối đa 36) → nghi spam.
+            if len(cleaned) <= 36:
+                return cleaned
     return _uuid.uuid4().hex[:16]
 
 
@@ -528,6 +531,7 @@ async def _run_shopping_turn(
     session_id: str,
     page_type: str = "other",
     product_id: str | None = None,
+    trace_id: str | None = None,
 ):
     """1 turn shopping agent: transcript persist theo session.
 
@@ -552,7 +556,7 @@ async def _run_shopping_turn(
     )
     state = ShoppingSessionState()
 
-    yield _sse({"type": "session", "session_id": sid})
+    yield _sse({"type": "session", "session_id": sid, "trace_id": trace_id})
     # #4+#5 pre-router: Jev bucket intent (~300ms) về TRƯỚC token đầu của
     # model reasoning (1-3s) → FE hiện status line ngay. Đồng thời score
     # injection: trượt ngưỡng → chặn turn, không cho message vào agent.
@@ -648,7 +652,13 @@ async def _run_merchant_turn(agent: Any, message: str, session_id: str):
         if callable(setter):
             setter(_state.get("merchant_trace"))
 
-    yield _sse({"type": "session", "session_id": sid})
+    yield _sse(
+        {
+            "type": "session",
+            "session_id": sid,
+            "trace_id": _state.get("merchant_trace"),
+        }
+    )
     try:
         async for event in agent.stream_turn(transcript, context, state):
             yield _sse(event)
@@ -948,6 +958,7 @@ async def shop_chat(req: ChatRequest, request: Request):
             session_id,
             page_type=req.page_type or "other",
             product_id=req.product_id,
+            trace_id=trace_id,
         ),
         media_type="text/event-stream",
     )
@@ -1058,6 +1069,7 @@ async def activity(  # noqa: B008 — FastAPI inject
     role: str = "",
     session_id: str = "",
     ok: str = "",
+    trace_id: str = "",
     request: Request = None,
 ) -> dict:
     """AI Activity Log query (ops): tool nào, của actor/session nào,
@@ -1065,6 +1077,7 @@ async def activity(  # noqa: B008 — FastAPI inject
 
     Chứa actor + session → token-gated như feed ops. Không ghi args thô
     (tránh PII) — chỉ detail nghiệp vụ (product_id, change_id...).
+    ``trace_id`` lọc đúng 1 turn chat (xuyên FE → host → BE).
     """
     _check_merchant_auth(request)
     safe_limit = max(1, min(limit, 200))
@@ -1075,6 +1088,7 @@ async def activity(  # noqa: B008 — FastAPI inject
             role=role or None,
             session_id=session_id or None,
             ok=ok_flag,
+            trace_id=trace_id or None,
         )
     }
 

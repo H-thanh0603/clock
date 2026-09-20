@@ -166,3 +166,50 @@ async def test_no_actor_header_when_unset(respx_mock):
         await c.cart_add("p1", 1, 100, "img.jpg")
 
     assert cart.calls.last.request.headers.get("x-aurel-actor") is None
+
+
+@pytest.mark.asyncio
+async def test_trace_header_forwarded_on_read_and_write(respx_mock):
+    """trace_id được gắn lên MỌI request BE (kể cả GET) để log BE nối được."""
+    respx_mock.post(f"{BASE}/auth/login").respond(
+        json={"user": {"id": "u1", "email": "a@test"}}
+    )
+    respx_mock.get(f"{BASE}/auth/csrf").respond(json={"csrfToken": "t" * 16})
+    seen: list[str | None] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("x-request-id"))
+        return httpx.Response(200, json={"items": []})
+
+    respx_mock.get(f"{BASE}/products").mock(side_effect=record)
+    respx_mock.post(f"{BASE}/cart").mock(side_effect=record)
+
+    async with ClockClient(BASE, "a@test", "pass", trace_id="tid-1") as c:
+        await c.ensure_session()
+        await c.products()
+        await c.cart_add("p1", "n", 1.0, "i")
+    assert seen == ["tid-1", "tid-1"]
+
+    # Đổi trace giữa chừng (session pool tái dùng client cho nhiều turn).
+    async with ClockClient(BASE, "a@test", "pass") as c2:
+        await c2.ensure_session()
+        c2.set_trace("tid-2")
+        await c2.products(limit=1)
+        assert c2.trace_id == "tid-2"
+        c2.set_trace(None)
+        await c2.products(limit=1)
+    assert seen[-2:] == ["tid-2", None]
+
+
+@pytest.mark.asyncio
+async def test_no_trace_header_when_unset(respx_mock):
+    respx_mock.post(f"{BASE}/auth/login").respond(
+        json={"user": {"id": "u1", "email": "a@test"}}
+    )
+    respx_mock.get(f"{BASE}/auth/csrf").respond(json={"csrfToken": "t" * 16})
+    route = respx_mock.get(f"{BASE}/products").respond(json={"items": []})
+
+    async with _client() as c:
+        await c.ensure_session()
+        await c.products()
+    assert route.calls.last.request.headers.get("x-request-id") is None

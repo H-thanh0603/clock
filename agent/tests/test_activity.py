@@ -191,3 +191,37 @@ def test_activity_jsonl_survives_restart_shape(tmp_path):
         f.write("dòng rác không phải json\n")
         f.write(json.dumps({"ts": 1, "role": "s"}) + "\n")
     assert len(ActivityLog(p).recent(10)) == 2
+
+def test_trace_id_record_and_filter(tmp_path):
+    """Trace xuyên FE → host → BE: record + lọc đúng 1 turn."""
+    from aurel_agents.activity import ActivityLog
+
+    log = ActivityLog(tmp_path / "a.jsonl")
+    log.record(role="shop", session_id="s1", actor="u1", tool="search_products",
+               ok=True, ms=12, trace_id="tid-abc")
+    log.record(role="shop", session_id="s1", actor="u1", tool="add_to_cart",
+               ok=True, ms=30, trace_id="tid-xyz")
+    log.record(role="shop", session_id="s1", actor="u1", tool="get_cart",
+               ok=True, ms=5)  # log cũ / không trace → None
+    # Lọc đúng turn.
+    hits = log.recent(50, trace_id="tid-abc")
+    assert len(hits) == 1 and hits[0]["tool"] == "search_products"
+    # Không lọc trace thì vẫn thấy hết (tương thích log cũ).
+    assert len(log.recent(50)) == 3
+    # Dòng không trace có trace_id None (không phải thiếu key).
+    assert [
+        x for x in log.recent(50, session_id="s1") if x["tool"] == "get_cart"
+    ][0]["trace_id"] is None
+
+
+def test_sanitize_trace_id_rejects_injection():
+    import aurel_agents.host as host
+
+    # Ký tự xuống dòng / header-injection bị lược bỏ hết.
+    assert host._sanitize_trace_id("abc\r\nX-Injected: 1") == "abcX-Injected1"
+    ok = host._sanitize_trace_id("trace_2026-xyz.01")
+    assert ok == "trace_2026-xyz.01"
+    # Quá ngắn / rỗng / rác → sinh id mới 16 hex.
+    for bad in (None, "", "ab", "!!!", "a" * 200):
+        fresh = host._sanitize_trace_id(bad)
+        assert len(fresh) == 16 and all(c in "0123456789abcdef" for c in fresh)

@@ -318,6 +318,7 @@ class PooledStorefront:
                     ms=int((time.monotonic() - t0) * 1000),
                     detail=detail,
                     error=err,
+                    trace_id=self._traces.get(sanitize_session_id(sid)),
                 )
 
     # -- StorefrontBackend delegate (mỗi method lấy backend theo session) --
