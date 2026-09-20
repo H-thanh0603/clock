@@ -107,6 +107,7 @@ class Settings:
     jev_url: str = "https://api.typesafe.ai/v1/systemone"
     jev_model: str = "jev-latest"
     jev_threshold: float = 0.7
+    jev_injection_threshold: float = 0.85
     jev_timeout_s: float = 5.0
 
     @classmethod
@@ -140,6 +141,7 @@ class Settings:
             jev_url=os.getenv("JEV_URL") or "https://api.typesafe.ai/v1/systemone",
             jev_model=os.getenv("JEV_MODEL") or "jev-latest",
             jev_threshold=float(os.getenv("JEV_THRESHOLD") or 0.7),
+            jev_injection_threshold=float(os.getenv("JEV_INJECTION_THRESHOLD") or 0.85),
             jev_timeout_s=float(os.getenv("JEV_TIMEOUT_S") or 5.0),
         )
 

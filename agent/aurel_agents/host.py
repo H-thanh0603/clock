@@ -463,10 +463,11 @@ def _sse(payload: dict[str, Any] | str) -> str:
     return f"data: {body}\n\n"
 
 
-def _jev_classify_intent_sync(message: str) -> str | None:
-    """#4: Jev pre-router — bucket intent của message (None = không hint).
+def _jev_classify_intent_sync(message: str) -> tuple[str | None, float]:
+    """#4+#5: Jev pre-router — (hint text, injection score).
 
-    Không bao giờ raise: Jev lỗi → None → turn bỏ qua hint, agent như cũ.
+    Không bao giờ raise: Jev lỗi → (None, 0.0) → turn bỏ qua hint, agent
+    như cũ. Injection score để turn chặn ở ngưỡng jev_injection_threshold.
     """
     from aurel_agents import jev
 
@@ -481,7 +482,17 @@ def _jev_classify_intent_sync(message: str) -> str | None:
         )
     except Exception:
         logger.warning("Jev intent hint lỗi (bỏ qua)", exc_info=True)
-        return None
+        return None, 0.0
+    if verdict is None:
+        return None, 0.0
+    hint = {
+        "browse": "Đang xem sản phẩm cho bạn…",
+        "order_status": "Đang tra đơn hàng của bạn…",
+        "complaint": "Đang ghi nhận sự cố của bạn…",
+        "policy_question": "Đang tra chính sách cửa hàng…",
+        "smalltalk": None,  # chào hỏi → đừng giả vờ "đang xử lý"
+    }.get(verdict.bucket)
+    return hint, verdict.injection
     if verdict is None:
         return None
     return {
@@ -524,18 +535,39 @@ async def _run_shopping_turn(
     state = ShoppingSessionState()
 
     yield _sse({"type": "session", "session_id": sid})
-    # #4 pre-router: Jev bucket intent (~300ms) về TRƯỚC token đầu của model
-    # reasoning (1-3s) → FE hiện status line ngay, giảm cảm giác chờ. Hint
-    # là progress event (FE đã render sẵn); Jev lỗi thì bỏ qua, agent như cũ.
+    # #4+#5 pre-router: Jev bucket intent (~300ms) về TRƯỚC token đầu của
+    # model reasoning (1-3s) → FE hiện status line ngay. Đồng thời score
+    # injection: trượt ngưỡng → chặn turn, không cho message vào agent.
     try:
-        intent = await asyncio.to_thread(
+        hint, injection = await asyncio.to_thread(
             _jev_classify_intent_sync,
             message,
         )
     except Exception:
-        intent = None
-    if intent is not None:
-        yield _sse({"type": "progress", "message": intent})
+        hint, injection = None, 0.0
+    settings_jev = get_settings()
+    if injection >= settings_jev.jev_injection_threshold:
+        logger.warning(
+            "Chặn turn injection (score=%.2f, session=%s)", injection, sid
+        )
+        _alert_feed.publish(
+            "security",
+            "Chặn prompt injection",
+            f"Tin nhắn bị chặn (score {injection:.2f}) — không vào agent.",
+            {"session_id": sid, "injection_score": round(injection, 2)},
+        )
+        yield _sse(
+            {
+                "type": "error",
+                "message": (
+                    "Tin nhắn chứa nội dung không hợp lệ đối với trợ lý bán hàng."
+                ),
+            }
+        )
+        yield _sse({"type": "done"})
+        return
+    if hint is not None:
+        yield _sse({"type": "progress", "message": hint})
     try:
         async for event in agent.stream_turn(transcript, context, state):
             yield _sse(event)
