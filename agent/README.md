@@ -194,6 +194,11 @@ Cùng prompt/skills/tools, khác vòng loop:
 - **Retention dữ liệu cá nhân**: `AGENT_RETENTION_DAYS` (mặc định 30) —
   monitor mỗi vòng dọn transcript/watches/tickets/alerts cũ hơn TTL
   (transcript của user còn watch active thì giữ). `0` = giữ vĩnh viễn.
+- **Ticket SLA**: `AGENT_TICKET_SLA_HOURS` (mặc định 24) — ticket open
+  không ai cập nhật quá ngưỡng này → alert `ticket_sla` nhắc feed ops
+  (fingerprint theo bucket 6h nên không spam mỗi vòng). Ticket cùng
+  user+đơn giữ **toàn bộ lịch sử tin** (`messages[]`); lượt mới nặng hơn
+  → alert `ticket_escalated` + severity chỉ tăng không giảm.
 - **Backoff khi BE chết**: vòng quét fail liên tục → interval nhân đôi
   (cap 30 phút) + đúng 1 alert "BE down" lên feed; phục hồi → 1 alert
   "đã nối lại". Không còn 288 stack trace/ngày.

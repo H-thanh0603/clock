@@ -143,3 +143,71 @@ async def test_async_policy_question_never_asks_jev(tmp_path, monkeypatch):
         is None
     )
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_jev_receives_prior_history_for_escalation(tmp_path, monkeypatch):
+    """Ticket đang open cùng đơn → Jev nhận lịch sử (không chỉ tin mới nhất),
+    để câu ngắn 'vẫn chưa ai liên hệ' được chấm đúng là leo thang."""
+    host = _reset_host_stores(tmp_path)
+    # Lượt 1: heuristic trúng → mở ticket kèm mã đơn.
+    await host._maybe_handoff_ticket_async(
+        "Tôi khiếu nại đơn AC-2026-000777 bị trầy", "s1"
+    )
+    seen: dict = {}
+
+    def _capture(msg, **kw):
+        seen["prior"] = kw.get("prior")
+        return jev.JevVerdict(
+            is_complaint=True,
+            department="logistics",
+            severity="high",
+            sentiment="angry",
+        )
+
+    monkeypatch.setattr("aurel_agents.jev.classify", _capture)
+    monkeypatch.setattr(host, "get_settings", lambda: Settings(jev_api_key="k"))
+    t = await host._maybe_handoff_ticket_async(
+        "vẫn chưa thấy ai liên hệ đơn AC-2026-000777", "s1"
+    )
+    assert seen["prior"] and "bị trầy" in seen["prior"]
+    assert t is not None and len(t.messages) == 2
+
+
+@pytest.mark.asyncio
+async def test_second_complaint_escalation_publishes_alert(tmp_path, monkeypatch):
+    """Tin thứ 2 nặng hơn → alert riêng 'ticket_escalated' + severity tăng."""
+    host = _reset_host_stores(tmp_path)
+    await host._maybe_handoff_ticket_async(
+        "đơn AC-2026-000888 giao chậm quá", "s1"
+    )
+    t = await host._maybe_handoff_ticket_async(
+        "giờ còn bị móp hộp nữa, tôi muốn hoàn tiền ngay AC-2026-000888", "s1"
+    )
+    assert t is not None
+    assert len(t.messages) == 2
+    kinds = {a.kind for a in host._alert_feed.recent(20)}
+    assert "ticket" in kinds  # lần đầu
+    # Không có severity ở heuristic → không leo thang, nhưng vẫn nối lịch sử
+    assert all(a.data.get("turns", 1) >= 1 for a in host._alert_feed.recent(20))
+
+
+@pytest.mark.asyncio
+async def test_no_history_when_different_order(tmp_path, monkeypatch):
+    """Khác mã đơn → KHÔNG trộn lịch sử 2 vụ việc khác nhau vào ngữ cảnh Jev."""
+    host = _reset_host_stores(tmp_path)
+    await host._maybe_handoff_ticket_async(
+        "Tôi khiếu nại đơn AC-2026-000999 bị trầy", "s1"
+    )
+    seen: dict = {}
+
+    def _capture(msg, **kw):
+        seen["prior"] = kw.get("prior")
+        return None
+
+    monkeypatch.setattr("aurel_agents.jev.classify", _capture)
+    monkeypatch.setattr(host, "get_settings", lambda: Settings(jev_api_key="k"))
+    await host._maybe_handoff_ticket_async(
+        "đơn AC-2026-000111 có vấn đề khác", "s1"
+    )
+    assert seen["prior"] is None

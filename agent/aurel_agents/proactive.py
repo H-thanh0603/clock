@@ -67,8 +67,29 @@ class Alert(BaseModel):
     created_at: float = Field(default_factory=time.time)
 
 
+class TicketMessage(BaseModel):
+    """1 lượt khách báo trong cùng vụ việc (ticket)."""
+
+    at: float = Field(default_factory=time.time)
+    text: str
+    severity: str | None = None
+    sentiment: str | None = None
+    department: str | None = None
+    source: str = "heuristic"  # heuristic | jev
+
+
+# Thứ tự nặng dần — dùng để biết ticket "leo thang" (lần sau nặng hơn).
+SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
 class Ticket(BaseModel):
-    """Handoff shopping → merchant: khiếu nại cần vận hành xử lý."""
+    """Handoff shopping → merchant: khiếu nại cần vận hành xử lý.
+
+    Giữ **toàn bộ lịch sử tin nhắn** của vụ việc (``messages``), không chỉ
+    tin đầu tiên: khách quay lại "à mà còn bị trầy thêm chỗ nữa" thì
+    merchant phải thấy. ``summary`` vẫn là dòng gọn cho feed/scan, cập nhật
+    theo tin mới nhất; ``severity`` chỉ được **tăng**, không giảm.
+    """
 
     ticket_id: str
     user_id: str
@@ -76,6 +97,16 @@ class Ticket(BaseModel):
     summary: str
     status: str = "open"  # open | resolved
     created_at: float = Field(default_factory=time.time)
+    messages: list[TicketMessage] = Field(default_factory=list)
+    severity: str | None = None
+    sentiment: str | None = None
+    department: str | None = None
+    escalated_at: float | None = None  # lần gần nhất ticket leo thang
+    updated_at: float = Field(default_factory=time.time)
+
+    def history_text(self, limit: int = 8) -> str:
+        """Gộp lịch sử thành 1 khối text để triage/scan đọc."""
+        return "\n".join(f"- {m.text}" for m in self.messages[-limit:])
 
 
 class Task(BaseModel):
@@ -256,9 +287,32 @@ class TicketStore(_JsonListStore):
         super().__init__(path, Ticket, MAX_OPEN_TICKETS * 3)
 
     def open(
-        self, user_id: str, summary: str, order_id: str | None = None
-    ) -> Ticket:
-        # Dedupe: user + order đang open thì không mở thêm.
+        self,
+        user_id: str,
+        summary: str,
+        order_id: str | None = None,
+        *,
+        severity: str | None = None,
+        sentiment: str | None = None,
+        department: str | None = None,
+        source: str = "heuristic",
+    ) -> tuple[Ticket, bool]:
+        """Mở ticket mới HOẶC ghi thêm vào ticket đang open cùng user+order.
+
+        Trả về ``(ticket, escalated)`` — ``escalated=True`` khi đây là tin
+        tiếp theo của vụ việc đang mở **và** nặng hơn lần trước (customer
+        quay lại bực hơn / thêm lỗi). Caller dùng cờ này để đẩy alert
+        riêng, tránh feed nuốt mất diễn biến.
+        """
+        summary = (summary or "")[:400]
+        msg = TicketMessage(
+            text=summary,
+            severity=severity,
+            sentiment=sentiment,
+            department=department,
+            source=source,
+        )
+        # Dedupe: user + order đang open thì GHI THÊM vào lịch sử, không mở mới.
         for t in self.all():
             if (
                 isinstance(t, Ticket)
@@ -266,15 +320,37 @@ class TicketStore(_JsonListStore):
                 and t.user_id == user_id
                 and t.order_id == order_id
             ):
-                return t
+                prev = SEVERITY_RANK.get(t.severity or "", 0)
+                now = SEVERITY_RANK.get(severity or "", 0)
+                escalated = now > prev
+                t.messages.append(msg)
+                # Summary theo tin mới nhất — merchant scan đọc dòng này trước.
+                t.summary = summary
+                if escalated:
+                    t.severity = severity
+                    t.escalated_at = msg.at
+                elif not t.severity and severity:
+                    t.severity = severity
+                # sentiment: giữ "xấu nhất" đã thấy (angry > neutral).
+                if sentiment and (not t.sentiment or sentiment == "angry"):
+                    t.sentiment = sentiment
+                if department and not t.department:
+                    t.department = department
+                t.updated_at = msg.at
+                self.save()
+                return t, escalated
         ticket = Ticket(
             ticket_id=f"t-{int(time.time() * 1000) % 10**9:09d}-{len(self.all()):04d}",
             user_id=user_id,
             order_id=order_id,
-            summary=summary[:400],
+            summary=summary,
+            messages=[msg],
+            severity=severity,
+            sentiment=sentiment,
+            department=department,
         )
         self._add(ticket)
-        return ticket
+        return ticket, False
 
     def resolve(self, ticket_id: str) -> Ticket | None:
         for t in self.all():
@@ -442,6 +518,58 @@ def check_merchant_snapshot(snapshot: dict[str, Any], inventory: list[dict[str, 
             )
         )
     return alerts
+
+
+def check_ticket_sla(
+    tickets: list[Ticket],
+    *,
+    sla_hours: float = 24.0,
+    now: float | None = None,
+    bucket_hours: float = 6.0,
+) -> list[Alert]:
+    """Ticket open quá SLA mà chưa ai xử lý → alert nhắc.
+
+    Trước đây ticket chỉ publish 1 lần lúc mở; khách nhắn 5 lần trong 3 ngày
+    mà không ai trả lời thì feed im lặng. Hàm này biến "quá hạn" thành alert
+    có thể lặp — caller dùng ``_publish_once`` để không spam mỗi vòng.
+
+    ``data`` cố tình CHỈ chứa field ổn định (count, severity, id) — không
+    chứa ``oldest_hours`` vì nó đổi mỗi vòng quét, fingerprint sẽ khác nhau
+    → ``_publish_once`` tưởng tình trạng mới và spam alert mỗi 5 phút.
+    (Tuổi được gom theo ``bucket_hours`` nếu muốn leak tiến triển.)
+    """
+    import time as _time
+
+    now = now if now is not None else _time.time()
+    cutoff = now - max(0.0, sla_hours) * 3600
+    overdue = [
+        t
+        for t in tickets
+        if getattr(t, "status", None) == "open"
+        and getattr(t, "updated_at", t.created_at) < cutoff
+    ]
+    if not overdue:
+        return []
+    worst = max(overdue, key=lambda t: SEVERITY_RANK.get(t.severity or "", 0))
+    oldest = max((now - t.updated_at) / 3600 for t in overdue)
+    age_bucket = int(oldest // max(1.0, bucket_hours))
+    return [
+        Alert(
+            alert_id=f"a-{int(now * 1000) % 10**9:09d}-ticketsla",
+            kind="ticket_sla",
+            title=f"{len(overdue)} ticket quá {sla_hours:.0f}h chưa xử lý",
+            detail=(
+                f"Lâu nhất ~{oldest:.0f}h. Nặng nhất: "
+                f"{worst.severity or 'chưa rõ'} — {worst.summary[:120]}"
+            ),
+            data={
+                "count": len(overdue),
+                "age_bucket_6h": age_bucket,
+                "worst_severity": worst.severity,
+                "ticket_ids": [t.ticket_id for t in overdue[:10]],
+            },
+        )
+    ]
 
 
 def cleanup_expired(
@@ -815,6 +943,14 @@ class ProactiveMonitor:
             for a in await merchant.get_inventory_alerts(session)
         ]
         for alert in check_merchant_snapshot(snapshot, inventory):
+            if self._publish_once(
+                alert.kind, alert.title, alert.detail, alert.data
+            ):
+                published += 1
+        # Ticket quá SLA → alert (lặp được, _publish_once khử trùng).
+        for alert in check_ticket_sla(
+            self._tickets.open_tickets(), sla_hours=self._settings.ticket_sla_hours
+        ):
             if self._publish_once(
                 alert.kind, alert.title, alert.detail, alert.data
             ):

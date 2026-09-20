@@ -185,4 +185,4 @@ Có, 2 lớp, nhưng actor-attribution lệch nhau:
 2. **Throttler/budget in-memory** — 1 instance agent host (đã có single-instance lock `host.lock` fail-fast), nhiều instance cần store chung. _Memory store đã xử lý (file lock) nhưng transcript/watch/alert vẫn dựa trên 1 instance._
 3. **Fuzz test chạy manual** — nên thêm vào CI tuần/tháng với key riêng khi có budget, vì nó verify fencing với model thật (hiện 2 test deselect khi thiếu key — đúng hành vi).
 4. **Monitor scan dùng admin account chung** — cần account riêng khi tách operator thật (trùng vấn đề 1).
-5. **Ticket/Watch store cap** — có cap nhưng nên verify cap đủ khi traffic thật lớn (feed cap ghi rõ trong code).
+5. **Ticket/Watch store cap** — có cap nhưng nên verify cap đủ khi traffic thật lớn (feed cap ghi rõ trong code). _Ticket SLA + leo thang đã bổ sung 20/09 — còn lại là tinh chỉnh ngưỡng._

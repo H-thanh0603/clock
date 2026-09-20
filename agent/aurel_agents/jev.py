@@ -8,6 +8,9 @@ Dùng làm lớp xác nhận + route bên cạnh heuristic 0-call trong host.py:
 - heuristic trúng rõ → mở ticket luôn, tốn 0 call
 - heuristic trượt (khiếu nại diễn đạt không chứa từ khoá) → hỏi Jev 1 call
   (noul complaint + choice department để route đội xử lý)
+- khách đã có ticket open → gửi kèm ``prior`` (lịch sử các lượt trước)
+  để Jev chấm severity **của lần này** trong ngữ cảnh — câu ngắn kiểu
+  "vẫn chưa thấy ai liên hệ" là leo thang dù không có từ khoá nặng
 - Jev chết / thiếu key / parse lỗi → ``classify`` trả None, caller fallback
   heuristic cũ (handoff không bao giờ fail vì Jev — như Meili fallback Prisma)
 
@@ -85,15 +88,28 @@ def classify(
     model: str,
     threshold: float,
     timeout_s: float,
+    prior: str | None = None,
 ) -> JevVerdict | None:
-    """Hỏi Jev 1 call. None = thiếu key / Jev chết / parse lỗi → caller fallback."""
+    """Hỏi Jev 1 call. None = thiếu key / Jev chết / parse lỗi → caller fallback.
+
+    ``prior``: lịch sử các lượt khiếu nại trước của cùng vụ việc (ticket
+    đang open). Ghép vào ``state`` có nhãn rõ để model không nhầm lịch sử
+    với tin hiện tại — severity trả về là **của tin mới nhất**.
+    """
     if not api_key:
         return None
+    state = message[:2000]
+    if prior:
+        state = (
+            "[Các lượt trước của cùng vụ việc]\n"
+            f"{prior[:1500]}\n\n"
+            f"[Tin nhắn mới nhất cần chấm]\n{state}"
+        )
     try:
         resp = httpx.post(
             base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model, "state": message[:2000], "questions": QUESTIONS},
+            json={"model": model, "state": state, "questions": QUESTIONS},
             timeout=timeout_s,
         )
         resp.raise_for_status()

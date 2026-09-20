@@ -78,15 +78,66 @@ def test_alert_feed_recent_order_desc(tmp_path):
 
 def test_ticket_store_open_dedupe_and_resolve(tmp_path):
     _, _, tickets, _ = _mk_stores(tmp_path)
-    t1 = tickets.open("u1", "đồng hồ bị trầy", order_id="AC-2026-000001")
-    t2 = tickets.open("u1", "nhắc lại", order_id="AC-2026-000001")
+    t1, esc1 = tickets.open("u1", "đồng hồ bị trầy", order_id="AC-2026-000001")
+    t2, esc2 = tickets.open("u1", "nhắc lại", order_id="AC-2026-000001")
     assert t1.ticket_id == t2.ticket_id  # dedupe cùng user + đơn
+    assert esc1 is False and esc2 is False  # không severity → không leo thang
     assert len(tickets.open_tickets()) == 1
     assert tickets.resolve(t1.ticket_id) is not None
     assert tickets.open_tickets() == []
     # sau khi resolve, cùng user+đơn mở được ticket mới
-    t3 = tickets.open("u1", "vấn đề mới", order_id="AC-2026-000001")
+    t3, _ = tickets.open("u1", "vấn đề mới", order_id="AC-2026-000001")
     assert t3.ticket_id != t1.ticket_id
+
+
+def test_ticket_keeps_full_message_history(tmp_path):
+    """Khách nhắn tiếp cùng đơn → GHI THÊM vào lịch sử, không mở ticket mới
+    và không nuốt mất tin (bug cũ: chỉ giữ tin đầu, khách mất tiếng nói)."""
+    _, _, tickets, _ = _mk_stores(tmp_path)
+    t1, _ = tickets.open("u1", "đồng hồ bị trầy", order_id="AC-2026-000001")
+    t2, _ = tickets.open("u1", "à mà còn bị mất 1 mắt xích", order_id="AC-2026-000001")
+    assert t2.ticket_id == t1.ticket_id
+    assert [m.text for m in t2.messages] == [
+        "đồng hồ bị trầy",
+        "à mà còn bị mất 1 mắt xích",
+    ]
+    assert t2.summary == "à mà còn bị mất 1 mắt xích"  # summary theo tin mới
+
+
+def test_ticket_escalates_severity_never_downgrades(tmp_path):
+    """Severity chỉ TĂNG; lần sau nhẹ hơn không hạ mức đã ghi nhận."""
+    _, _, tickets, _ = _mk_stores(tmp_path)
+    tickets.open("u1", "chậm giao", order_id="AC-2026-000002", severity="low")
+    t2, esc = tickets.open(
+        "u1", "giờ còn hư luôn", order_id="AC-2026-000002", severity="critical"
+    )
+    assert esc is True
+    assert t2.severity == "critical"
+    assert t2.escalated_at is not None
+    # quay lại mức nhẹ hơn → giữ critical
+    t3, esc2 = tickets.open(
+        "u1", "thôi chắc ổn", order_id="AC-2026-000002", severity="low"
+    )
+    assert esc2 is False
+    assert t3.severity == "critical"
+
+
+def test_ticket_sentiment_keeps_worst(tmp_path):
+    """sentiment giữ mức xấu nhất đã thấy (angry > upset > neutral)."""
+    _, _, tickets, _ = _mk_stores(tmp_path)
+    tickets.open("u1", "bực quá", order_id="AC-2026-000003", sentiment="angry")
+    t2, _ = tickets.open(
+        "u1", "ok rồi", order_id="AC-2026-000003", sentiment="neutral"
+    )
+    assert t2.sentiment == "angry"
+
+
+def test_ticket_history_text_for_triage(tmp_path):
+    """history_text gộp các lượt — nguồn ngữ cảnh cho Jev."""
+    _, _, tickets, _ = _mk_stores(tmp_path)
+    tickets.open("u1", "lần 1", order_id="AC-2026-000004")
+    t, _ = tickets.open("u1", "lần 2", order_id="AC-2026-000004")
+    assert t.history_text() == "- lần 1\n- lần 2"
 
 
 # --- check_watches: logic đối chiếu thuần ----------------------------------------------
@@ -161,6 +212,35 @@ def test_check_merchant_snapshot_low_stock_and_pending():
 
     # sạch → không alert
     assert check_merchant_snapshot({"pendingOrders": 0}, []) == []
+
+
+def test_check_ticket_sla(tmp_path):
+    """Ticket open quá SLA → alert nhắc (trước đây feed im lặng vô hạn)."""
+    import time as _time
+
+    from aurel_agents.proactive import check_ticket_sla
+
+    _, _, tickets, _ = _mk_stores(tmp_path)
+    t, _ = tickets.open(
+        "u1", "hư hàng", order_id="AC-2026-000010", severity="high"
+    )
+    now = _time.time()
+
+    # vừa mở → chưa quá hạn
+    assert check_ticket_sla(tickets.open_tickets(), sla_hours=24, now=now) == []
+
+    # giả lập đã quá 48h
+    t.updated_at = now - 48 * 3600
+    alerts = check_ticket_sla(tickets.open_tickets(), sla_hours=24, now=now)
+    assert len(alerts) == 1
+    assert alerts[0].kind == "ticket_sla"
+    assert alerts[0].data["count"] == 1
+    assert alerts[0].data["worst_severity"] == "high"
+    assert alerts[0].data["age_bucket_6h"] >= 7
+
+    # resolved → không tính nữa
+    tickets.resolve(t.ticket_id)
+    assert check_ticket_sla(tickets.open_tickets(), sla_hours=24, now=now) == []
 
 
 # --- watch tool (presentation extension) -------------------------------------------------
@@ -759,7 +839,7 @@ def test_retention_cleanup_transcripts_and_stores(tmp_path):
     alerts = AlertFeed(tmp_path / "a.json")
     tickets = TicketStore(tmp_path / "t.json")
     watches.add("shopper:keep2222", "chrono-x", "restock")  # active → giữ transcript
-    t = tickets.open("u1", "đã xử lý xong")
+    t = tickets.open("u1", "đã xử lý xong")[0]
     tickets.resolve(t.ticket_id)  # resolved cũ
 
     # fake created_at cũ cho ticket resolved
@@ -1074,3 +1154,19 @@ def test_forget_wipes_own_session_only(tmp_path, monkeypatch):
     assert len(host._watch_store.for_user(user_other)) == 1
     assert host._task_store.for_user(user_mine) == []
     assert len(host._task_store.for_user(user_other)) == 1
+
+
+def test_ticket_sla_alert_fingerprint_stable_across_cycles(tmp_path):
+    """Quét 2 vòng liên tiếp: tuổi ticket già đi nhưng data phải ỔN ĐỊNH
+    (cùng bucket) → _publish_once không spam alert mỗi vòng (5 phút)."""
+    import time as _time
+
+    from aurel_agents.proactive import check_ticket_sla
+
+    _, _, tickets, _ = _mk_stores(tmp_path)
+    t, _ = tickets.open("u1", "hư hàng", order_id="AC-2026-000011")
+    t.updated_at = _time.time() - 48 * 3600
+    now = _time.time()
+    a1 = check_ticket_sla(tickets.open_tickets(), sla_hours=24, now=now)[0]
+    a2 = check_ticket_sla(tickets.open_tickets(), sla_hours=24, now=now + 300)[0]
+    assert a1.data == a2.data  # cùng fingerprint

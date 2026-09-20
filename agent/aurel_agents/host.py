@@ -592,13 +592,22 @@ def _open_ticket(
     severity: str | None = None,
     sentiment: str | None = None,
 ) -> Ticket:
-    """Mở ticket + publish alert feed. Dùng chung cho heuristic và Jev."""
+    """Mở/GHI THÊM ticket + publish alert feed. Dùng chung heuristic và Jev.
+
+    Tin thứ 2 trở đi của cùng user+order được nối vào lịch sử ticket (xem
+    ``TicketStore.open``); nếu nặng hơn lần trước → publish alert riêng
+    ``ticket_escalated`` để feed không nuốt mất diễn biến.
+    """
     # Mã đơn AC-YYYY-NNNNNN nếu khách nhắc
     match = re.search(r"AC-\d{4}-\d{6}", message)
-    ticket = _ticket_store.open(
+    ticket, escalated = _ticket_store.open(
         user_id=f"shopper:{sanitize_session_id(session_id)[:8]}",
         summary=message[:400],
         order_id=match.group(0) if match else None,
+        severity=severity,
+        sentiment=sentiment,
+        department=department,
+        source="jev" if severity or sentiment or department else "heuristic",
     )
     # Triage data vào alert: merchant scan sort theo severity, sentiment
     # angry nổi lên feed ops để xử lý trước (khách sắp bỏ đi).
@@ -611,13 +620,26 @@ def _open_ticket(
         }.items()
         if v
     }
+    turns = len(ticket.messages)
     _alert_feed.publish(
-        "ticket",
-        f"Ticket {ticket.ticket_id}: khách khiếu nại",
-        f"Nội dung: {message[:200]}",
+        "ticket_escalated" if escalated else "ticket",
+        (
+            f"Ticket {ticket.ticket_id}: khiếu nại LEO THANG (lần {turns})"
+            if escalated
+            else f"Ticket {ticket.ticket_id}: khách khiếu nại"
+        ),
+        # Detail kèm LỊCH SỬ các lượt (không chỉ tin mới nhất) — merchant
+        # scan đọc alert là thấy toàn bộ diễn biến, không phải mở store.
+        f"Nội dung: {message[:200]}"
+        + (
+            f"\nCác lượt trước:\n{ticket.history_text()}" if turns > 1 else ""
+        ),
         {
             "ticket_id": ticket.ticket_id,
             "order_id": ticket.order_id,
+            "turns": turns,
+            "severity": ticket.severity,
+            "escalated": escalated,
             **triage,
         },
     )
@@ -645,6 +667,10 @@ async def _maybe_handoff_ticket_async(message: str, session_id: str) -> Ticket |
     Heuristic trượt (khiếu nại diễn đạt không chứa từ khoá, không phải câu
     hỏi chính sách) → hỏi Jev 1 call (to_thread, không block loop). Jev
     chết/thiếu key/không phải khiếu nại → None (giữ đúng hành vi cũ).
+
+    Khách đã có ticket open cùng order → gửi kèm lịch sử cho Jev để nó
+    đánh giá severity **của lần này** trong ngữ cảnh (câu "vẫn chưa thấy ai
+    liên hệ" ngắn gọn nhưng là leo thang).
     """
     fast = _maybe_handoff_ticket(message, session_id)
     if fast is not None or _is_policy_question(message):
@@ -652,6 +678,7 @@ async def _maybe_handoff_ticket_async(message: str, session_id: str) -> Ticket |
     from aurel_agents import jev as _jev
 
     s = get_settings()
+    history = _ticket_history_for(message, session_id)
     verdict = await asyncio.to_thread(
         _jev.classify,
         message,
@@ -660,6 +687,7 @@ async def _maybe_handoff_ticket_async(message: str, session_id: str) -> Ticket |
         model=s.jev_model,
         threshold=s.jev_threshold,
         timeout_s=s.jev_timeout_s,
+        prior=history,
     )
     if verdict is None or not verdict.is_complaint:
         return None
@@ -670,6 +698,27 @@ async def _maybe_handoff_ticket_async(message: str, session_id: str) -> Ticket |
         severity=verdict.severity,
         sentiment=verdict.sentiment,
     )
+
+
+def _ticket_history_for(message: str, session_id: str) -> str | None:
+    """Lịch sử ticket open cùng user+order (nếu có) để đưa vào ngữ cảnh Jev.
+
+    Chỉ trả về khi cùng mã đơn — tránh trộn 2 vụ việc khác nhau của cùng
+    khách thành một mớ ngữ cảnh đánh lừa model.
+    """
+    match = re.search(r"AC-\d{4}-\d{6}", message)
+    if not match:
+        return None
+    user_id = f"shopper:{sanitize_session_id(session_id)[:8]}"
+    for t in _ticket_store.all():
+        if (
+            getattr(t, "status", None) == "open"
+            and getattr(t, "user_id", None) == user_id
+            and getattr(t, "order_id", None) == match.group(0)
+            and getattr(t, "messages", None)
+        ):
+            return t.history_text()
+    return None
 
 
 # --- routes ------------------------------------------------------------------------

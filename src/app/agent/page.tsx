@@ -186,7 +186,15 @@ function AlertFeed({
         {alerts.map((a) => (
           <li key={a.alert_id} className="border-t border-outline-variant/15 pt-space-sm">
             <p className="font-body-sm text-body-sm text-on-surface">
-              <span className="text-primary">{a.kind === "ticket" ? "ticket" : a.kind}</span>
+              <span
+                className={
+                  a.kind === "ticket_escalated" || a.kind === "ticket_sla"
+                    ? "text-error"
+                    : "text-primary"
+                }
+              >
+                {a.kind === "ticket" ? "ticket" : a.kind}
+              </span>
               {" · "}
               {a.data?.product_id ? (
                 <Link
@@ -199,7 +207,7 @@ function AlertFeed({
                 a.title
               )}
             </p>
-            <p className="font-body-sm text-body-sm text-on-surface-variant/70">{a.detail}</p>
+            <p className="font-body-sm text-body-sm whitespace-pre-line text-on-surface-variant/70">{a.detail}</p>
             {(a.kind === "restock" || a.kind === "price_drop") && a.data?.product_id && (
               <p className="mt-1">
                 <WatchAddButton productId={a.data.product_id} />

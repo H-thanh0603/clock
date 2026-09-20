@@ -89,6 +89,10 @@ class Settings:
     # quét — 0 = giữ vĩnh viễn (khuyến nghị đặt ở prod: hội thoại khách
     # là dữ liệu cá nhân, không nên nằm vô hạn trên disk).
     retention_days: int = 30
+    # Ticket quá bao nhiêu giờ không ai cập nhật thì lên alert nhắc (0 = tắt).
+    # Ticket chỉ publish alert 1 lần lúc mở — SLA này biến "quá hạn" thành
+    # alert lặp được để không bị bỏ quên.
+    ticket_sla_hours: float = 24.0
     # Budget chat: số turn mỗi chat-session/ngày (midnight reset, 0 = tắt).
     # Chống 1 user/cú script đốt token LLM qua vòng tool-call 8 lần/turn.
     chat_turns_per_day: int = 100
@@ -129,6 +133,7 @@ class Settings:
             request_timeout_s=float(os.getenv("AGENT_REQUEST_TIMEOUT_S") or 120.0),
             monitor_interval_s=int(os.getenv("AGENT_MONITOR_INTERVAL_S") or 300),
             retention_days=int(os.getenv("AGENT_RETENTION_DAYS") or 30),
+            ticket_sla_hours=float(os.getenv("AGENT_TICKET_SLA_HOURS") or 24.0),
             chat_turns_per_day=int(os.getenv("AGENT_CHAT_TURNS_PER_DAY") or 100),
             global_turns_per_day=int(os.getenv("AGENT_GLOBAL_TURNS_PER_DAY") or 0),
             jev_api_key=os.getenv("JEV_API_KEY") or None,
