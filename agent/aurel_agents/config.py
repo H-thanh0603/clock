@@ -47,6 +47,9 @@ class Settings:
     # "x-api-key" (chuẩn Anthropic/DeepSeek/z.ai...) hoặc "bearer"
     # (OpenRouter, một số gateway khác)
     auth_header: str = "x-api-key"
+    # A2 fallback: model dự phòng khi gateway lỗi tạm thời (429/5xx) với
+    # model chính — rỗng = tắt. Ví dụ: openrouter/z-ai/glm-4.6-free
+    fallback_model: str | None = None
 
     # backend clock
     backend_url: str = "http://localhost:4000"
@@ -118,6 +121,7 @@ class Settings:
             api_key=os.getenv("AGENT_API_KEY") or None,
             model=os.getenv("AGENT_MODEL") or "claude-sonnet-5",
             auth_header=(os.getenv("AGENT_AUTH_HEADER") or "x-api-key").lower(),
+            fallback_model=os.getenv("AGENT_FALLBACK_MODEL") or None,
             backend_url=os.getenv("AUREL_BACKEND_URL") or "http://localhost:4000",
             frontend_url=os.getenv("AUREL_FRONTEND_URL") or "http://localhost:3100",
             shopper_email=os.getenv("AGENT_SHOPPER_EMAIL") or "agent-shopper@aurel.local",
@@ -176,7 +180,14 @@ def build_anthropic_client(settings: Settings | None = None):
             kwargs["api_key"] = s.api_key  # SDK gửi x-api-key
     if s.base_url:
         kwargs["base_url"] = s.base_url
-    return AsyncAnthropic(**kwargs)
+    client = AsyncAnthropic(**kwargs)
+    # A2 fallback: gateway lỗi tạm thời (429/5xx/network) với model chính →
+    # 1 lần retry với model dự phòng. Không đặt AGENT_FALLBACK_MODEL → như cũ.
+    if getattr(s, "fallback_model", None):
+        from aurel_agents.fallback_client import FallbackModelClient
+
+        return FallbackModelClient(client, s.fallback_model)
+    return client
 
 
 def build_shopping_config(settings: Settings | None = None):
