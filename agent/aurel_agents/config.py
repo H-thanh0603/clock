@@ -32,8 +32,9 @@ from aurel_agents.paths import (
 # (import ở trên để dùng trực tiếp; __all__ giữ tên cho code cũ).
 
 
-def _load_env() -> None:
-    load_dotenv(AGENT_DIR / ".env")
+def _load_env(env_file: str | None = None) -> None:
+    """Đọc env file; prod chỉ định ``.env.prod`` (AGENT_ENV_FILE), dev dùng ``.env``."""
+    load_dotenv(AGENT_DIR / (env_file or os.getenv("AGENT_ENV_FILE") or ".env"))
 
 
 @dataclass(frozen=True)
@@ -117,8 +118,8 @@ class Settings:
     jev_timeout_s: float = 5.0
 
     @classmethod
-    def from_env(cls) -> Settings:
-        _load_env()
+    def from_env(cls, env_file: str | None = None) -> Settings:
+        _load_env(env_file)
         return cls(
             base_url=os.getenv("AGENT_BASE_URL") or None,
             api_key=os.getenv("AGENT_API_KEY") or None,

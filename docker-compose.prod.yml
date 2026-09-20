@@ -297,6 +297,9 @@ services:
       AGENT_FALLBACK_MODEL: ${AGENT_FALLBACK_MODEL:-}
       # Model riêng cho memory extraction (rỗng = dùng AGENT_MODEL).
       AGENT_MEMORY_MODEL: ${AGENT_MEMORY_MODEL:-}
+      # Env file riêng cho agent host (rỗng = .env mặc định). Dùng khi muốn
+      # mount .env.prod riêng thay vì pass từng biến environment như trên.
+      AGENT_ENV_FILE: ${AGENT_ENV_FILE:-}
       AGENT_MERCHANT_TOKEN: ${AGENT_MERCHANT_TOKEN:-}
       # Fail-closed: thiếu token merchant thì host không khởi động (tránh
       # mở endpoint vận hành ra Internet). Nhớ đặt AGENT_MERCHANT_TOKEN.
