@@ -209,15 +209,59 @@ Cùng prompt/skills/tools, khác vòng loop:
   Mặc định deselected; CI không chạy. Quy trình đổi model đầy đủ
   (checklist + script + workflow tay): `docs/MODEL-CHANGE-CHECKLIST.md`.
 
+## Eval hành vi (offline, 0 token)
+
+Test thường kiểm *cơ chế*; fuzz kiểm *hành vi* nhưng tốn token nên không vào
+CI. Khoảng trống đó được lấp bằng **eval suite với model giả scripted**
+(`agent/evals/`): chèn một client phát đúng kịch bản tool_use/text vào chỗ
+`AsyncAnthropic` → chạy được offline, vào CI, mà vẫn đo *quyết định* của
+agent (đúng tool, đúng thứ tự, fence giữ, không rò rỉ, không bịa id).
+
+```bash
+cd agent && source .venv/bin/activate
+python -m evals.run                 # 12 case, in bảng % điểm
+python -m evals.run -k merchant     # lọc
+python -m evals.run --json out.json # xuất máy đọc (so baseline)
+python -m evals.run --live          # LLM THẬT (cần key, tốn token)
+pytest tests/test_evals.py          # cùng suite dưới dạng test (gate CI)
+```
+
+- `evals/cases.py`: mọi case + check có trọng số. `MIN_SCORE` trong
+  `tests/test_evals.py` là **sàn** — hạ phải là quyết định có chủ ý.
+- `evals/scripted_client.py`: model giả; `evals/suite.py`: kiểu `Case`,
+  `Check`, `Trace` + helper (``used_tool``/``tool_before``/``sent_not_contains``…).
+- Hồi quy điển hình bắt được: đổi prompt/skill làm agent bỏ qua search,
+  fence `product_id` hở, staged-change bị bypass, secret lọt vào prompt.
+
+### Xuất cho AgentEval / Inspect (tùy chọn, khi cần nghiệm thu ngoài)
+
+Suite chạy offline ở trên là nguồn duy nhất; muốn đưa điểm vào
+[AgentEval](https://pypi.org/project/agent-eval/) (hoặc bất kỳ tool đọc log
+Inspect AI) thì sinh cầu nối — mỗi case thành 1 Inspect task riêng:
+
+```bash
+pip install inspect-ai agent-eval
+python -m evals.agenteval_config -o /tmp/logs       # sinh eval_config.json
+inspect eval evals/inspect_task.py --model mockllm/model --log-dir /tmp/logs
+LITELLM_LOCAL_MODEL_COST_MAP=True agenteval score /tmp/logs
+# → scores.json + summary_stats.json (overall + điểm theo tag: security,
+#   merchant, discovery, customer-care, personalization)
+```
+
+- `evals/inspect_task.py` — bridge Inspect (không bắt buộc cài; không có
+  `inspect_ai` thì phần còn lại của repo vẫn chạy bình thường).
+- `evals/agenteval_config.py` — sinh `eval_config.json` + `suite_config.json`
+  + `suite_metadata.json` từ `cases.py` (không viết tay, không lệch suite).
+
 ## Test
 
 ```bash
 cd agent && source .venv/bin/activate
-pytest            # 39 test adapter (CSRF, login/register, retry 401, mapping,
-                   # staged-change lifecycle, guardrail, promotion/campaign thật,
-                   # restart-recovery, transcript/ledger/rate-limit/multi-user...)
-pytest tests/upstream   # 150 test cross-package của Anthropic — nguyên bản, chỉ sửa
-                   # 2 dòng path (REPO_ROOT → vendor/)
+pytest            # unit + adapter + upstream + eval (không tốn token)
+pytest tests/upstream   # riêng 150 test cross-package của Anthropic — nguyên bản,
+                   # chỉ sửa 2 dòng path (REPO_ROOT → vendor/)
+pytest -m fuzz    # adversarial gọi model THẬT (tốn token) — chạy tay
+evals: python -m evals.run   # xem mục "Eval hành vi" ở trên
 ruff check .      # lint sạch (vendor/ + tests/upstream/ được exclude)
 ```
 

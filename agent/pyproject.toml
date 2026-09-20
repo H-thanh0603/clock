@@ -27,7 +27,12 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["aurel_agents", "aurel_agents.shopping", "aurel_agents.merchant"]
+packages = [
+    "aurel_agents",
+    "aurel_agents.shopping",
+    "aurel_agents.merchant",
+    "evals",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

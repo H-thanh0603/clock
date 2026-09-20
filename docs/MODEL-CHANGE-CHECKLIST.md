@@ -27,9 +27,14 @@ prompt-injection/tool-abuse — CI mặc định bỏ qua vì tốn tiền).
 ## 2. Regression không tốn tiền (luôn xanh mới được đổi)
 
 ```bash
-cd agent && source .venv/bin/activate && pytest -q   # adapter + upstream
+cd agent && source .venv/bin/activate && pytest -q   # unit + adapter + upstream + eval
 cd ../backend && npm test                             # BE không liên quan model nhưng chạy cho chắc
 ```
+
+Eval hành vi (`python -m evals.run`) dùng **model giả scripted** nên không tốn
+token — nó kiểm *cơ chế quyết định* (đúng tool, đúng thứ tự, fence giữ)
+nhưng KHÔNG kiểm được model thật có tuân prompt không. Vì vậy bước 1 (fuzz)
+vẫn bắt buộc: eval = chống hồi quy code/prompt, fuzz = chống hồi quy model.
 
 ## 3. Smoke chat tay (5 phút, 2 role)
 

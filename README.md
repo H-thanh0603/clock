@@ -49,7 +49,8 @@ Chạy test:
 ```bash
 npm test                        # FE (vitest)
 cd backend && npm test          # BE — 200+ test: tiền, auth, csrf, expire, promotions/campaigns/metrics, meili search...
-cd agent && pytest              # AI agents — adapter + upstream + memory lock + ticket SLA
+cd agent && pytest              # AI agents — adapter + upstream + memory lock + ticket SLA + eval
+python -m evals.run             # eval hành vi (model giả, 0 token) — 12 case, % điểm
 ./scripts/tests/run.sh          # ops scripts: backup/restore/offsite/migration-drift
                                 # (shell, chèn docker+rclone giả — không cần daemon)
 npx tsc --noEmit                 # typecheck FE
