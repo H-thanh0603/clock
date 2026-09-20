@@ -45,8 +45,8 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm --no-deps backend npx prisma migrate deploy
 
       # Bước 4: mới thay container — schema đã sẵn, code mới chạy ngay.
-      # Chỉ up service stateless + meili: KHÔNG đụng db/db-backup (tránh
-      # restart DB không cần thiết gây downtime ghi đơn).
+      # Chỉ up service stateless + meili + db-offsite: KHÔNG đụng db/db-backup
+      # (tránh restart DB không cần thiết gây downtime ghi đơn).
       - name: Restart stack với ảnh mới
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -56,7 +56,7 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.VPS_DIR }}
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend agent caddy meilisearch
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend frontend agent caddy meilisearch db-offsite
             # Smoke test sau deploy (P1-7): backend + frontend phải sống thì
             # deploy mới coi là xong. Fail ở đây = workflow đỏ, operator vào
             # kiểm tra ngay (chưa auto-rollback — rollback tay theo PRODUCTION.md §6).

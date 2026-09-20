@@ -71,15 +71,27 @@ crontab VPS): pg_dump mỗi sáng 02:00, giữ 14 bản (`BACKUP_KEEP`), file n�
 ở `./backups/` trên host. Xem log: `docker compose ... logs db-backup`.
 
 **Offsite (bắt buộc khi có data khách thật):** backup cùng ổ VPS với DB —
-mất ổ là mất cả hai. Điền `OFFSITE_REMOTE` (rclone remote, vd
-`b2:aurel-backups`) vào `.env.prod`, cài rclone 1 lần (`rclone config`),
-rồi cron đẩy bản mới nhất mỗi sáng:
+mất ổ là mất cả hai. Compose có sidecar `db-offsite` (image rclone) tự đẩy
+bản mới nhất lên remote 03:00 mỗi sáng — **không phụ thuộc crontab VPS**
+(cron trên host hay bị quên khi dựng máy mới). Cài đặt 1 lần:
 
-```cron
-0 3 * * * /opt/clock/scripts/offsite-backup.sh "-f docker-compose.prod.yml --env-file .env.prod"
+```bash
+# 1) Cấu hình remote rclone trên host (B2/S3/...), đặt tên remote, vd "b2":
+rclone config
+# 2) Điền vào .env.prod rồi `docker compose ... up -d db-offsite`:
+#   OFFSITE_REMOTE="b2:aurel-backups"
+#   OFFSITE_RCLONE_CONFIG="/root/.config/rclone/rclone.conf"
 ```
 
-Chưa đặt `OFFSITE_REMOTE` thì script bỏ qua êm (backup local vẫn giữ).
+Sidecar verify size remote = size local sau mỗi lần đẩy (đẩy nửa vời sẽ báo
+`SIZE LỆCH`), và tự `rclone delete --min-age OFFSITE_KEEPd` để giữ vòng đời
+remote dài hơn local (local 14 bản ~2 tuần, remote 30 ngày) — bảo vệ khi dữ
+liệu hỏng âm thầm đã lan vào cả bản local. Chưa đặt `OFFSITE_REMOTE` thì
+sidecar ngủ êm, chỉ giữ backup local. Xem log:
+`docker compose ... logs db-offsite`.
+
+`scripts/offsite-backup.sh` vẫn dùng được cho máy không chạy compose (đẩy
+thủ công / cron riêng) — cùng intent, không có verify size.
 
 **Restore drill (mỗi quý 1 lần):** backup chưa restore thử = chưa có backup.
 Sidecar tự verify ~tuần 1 lần (restore vào DB scratch + so số bảng). Ngoài
@@ -88,6 +100,15 @@ ra nên drill tay trên DB rỗng mỗi quý:
 ```bash
 ./scripts/restore-db.sh backups/aurel-YYYYMMDD-HHMMSS.sql.gz "-f docker-compose.prod.yml --env-file .env.prod"
 # nhập DELETE để xác nhận → kiểm tra đếm đơn/user → migrate deploy nếu schema cũ
+```
+
+Khi có offsite, mỗi quý drill **từ bản remote** (không phải bản local) 1 lần
+— kéo file về rồi restore, để chắc chắn chain local→remote→restore thật sự
+chạy được:
+
+```bash
+rclone copy "b2:aurel-backups/aurel-<stamp>.sql.gz" /tmp/ \
+  && ./scripts/restore-db.sh /tmp/aurel-<stamp>.sql.gz "-f docker-compose.prod.yml --env-file .env.prod"
 ```
 
 ## 6. Cập nhật / rollback

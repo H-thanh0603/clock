@@ -171,6 +171,63 @@ services:
     volumes:
       - ./backups:/backups
 
+  # Offsite layer 2 (rclone): đẩy backup mới nhất lên remote + xoá bản remote
+  # quá hạn. Chạy trong compose để KHÔNG phụ thuộc crontab VPS (cron trên host
+  # hay bị quên khi dựng máy mới). Bỏ trống OFFSITE_REMOTE → service ngủ êm,
+  # backup local vẫn nguyên (không coi là lỗi hạ tầng).
+  db-offsite:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    environment:
+      OFFSITE_REMOTE: ${OFFSITE_REMOTE:-}
+      OFFSITE_KEEP: ${OFFSITE_KEEP:-30}
+    volumes:
+      - ./backups:/backups:ro
+      # rclone.conf mount read-only — remote (B2/S3) cấu hình 1 lần trên host.
+      - ${OFFSITE_RCLONE_CONFIG:-/dev/null}:/config/rclone/rclone.conf:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -z "$$OFFSITE_REMOTE" ]; then
+          echo "[offsite] OFFSITE_REMOTE trống — chỉ giữ backup local."
+          sleep infinity
+        fi
+        while true; do
+          # Đợi bản backup hôm nay (db-backup chạy 02:00) rồi mới đẩy.
+          LATEST=$$(ls -1t /backups/aurel-*.sql.gz 2>/dev/null | head -1)
+          if [ -z "$$LATEST" ]; then
+            echo "[offsite] chưa có backup local, thử lại sau." >&2
+          else
+            echo "[offsite] đẩy $$LATEST -> $$OFFSITE_REMOTE/"
+            if rclone copyto "$$LATEST" "$$OFFSITE_REMOTE/$$(basename "$$LATEST")" --stats-one-line; then
+              # Verify: remote phải có file cùng size (không đẩy nửa vời).
+              # `lsl` in ra "<size> <date> <time> <name>" — lấy cột 1.
+              REMOTE_SIZE=$$(rclone lsl "$$OFFSITE_REMOTE/$$(basename "$$LATEST")" 2>/dev/null | awk 'NR==1{print $$1}')
+              LOCAL_SIZE=$$(stat -c %s "$$LATEST" 2>/dev/null || echo 0)
+              if [ -n "$$REMOTE_SIZE" ] && [ "$$REMOTE_SIZE" = "$$LOCAL_SIZE" ] && [ "$$LOCAL_SIZE" != "0" ]; then
+                echo "[offsite] OK $$(basename "$$LATEST") ($$LOCAL_SIZE bytes)"
+              else
+                echo "[offsite] SIZE LỆCH remote=$$REMOTE_SIZE local=$$LOCAL_SIZE — KIỂM TRA!" >&2
+              fi
+              # Giữ vòng đời remote dài hơn local (local 14 bản ~2 tuần,
+              # remote 30 bản ~1 tháng) — bảo vệ trước hỏng dữ liệu âm thầm
+              # lan sang cả bản local đã bị xoay vòng.
+              rclone delete "$$OFFSITE_REMOTE/" --min-age "$${OFFSITE_KEEP}d" 2>/dev/null || true
+            else
+              echo "[offsite] FAIL $$(basename "$$LATEST") — KIỂM TRA BACKUP OFFSITE!" >&2
+            fi
+          fi
+          NOW=$$(date +%s)
+          NEXT=$$(( $$(date -d tomorrow +%s) + 3*3600 ))
+          sleep $$(( NEXT - NOW > 0 ? NEXT - NOW : 86400 ))
+        done
+
   frontend:
     build:
       context: .
