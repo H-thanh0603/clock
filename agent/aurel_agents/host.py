@@ -33,6 +33,7 @@ poll ``GET /alerts``.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -454,7 +455,7 @@ async def _run_shopping_turn(
     finally:
         _transcripts.save(sid)
     # Handoff shopping → merchant: khiếu nại → ticket cho vòng scan.
-    ticket = _maybe_handoff_ticket(message, sid)
+    ticket = await _maybe_handoff_ticket_async(message, sid)
     if ticket is not None:
         yield _sse(
             {
@@ -541,6 +542,13 @@ def _api_context(operator: str = "operator:api"):
 # Từ khoá khiếu nại — heuristic chủ ý tốn 0 LLM call. Turn concierge vẫn
 # trả lời chính sách như thường; ticket chỉ là kênh BÊN THÊM để merchant
 # agent thấy vụ việc trong scan vòng của nó.
+#
+# Jev (TypeSafe decision model, aurel_agents/jev.py) là lớp XÁC NHẬN + ROUTE
+# bên cạnh heuristic — KHÔNG thay LLM concierge (Jev không sinh text,
+# không tool_use). Heuristic trúng rõ → mở ticket luôn 0 call; heuristic
+# trượt (khiếu nại diễn đạt không chứa từ khoá) → hỏi Jev 1 call qua
+# _maybe_handoff_ticket_async. Jev chết/thiếu key → fallback heuristic cũ
+# (handoff không bao giờ fail vì Jev — như Meili fallback Prisma ở BE).
 _COMPLAINT_TERMS = (
     "khiếu nại",
     "phàn nàn",
@@ -575,6 +583,46 @@ def _is_policy_question(message: str) -> bool:
     return any(p.search(text) for p in _POLICY_QUESTION_PATTERNS)
 
 
+def _open_ticket(
+    message: str,
+    session_id: str,
+    *,
+    department: str | None = None,
+    severity: str | None = None,
+    sentiment: str | None = None,
+) -> Ticket:
+    """Mở ticket + publish alert feed. Dùng chung cho heuristic và Jev."""
+    # Mã đơn AC-YYYY-NNNNNN nếu khách nhắc
+    match = re.search(r"AC-\d{4}-\d{6}", message)
+    ticket = _ticket_store.open(
+        user_id=f"shopper:{sanitize_session_id(session_id)[:8]}",
+        summary=message[:400],
+        order_id=match.group(0) if match else None,
+    )
+    # Triage data vào alert: merchant scan sort theo severity, sentiment
+    # angry nổi lên feed ops để xử lý trước (khách sắp bỏ đi).
+    triage = {
+        k: v
+        for k, v in {
+            "department": department,
+            "severity": severity,
+            "sentiment": sentiment,
+        }.items()
+        if v
+    }
+    _alert_feed.publish(
+        "ticket",
+        f"Ticket {ticket.ticket_id}: khách khiếu nại",
+        f"Nội dung: {message[:200]}",
+        {
+            "ticket_id": ticket.ticket_id,
+            "order_id": ticket.order_id,
+            **triage,
+        },
+    )
+    return ticket
+
+
 def _maybe_handoff_ticket(message: str, session_id: str) -> Ticket | None:
     """User message có dấu hiệu khiếu nại → mở ticket cho merchant agent.
 
@@ -587,21 +635,40 @@ def _maybe_handoff_ticket(message: str, session_id: str) -> Ticket | None:
         return None
     if _is_policy_question(message):
         return None
+    return _open_ticket(message, session_id)
 
-    # Mã đơn AC-YYYY-NNNNNN nếu khách nhắc
-    match = re.search(r"AC-\d{4}-\d{6}", message)
-    ticket = _ticket_store.open(
-        user_id=f"shopper:{sanitize_session_id(session_id)[:8]}",
-        summary=message[:400],
-        order_id=match.group(0) if match else None,
+
+async def _maybe_handoff_ticket_async(message: str, session_id: str) -> Ticket | None:
+    """Handoff có Jev xác nhận: heuristic trúng → ticket luôn 0 call.
+
+    Heuristic trượt (khiếu nại diễn đạt không chứa từ khoá, không phải câu
+    hỏi chính sách) → hỏi Jev 1 call (to_thread, không block loop). Jev
+    chết/thiếu key/không phải khiếu nại → None (giữ đúng hành vi cũ).
+    """
+    fast = _maybe_handoff_ticket(message, session_id)
+    if fast is not None or _is_policy_question(message):
+        return fast
+    from aurel_agents import jev as _jev
+
+    s = get_settings()
+    verdict = await asyncio.to_thread(
+        _jev.classify,
+        message,
+        api_key=s.jev_api_key,
+        base_url=s.jev_url,
+        model=s.jev_model,
+        threshold=s.jev_threshold,
+        timeout_s=s.jev_timeout_s,
     )
-    _alert_feed.publish(
-        "ticket",
-        f"Ticket {ticket.ticket_id}: khách khiếu nại",
-        f"Nội dung: {message[:200]}",
-        {"ticket_id": ticket.ticket_id, "order_id": ticket.order_id},
+    if verdict is None or not verdict.is_complaint:
+        return None
+    return _open_ticket(
+        message,
+        session_id,
+        department=verdict.department,
+        severity=verdict.severity,
+        sentiment=verdict.sentiment,
     )
-    return ticket
 
 
 # --- routes ------------------------------------------------------------------------

@@ -97,6 +97,14 @@ class Settings:
     # Prod nên đặt (VD 1000); vượt thì chat trả 429 + alert lên feed ops.
     global_turns_per_day: int = 0
 
+    # Jev (TypeSafe AI, decision model cho handoff ticket — KHÔNG phải LLM
+    # lái loop agent). Thiếu JEV_API_KEY = tắt, handoff chạy heuristic cũ.
+    jev_api_key: str | None = None
+    jev_url: str = "https://api.typesafe.ai/v1/systemone"
+    jev_model: str = "jev-latest"
+    jev_threshold: float = 0.7
+    jev_timeout_s: float = 5.0
+
     @classmethod
     def from_env(cls) -> Settings:
         _load_env()
@@ -123,6 +131,11 @@ class Settings:
             retention_days=int(os.getenv("AGENT_RETENTION_DAYS") or 30),
             chat_turns_per_day=int(os.getenv("AGENT_CHAT_TURNS_PER_DAY") or 100),
             global_turns_per_day=int(os.getenv("AGENT_GLOBAL_TURNS_PER_DAY") or 0),
+            jev_api_key=os.getenv("JEV_API_KEY") or None,
+            jev_url=os.getenv("JEV_URL") or "https://api.typesafe.ai/v1/systemone",
+            jev_model=os.getenv("JEV_MODEL") or "jev-latest",
+            jev_threshold=float(os.getenv("JEV_THRESHOLD") or 0.7),
+            jev_timeout_s=float(os.getenv("JEV_TIMEOUT_S") or 5.0),
         )
 
 
@@ -169,6 +182,9 @@ def build_shopping_config(settings: Settings | None = None):
         assistant_name="Concierge Aurel",
         brand_voice="warm, concise, plain about trade-offs; answers in Vietnamese unless the customer writes another language",
         model=s.model,
+        # Memory extraction chạy trên cùng model gateway (tránh gọi
+        # claude-haiku mặc định — gateway không có credential Anthropic → 404).
+        memory_model=s.model,
         max_tokens=s.max_tokens,
         request_timeout_s=s.request_timeout_s,
         domain_search_notes=(
@@ -199,6 +215,7 @@ def build_merchant_config(settings: Settings | None = None):
     return MerchantAgentConfig(
         brand_name="Aurel & Co.",
         model=s.model,
+        memory_model=s.model,
         max_tokens=s.max_tokens,
         request_timeout_s=s.request_timeout_s,
     )

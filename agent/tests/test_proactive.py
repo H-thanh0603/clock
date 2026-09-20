@@ -1018,7 +1018,6 @@ def test_forget_wipes_own_session_only(tmp_path, monkeypatch):
 
     import aurel_agents.host as host
     from aurel_agents.proactive import AlertFeed, TaskStore, TicketStore, WatchStore
-    from aurel_agents.paths import MEMORY_STORE_FILE, SESSIONS_DIR
 
     # Chuyển DATA_DIR sang tmp để không đụng data thật.
     monkeypatch.setattr(host, "_watch_store", WatchStore(tmp_path / "w.json"))
