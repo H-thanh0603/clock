@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useLocale } from "@/components/LocaleProvider";
 
 function AuthForm() {
+  const { t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   // Chống open-redirect: chỉ cho path nội bộ (không scheme, không //).
@@ -57,21 +59,21 @@ function AuthForm() {
             href="/account"
             className="px-space-lg py-3 rounded bg-primary text-on-primary font-label-spec text-label-spec tracking-[0.2em] uppercase font-semibold hover:bg-secondary transition-colors"
           >
-            Đơn Của Tôi
+            {t("nav.orders")}
           </Link>
           {user.role === "ADMIN" && (
             <Link
               href="/admin/orders"
               className="px-space-lg py-3 rounded border border-primary-container/50 text-primary font-label-spec text-label-spec tracking-[0.2em] uppercase hover:bg-primary hover:text-on-primary transition-colors"
             >
-              Quản Trị
+              {t("nav.admin")}
             </Link>
           )}
           <button
             onClick={() => logout().then(() => router.refresh())}
             className="px-space-lg py-3 rounded bg-surface-container-high text-on-surface font-label-spec text-label-spec tracking-[0.2em] uppercase hover:text-primary transition-colors"
           >
-            Đăng Xuất
+            {t("nav.logout")}
           </button>
         </div>
       </div>
@@ -93,7 +95,7 @@ function AuthForm() {
             }}
             className={`py-2.5 rounded font-label-spec text-label-spec tracking-[0.2em] uppercase transition-colors ${mode === m ? "bg-primary text-on-primary font-semibold" : "text-on-surface-variant hover:text-on-surface"}`}
           >
-            {m === "login" ? "Đăng Nhập" : "Đăng Ký"}
+            {m === "login" ? t("auth.login") : t("auth.register")}
           </button>
         ))}
       </div>
@@ -101,13 +103,13 @@ function AuthForm() {
         {mode === "register" && (
           <div>
             <label className="font-label-spec text-label-spec mb-space-2xs block tracking-wider text-on-surface-variant uppercase">
-              Danh Xưng &amp; Họ Tên
+              {t("auth.name")}
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               className={inputCls}
-              placeholder="Ngài / Bà..."
+              placeholder={t("auth.namePh")}
               autoComplete="name"
             />
           </div>
@@ -128,7 +130,7 @@ function AuthForm() {
         </div>
         <div>
           <label className="font-label-spec text-label-spec mb-space-2xs block tracking-wider text-on-surface-variant uppercase">
-            Mật Khẩu * (tối thiểu 6 ký tự)
+            {t("auth.passwordHint")}
           </label>
           <input
             value={password}
@@ -154,11 +156,11 @@ function AuthForm() {
           <span className="material-symbols-outlined text-[18px]">
             {mode === "login" ? "lock_open" : "person_add"}
           </span>
-          <span>{busy ? "Đang xử lý..." : mode === "login" ? "Đăng Nhập Vault" : "Tạo Tài Khoản"}</span>
+          <span>{busy ? t("auth.processing") : mode === "login" ? t("auth.submitLoginVault") : t("auth.submitRegister")}</span>
         </button>
       </form>
       <p className="font-body-sm text-body-sm mt-space-md text-center text-on-surface-variant/70">
-        Thượng khách mới? Chọn “Đăng Ký” để mở Vault cá nhân.
+        {t("auth.newHint")}
       </p>
     </div>
   );

@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/components/CartProvider";
+import { LocaleProvider } from "@/components/LocaleProvider";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
 import { WishlistProvider } from "@/components/WishlistProvider";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -63,6 +64,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary selection:text-on-primary">
+        <LocaleProvider>
         <CurrencyProvider>
           <AuthProvider>
             <CartProvider>
@@ -82,6 +84,7 @@ export default async function RootLayout({
             </CartProvider>
           </AuthProvider>
         </CurrencyProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

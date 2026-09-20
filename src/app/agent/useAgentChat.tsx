@@ -57,6 +57,25 @@ export const SUGGESTIONS: Record<AgentRole, string[]> = {
   ],
 };
 
+/** Gợi ý mẫu theo locale — user EN không bị gợi ý tiếng Việt. */
+export const SUGGESTIONS_EN: Record<AgentRole, string[]> = {
+  shop: [
+    "I want a tourbillon under 150k USD",
+    "Compare Chronos Tourbillon and Grand Complication",
+    "Plan a first-class watch purchase over 2 months",
+    "Notify me when the Chronos Tourbillon is back in stock",
+    "I want to complain about order AC-2025-000001 — scratched watch",
+  ],
+  merchant: [
+    "How is business this month?",
+    "Plot last 30 days of sales by day",
+    "Which products are running low on stock?",
+    "Which orders are PENDING and need handling?",
+    "Create a 10% promotion for Chronos this month",
+    "Create a launch campaign for the new collection, 500 USD budget",
+  ],
+};
+
 export function useAgentChat() {
   const [role, setRole] = useState<AgentRole>("shop");
   const [messages, setMessages] = useState<Bubble[]>([]);

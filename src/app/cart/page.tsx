@@ -7,8 +7,10 @@ import VaultItemCard from "@/components/VaultItemCard";
 import AskConciergeButton from "@/components/AskConciergeButton";
 import { cartQuestion } from "@/lib/agent-link";
 import { formatUsd, formatVnd } from "@/data/products";
+import { useLocale } from "@/components/LocaleProvider";
 
 export default function Page() {
+  const { t } = useLocale();
   const { items, totalQty, totalUsd, totalVnd } = useCart();
   const deposit = Math.round(totalUsd * 0.2);
 
@@ -36,42 +38,42 @@ export default function Page() {
 {/* Step 1: Active */}
 <div className="relative flex flex-col p-space-md bg-surface-container rounded transition-all">
 <div className="flex items-center justify-between mb-space-2xs">
-<span className="font-label-badge text-label-badge text-primary uppercase tracking-widest font-bold">Giai Đoạn 01</span>
+<span className="font-label-badge text-label-badge text-primary uppercase tracking-widest font-bold">{t("checkout.step1")}</span>
 <span className="material-symbols-outlined text-primary text-[18px]">adjust</span>
 </div>
-<p className="font-title-editorial text-body-md text-on-surface font-medium">Kiệt tác đã chọn</p>
+<p className="font-title-editorial text-body-md text-on-surface font-medium">{t("checkout.pickedTitle")}</p>
 <span className="font-body-sm text-body-sm text-secondary mt-space-2xs flex items-center gap-1">
-            Đang cấu hình <span className="w-1 h-1 rounded-full bg-primary"></span>
+            {t("checkout.configuring")} <span className="w-1 h-1 rounded-full bg-primary"></span>
 </span>
 <div className="w-full h-1 bg-primary mt-space-sm rounded-full"></div>
 </div>
 {/* Step 2 */}
 <div className="relative flex flex-col p-space-md bg-surface-container-low rounded">
 <div className="flex items-center justify-between mb-space-2xs">
-<span className="font-label-badge text-label-badge text-on-surface-variant/70 uppercase tracking-widest">Giai Đoạn 02</span>
+<span className="font-label-badge text-label-badge text-on-surface-variant/70 uppercase tracking-widest">{t("checkout.step2")}</span>
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">palette</span>
 </div>
-<p className="font-title-editorial text-body-md text-on-surface-variant">Bespoke &amp; Đóng gói</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Niêm ấn xi đỏ &amp; Thư pháp</span>
+<p className="font-title-editorial text-body-md text-on-surface-variant">{t("checkout.bespokeTitle")}</p>
+<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">{t("checkout.bespokeHint")}</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 {/* Step 3 */}
 <div className="relative flex flex-col p-space-md bg-surface-container-low rounded">
 <div className="flex items-center justify-between mb-space-2xs">
-<span className="font-label-badge text-label-badge text-on-surface-variant/70 uppercase tracking-widest">Giai Đoạn 03</span>
+<span className="font-label-badge text-label-badge text-on-surface-variant/70 uppercase tracking-widest">{t("checkout.step3")}</span>
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">local_shipping</span>
 </div>
-<p className="font-title-editorial text-body-md text-on-surface-variant">Vận chuyển VIP</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Chuyên xe bọc thép có vệ sĩ</span>
+<p className="font-title-editorial text-body-md text-on-surface-variant">{t("checkout.shippingTitle")}</p>
+<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">{t("checkout.shippingHint")}</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 {/* Step 4 */}
 <div className="relative flex flex-col p-space-md bg-surface-container-low rounded">
 <div className="flex items-center justify-between mb-space-2xs">
-<span className="font-label-badge text-label-badge text-on-surface-variant/70 uppercase tracking-widest">Giai Đoạn 04</span>
+<span className="font-label-badge text-label-badge text-on-surface-variant/70 uppercase tracking-widest">{t("checkout.step4")}</span>
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">lock</span>
 </div>
-<p className="font-title-editorial text-body-md text-on-surface-variant">Thanh toán bảo mật</p>
+<p className="font-title-editorial text-body-md text-on-surface-variant">{t("checkout.payTitle")}</p>
 <span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Centurion / Escrow Wire</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
@@ -88,10 +90,10 @@ export default function Page() {
           {items.length === 0 ? (
             <div className="bg-surface-container-lowest rounded-lg p-space-xl shadow-xl text-center flex flex-col items-center gap-space-sm">
               <span className="material-symbols-outlined text-5xl text-outline-variant">shopping_bag</span>
-              <p className="font-title-editorial text-title-editorial text-on-surface">Vault của quý khách hiện trống</p>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">Hãy tuyển chọn kiệt tác đầu tiên từ bộ sưu tập Genève 2025.</p>
+              <p className="font-title-editorial text-title-editorial text-on-surface">{t("cart.empty")}</p>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">{t("cart.emptyHint")}</p>
               <Link href="/collections" className="mt-space-sm px-space-xl py-3 rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-semibold hover:bg-secondary transition-colors">
-                Khám Phá Bộ Sưu Tập
+                {t("cart.explore")}
               </Link>
             </div>
           ) : (

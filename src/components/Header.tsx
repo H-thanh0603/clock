@@ -4,22 +4,23 @@ import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "./CartProvider";
 import { useCurrency } from "./CurrencyProvider";
+import { useLocale } from "./LocaleProvider";
 import { useAuth } from "./AuthProvider";
 import { useWishlist } from "./WishlistProvider";
 import { formatUsd } from "@/data/format";
 import { productBySlug } from "@/data/wishMeta";
 import { mediaUrl } from "@/lib/media";
 
-const links = [
-  { href: "/", label: "Trang Chủ" },
-  { href: "/collections", label: "Bộ Sưu Tập" },
-  { href: "/products/chronos-tourbillon-no-07", label: "Chi Tiết Sản Phẩm" },
-  { href: "/atelier", label: "Atelier & Di Sản" },
-  { href: "/agent", label: "AI Concierge" },
-  { href: "/cart", label: "Giỏ Hàng & Concierge" },
-];
-
 export default function Header() {
+  const { t, locale, setLocale } = useLocale();
+  const links = [
+    { href: "/", label: t("nav.home") },
+    { href: "/collections", label: t("nav.collections") },
+    { href: "/products/chronos-tourbillon-no-07", label: t("nav.productDetail") },
+    { href: "/atelier", label: t("nav.atelier") },
+    { href: "/agent", label: t("nav.agent") },
+    { href: "/cart", label: t("nav.cart") },
+  ];
   const { totalQty } = useCart();
   const { currency, setCurrency } = useCurrency();
   const { user, logout } = useAuth();
@@ -81,6 +82,26 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-space-md">
+          {/* Chuyển ngôn ngữ VI/EN — đặt cạnh chuyển tiền tệ, cùng cụm utility. */}
+          <div
+            className="font-label-spec hidden cursor-pointer items-center rounded bg-surface-container-high px-space-xs py-1 text-[11px] tracking-wider text-on-surface-variant uppercase transition-colors hover:text-primary sm:flex"
+            role="group"
+            aria-label={t("nav.langLabel")}
+          >
+            <button
+              onClick={() => setLocale("vi")}
+              className={locale === "vi" ? "text-primary" : ""}
+            >
+              VI
+            </button>
+            <span className="mx-1 text-outline-variant">/</span>
+            <button
+              onClick={() => setLocale("en")}
+              className={locale === "en" ? "text-primary" : ""}
+            >
+              EN
+            </button>
+          </div>
           <div className="font-label-spec hidden cursor-pointer items-center rounded bg-surface-container-high px-space-xs py-1 text-[11px] tracking-wider text-on-surface-variant uppercase transition-colors hover:text-primary sm:flex">
             <button
               onClick={() => setCurrency("USD")}
@@ -126,7 +147,7 @@ export default function Header() {
                   <button
                     onClick={() => setWishOpen(false)}
                     className="p-1 text-on-surface-variant hover:text-primary"
-                    aria-label="Đóng wishlist"
+                    aria-label={t("nav.wishlistClose")}
                   >
                     <span className="material-symbols-outlined text-[18px]">
                       close
@@ -139,15 +160,14 @@ export default function Header() {
                       favorite
                     </span>
                     <p className="font-body-sm text-body-sm text-on-surface-variant">
-                      Chưa có kiệt tác yêu thích. Bấm tim trên thẻ sản phẩm để
-                      lưu vào đây.
+                      {t("nav.wishlistEmpty")}
                     </p>
                     <Link
                       href="/collections"
                       onClick={() => setWishOpen(false)}
                       className="mt-space-xs font-label-spec text-label-spec tracking-[0.2em] text-primary uppercase hover:text-secondary"
                     >
-                      Khám Phá Bộ Sưu Tập
+                      {t("nav.wishlistExplore")}
                     </Link>
                   </div>
                 ) : (
@@ -235,7 +255,7 @@ export default function Header() {
               {user.role === "ADMIN" && (
                 <Link
                   href="/admin/orders"
-                  aria-label="Quản trị"
+                  aria-label={t("nav.admin")}
                   className="p-1.5 text-on-surface-variant transition-colors hover:text-primary"
                 >
                   <span className="material-symbols-outlined text-[20px]">
@@ -245,7 +265,7 @@ export default function Header() {
               )}
               <button
                 onClick={() => logout()}
-                aria-label="Đăng xuất"
+                aria-label={t("nav.logout")}
                 className="p-1.5 text-on-surface-variant transition-colors hover:text-primary"
               >
                 <span className="material-symbols-outlined text-[20px]">
@@ -269,7 +289,7 @@ export default function Header() {
                 </div>
                 <div className="hidden flex-col xl:flex">
                   <span className="font-label-badge text-[10px] tracking-wider text-on-surface uppercase transition-colors group-hover:text-primary">
-                    Đăng Nhập
+                    {t("nav.login")}
                   </span>
                   <span className="font-label-spec text-[9px] tracking-widest text-secondary uppercase">
                     Circle Privé
@@ -300,7 +320,7 @@ export default function Header() {
                 onClick={() => setMenuOpen(false)}
                 className="block py-3 text-xs font-medium tracking-[0.2em] text-on-surface-variant uppercase transition-colors hover:text-primary"
               >
-                Đơn Của Tôi
+                {t("nav.orders")}
               </Link>
               <button
                 onClick={() => {
@@ -309,7 +329,7 @@ export default function Header() {
                 }}
                 className="block py-3 text-xs font-medium tracking-[0.2em] text-on-surface-variant uppercase transition-colors hover:text-primary"
               >
-                Đăng Xuất ({user.email})
+                {t("nav.logout")} ({user.email})
               </button>
             </>
           ) : (
@@ -318,7 +338,7 @@ export default function Header() {
               onClick={() => setMenuOpen(false)}
               className="block py-3 text-xs font-medium tracking-[0.2em] text-primary uppercase"
             >
-              Đăng Nhập / Đăng Ký
+              {t("nav.loginRegister")}
             </Link>
           )}
         </nav>

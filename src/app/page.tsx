@@ -1,8 +1,12 @@
+"use client";
+
 import SalonForm from "@/components/SalonForm";
 import Link from "next/link";
 import { mediaUrl } from "@/lib/media";
+import { useLocale } from "@/components/LocaleProvider";
 
 export default function Home() {
+  const { t } = useLocale();
   return (
   <div className="flex flex-col w-full">
   <div className="flex flex-col w-full">
@@ -19,28 +23,28 @@ export default function Home() {
 <span className="font-label-badge text-label-badge uppercase tracking-[0.25em]">Edition Limitée 2025 • Genève</span>
 </div>
 <h1 className="font-display-hero text-display-hero text-on-surface tracking-tight leading-[1.08] mb-space-md">
-            Nghệ Thuật Đếm <br/>
-<span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-fixed">Thời Gian Vượt Thời Đại</span>
+            {t("home.heroTitleA")} <br/>
+<span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-fixed">{t("home.heroTitleB")}</span>
 </h1>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl mb-space-2xl leading-relaxed">
-            Tuyệt tác cơ khí chế tác thủ công tại Genève, giao thoa giữa độ chính xác chuẩn Chronometer khắt khe và thẩm mỹ vương giả thuần khiết dành riêng cho những nhà sưu tầm kiệt xuất.
+            {t("home.heroSub")}
           </p>
 {/* Dual CTA */}
 <div className="flex flex-wrap items-center gap-space-md w-full sm:w-auto mb-space-3xl">
 <a className="px-space-xl py-4 rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-semibold hover:bg-secondary transition-all shadow-xl shadow-primary/10 flex items-center gap-space-sm group" href="/collections">
-<span>Khám Phá Tuyệt Tác Mới</span>
+<span>{t("home.heroCtaPrimary")}</span>
 <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
 </a>
 <a className="px-space-xl py-4 rounded bg-surface-container-high text-on-surface font-label-spec text-label-spec uppercase tracking-[0.18em] hover:bg-surface-bright transition-all flex items-center gap-space-sm" href="/#private-salon">
 <span className="material-symbols-outlined text-[18px] text-primary">calendar_month</span>
-<span>Đặt Lịch Private Salon</span>
+<span>{t("home.heroCtaSalon")}</span>
 </a>
 </div>
 {/* Watch Atelier Metrics */}
 <div className="w-full grid grid-cols-3 gap-space-md pt-space-lg bg-surface-container-low/60 rounded-xl p-space-md shadow-sm">
 <div className="flex flex-col">
 <span className="font-display-hero text-headline-sm text-primary tracking-tight">1892</span>
-<span className="font-label-spec text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Năm Di Sản Genève</span>
+<span className="font-label-spec text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">{t("home.statHeritage")}</span>
 </div>
 <div className="flex flex-col">
 <span className="font-display-hero text-headline-sm text-secondary tracking-tight">100%</span>
@@ -48,7 +52,7 @@ export default function Home() {
 </div>
 <div className="flex flex-col">
 <span className="font-display-hero text-headline-sm text-on-surface tracking-tight">50 Ex.</span>
-<span className="font-label-spec text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Độc Bản / Niên Giám</span>
+<span className="font-label-spec text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">{t("home.statLimited")}</span>
 </div>
 </div>
 </div>
@@ -103,12 +107,12 @@ export default function Home() {
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/35 to-surface-container-lowest/70"></div>
 <div className="absolute inset-0 flex flex-col items-center justify-center px-gutter-desktop text-center">
 <span className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.35em]">Manufacture de Haute Horlogerie</span>
-<h2 className="font-headline-lg text-headline-lg text-on-surface mt-space-xs max-w-3xl">Bên Trong Xưởng <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-fixed">Genève</span></h2>
+<h2 className="font-headline-lg text-headline-lg text-on-surface mt-space-xs max-w-3xl">{t("home.filmTitle")} <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-fixed">Genève</span></h2>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl mt-space-sm leading-relaxed">
-            Nhịp đập của từng calibre được ghi lại ở tốc độ thật — nơi bộ máy tourbillon lấy sinh khí dưới bàn tay nghệ nhân.
+            {t("home.filmSub")}
           </p>
 <a className="mt-space-xl inline-flex items-center gap-space-sm px-space-xl py-4 rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-semibold hover:bg-secondary transition-all shadow-xl shadow-primary/10" href="/atelier">
-<span>Khám Phá Atelier</span>
+<span>{t("home.filmCta")}</span>
 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
 </a>
 </div>

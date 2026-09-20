@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/components/CartProvider";
+import { useLocale } from "@/components/LocaleProvider";
 import { apiUrl, csrfFetch } from "@/lib/api-client";
 import {
   checkoutFingerprint,
@@ -14,6 +15,7 @@ import VaultItemCard from "@/components/VaultItemCard";
 import { formatUsd, formatVnd } from "@/data/products";
 
 export default function Page() {
+  const { t } = useLocale();
   const { items, totalQty, totalUsd, totalVnd, clear } = useCart();
   const deposit = Math.round(totalUsd * 0.2);
   const [name, setName] = useState("Michel Du Pont");
@@ -176,12 +178,12 @@ export default function Page() {
 {/* Step 1: Active */}
 <div className="relative flex flex-col p-space-md bg-surface-container rounded transition-all">
 <div className="flex items-center justify-between mb-space-2xs">
-<span className="font-label-badge text-label-badge text-primary uppercase tracking-widest font-bold">Giai Đoạn 01</span>
+<span className="font-label-badge text-label-badge text-primary uppercase tracking-widest font-bold">{t("checkout.step1")}</span>
 <span className="material-symbols-outlined text-primary text-[18px]">adjust</span>
 </div>
-<p className="font-title-editorial text-body-md text-on-surface font-medium">Kiệt tác đã chọn</p>
+<p className="font-title-editorial text-body-md text-on-surface font-medium">{t("checkout.pickedTitle")}</p>
 <span className="font-body-sm text-body-sm text-secondary mt-space-2xs flex items-center gap-1">
-            Đang cấu hình <span className="w-1 h-1 rounded-full bg-primary"></span>
+            {t("checkout.configuring")} <span className="w-1 h-1 rounded-full bg-primary"></span>
 </span>
 <div className="w-full h-1 bg-primary mt-space-sm rounded-full"></div>
 </div>
@@ -228,10 +230,10 @@ export default function Page() {
           {items.length === 0 && !placed ? (
             <div className="bg-surface-container-lowest rounded-lg p-space-xl shadow-xl text-center flex flex-col items-center gap-space-sm">
               <span className="material-symbols-outlined text-5xl text-outline-variant">shopping_bag</span>
-              <p className="font-title-editorial text-title-editorial text-on-surface">Vault của quý khách hiện trống</p>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">Hãy tuyển chọn kiệt tác đầu tiên từ bộ sưu tập Genève 2025.</p>
+              <p className="font-title-editorial text-title-editorial text-on-surface">{t("cart.empty")}</p>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">{t("cart.emptyHint")}</p>
               <Link href="/collections" className="mt-space-sm px-space-xl py-3 rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-semibold hover:bg-secondary transition-colors">
-                Khám Phá Bộ Sưu Tập
+                {t("cart.explore")}
               </Link>
             </div>
           ) : (
@@ -295,7 +297,7 @@ export default function Page() {
 <p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
                   Nghệ nhân thư pháp tại Genève chép tay bằng mực vàng 24K trên giấy dó sợi bông truyền thống nước Ý.
                 </p>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Thông điệp đề tặng (Tối đa 120 ký tự):</label>
+<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.dedication")}</label>
 <textarea className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
 </div>
 <span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Bao gồm huy hiệu đóng dấu nổi của xưởng Aurel &amp; Co.</span>
@@ -389,24 +391,24 @@ export default function Page() {
 </div>
 {/* Address Form Fields for Secure Delivery */}
 <div className="space-y-space-md bg-surface-container p-space-md rounded">
-<h4 className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.2em] mb-space-xs">Thông Tin Tư Gia &amp; Đại Diện Ủy Quyền</h4>
+<h4 className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.2em] mb-space-xs">{t("checkout.residence")}</h4>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Họ Tên Thượng Khách / Đại Diện</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" value={name} data-testid="co-name" onChange={(e) => setName(e.target.value)}/>
+<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.name")}</label>
+<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder={t("checkout.namePh")} type="text" value={name} data-testid="co-name" onChange={(e) => setName(e.target.value)}/>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Kênh Liên Lạc Bảo Mật (Signal / WhatsApp VIP)</label>
+<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.contact")}</label>
 <input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={contact} onChange={(e) => setContact(e.target.value)} data-testid="co-contact"/>
 </div>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Địa Chỉ Dinh Thự / Văn Phòng Bảo Mật</label>
+<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.address")}</label>
 <input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={address} onChange={(e) => setAddress(e.target.value)} data-testid="co-address"/>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Khung Giờ Bàn Giao Mong Muốn</label>
+<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.slot")}</label>
 <select value={slot} onChange={(e) => setSlot(e.target.value)} className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary">
 <option>10:00 - 12:00 (Sáng) • Khung giờ kín đáo</option>
 <option>14:30 - 16:30 (Chiều) • Buổi thử trực tiếp</option>
@@ -414,7 +416,7 @@ export default function Page() {
 </select>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Mã Nhận Diện Bảo Mật (PIN An Ninh Bàn Giao)</label>
+<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.pin")}</label>
 <input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" value={pin} onChange={(e) => setPin(e.target.value)}/>
 </div>
 </div>
@@ -427,7 +429,7 @@ export default function Page() {
             <div className="bg-surface-container-lowest rounded-lg p-space-lg shadow-2xl border border-primary/50 flex items-start gap-space-sm">
               <span className="material-symbols-outlined text-primary text-[28px]">verified</span>
               <div>
-                <p className="font-title-editorial text-title-editorial text-on-surface" data-testid="co-success-code">Đặt hàng thành công • Mã Vault {placed}</p>
+                <p className="font-title-editorial text-title-editorial text-on-surface" data-testid="co-success-code">{t("checkout.successCode")} {placed}</p>
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Concierge sẽ liên hệ {contact || "kênh bảo mật"} trong 2 giờ làm việc để xác nhận khung giờ {slot}.</p>
                 {placedReview ? (
                   <p className="font-body-sm text-body-sm text-secondary mt-1">Đơn có hàng bespoke/custom nên đang chờ concierge duyệt giá — chưa ghi nợ.</p>
@@ -442,39 +444,39 @@ export default function Page() {
           {/* Order Summary Card */}
 <div className="bg-surface-container-lowest rounded-lg p-space-lg shadow-2xl space-y-space-md">
 <div className="flex items-center justify-between pb-space-sm bg-surface-container-low/60 -mx-space-lg -mt-space-lg px-space-lg pt-space-md rounded-t-lg">
-<span className="font-title-editorial text-title-editorial text-on-surface uppercase tracking-wider">Hóa Đơn Bảo Chứng</span>
+<span className="font-title-editorial text-title-editorial text-on-surface uppercase tracking-wider">{t("checkout.invoice")}</span>
 <span className="font-label-badge text-label-badge text-primary uppercase">Vault Certificate</span>
 </div>
 {/* Breakdown items */}
 <div className="space-y-space-sm font-body-sm text-body-sm">
 <div className="flex justify-between text-on-surface-variant">
-<span>Giá trị ({totalQty} kiệt tác trong Vault):</span>
+<span>{t("checkout.valueLine")} ({totalQty} kiệt tác trong Vault):</span>
 <span className="font-semibold text-on-surface">{formatUsd(totalUsd)}</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Hộp gỗ óc chó &amp; Chứng chỉ COSC:</span>
-<span className="text-secondary font-medium">Bao gồm ($0)</span>
+<span>{t("checkout.boxLine")}</span>
+<span className="text-secondary font-medium">{t("checkout.included0")}</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Nghệ thuật đóng gói hoàng gia &amp; Xi sáp:</span>
+<span>{t("checkout.packLine")}</span>
 <span className="text-secondary font-medium">Complimentary</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Khắc tên riêng bằng tia laser:</span>
+<span>{t("checkout.engraveLine")}</span>
 <span className="text-secondary font-medium">Complimentary</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Vận chuyển an ninh bọc thép có vệ sĩ:</span>
-<span className="text-secondary font-medium">Miễn phí ($0)</span>
+<span>{t("checkout.armoredLine")}</span>
+<span className="text-secondary font-medium">{t("checkout.free0")}</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Thuế nhập khẩu &amp; Bảo hiểm hàng hải:</span>
-<span className="text-secondary font-medium">Đã thanh toán đủ</span>
+<span>{t("checkout.taxLine")}</span>
+<span className="text-secondary font-medium">{t("checkout.paidEnough")}</span>
 </div>
 </div>
 {/* Total Calculation */}
 <div className="pt-space-md bg-surface-container p-space-md rounded">
-<span className="font-label-spec text-label-spec text-on-surface-variant uppercase tracking-widest block mb-1">Tổng Quyết Toán Chuyển Nhượng:</span>
+<span className="font-label-spec text-label-spec text-on-surface-variant uppercase tracking-widest block mb-1">{t("checkout.grandTotal")}</span>
 <div className="flex items-baseline justify-between">
 <span className="font-headline-md text-headline-md text-primary font-bold tracking-tight">{formatUsd(totalUsd)}</span>
 <span className="font-label-badge text-label-badge text-on-surface-variant uppercase font-semibold">USD NET</span>
@@ -485,7 +487,7 @@ export default function Page() {
 <div className="pt-space-sm space-y-space-sm">
 <h4 className="font-label-spec text-label-spec text-primary uppercase tracking-[0.15em] flex items-center gap-space-xs">
 <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
-              Phương Thức Thanh Toán Đặc Quyền
+              {t("checkout.payMethod")}
             </h4>
 {/* Option A: Centurion Black Card / Visa Infinite */}
 {allowedMethods.includes("centurion") && (
@@ -495,7 +497,7 @@ export default function Page() {
 <span className="font-body-md text-body-md text-on-surface font-medium flex items-center gap-1">
                   Centurion Black Card / Visa Infinite
                 </span>
-<span className="text-xs text-on-surface-variant/70">Mã hóa chuẩn PCI-DSS Level 1</span>
+<span className="text-xs text-on-surface-variant/70">{t("checkout.pci")}</span>
 </div>
 </label>
 )}
@@ -504,8 +506,8 @@ export default function Page() {
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input checked={pay === "escrow"} onChange={() => setPay("escrow")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="escrow"/>
 <div className="flex flex-col">
-<span className="font-body-md text-body-md text-on-surface font-medium">Chuyển Khoản Bảo Chứng (Swiss Escrow Wire)</span>
-<span className="text-xs text-on-surface-variant/70">Ký quỹ an toàn tại Credit Suisse Genève</span>
+<span className="font-body-md text-body-md text-on-surface font-medium">{t("checkout.escrowWire")}</span>
+<span className="text-xs text-on-surface-variant/70">{t("checkout.escrowHint")}</span>
 </div>
 </label>
 )}
@@ -514,7 +516,7 @@ export default function Page() {
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input checked={pay === "deposit"} onChange={() => setPay("deposit")} className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="deposit"/>
 <div className="flex flex-col">
-<span className="font-body-md text-body-md text-on-surface font-medium">Đặt Cọc 20% ({formatUsd(deposit)} USD)</span>
+<span className="font-body-md text-body-md text-on-surface font-medium">{t("checkout.deposit20")} ({formatUsd(deposit)} USD)</span>
 <span className="text-xs text-on-surface-variant/70">Quyết toán 80% còn lại khi diện kiến thử đồng hồ</span>
 </div>
 </label>

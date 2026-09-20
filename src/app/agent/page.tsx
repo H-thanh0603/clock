@@ -13,7 +13,8 @@
 import { useEffect, useRef, useState, Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AGENT_HOST, SUGGESTIONS, useAgentChat } from "./useAgentChat";
+import { AGENT_HOST, SUGGESTIONS, SUGGESTIONS_EN, useAgentChat } from "./useAgentChat";
+import { useLocale } from "@/components/LocaleProvider";
 import { ComparisonTray } from "./chat-widgets";
 import type { AgentRole } from "@/lib/agent-events";
 import { apiUrl } from "@/lib/api-client";
@@ -52,6 +53,7 @@ type AlertRow = {
  * theo slug nên không tin giá client).
  */
 function WatchAddButton({ productId }: { productId: string }) {
+  const { t } = useLocale();
   const { addItem } = useCart();
   const [state, setState] = useState<"idle" | "busy" | "added" | "error">("idle");
 
@@ -81,7 +83,7 @@ function WatchAddButton({ productId }: { productId: string }) {
         priceUsd: p.priceUsd,
         priceVnd: p.priceVnd,
         image: p.cardImage ?? p.images?.[0] ?? "",
-        strap: p.strapLabel ?? "Tiêu chuẩn Atelier",
+        strap: p.strapLabel ?? t("agent.defaultStrap"),
       });
       setState("added");
     } catch {
@@ -92,9 +94,9 @@ function WatchAddButton({ productId }: { productId: string }) {
   if (state === "added") {
     return (
       <span className="font-body-sm text-body-sm text-primary">
-        Đã thêm ✓ ·{" "}
+        {t("agent.addedOk")} ·{" "}
         <Link href="/cart" className="underline hover:text-primary-hover">
-          Xem giỏ →
+          {t("agent.viewCart")}
         </Link>
       </span>
     );
@@ -106,10 +108,10 @@ function WatchAddButton({ productId }: { productId: string }) {
         disabled={state === "busy"}
         className="text-primary underline hover:text-primary-hover disabled:opacity-50"
       >
-        {state === "busy" ? "Đang thêm…" : "Thêm vào giỏ →"}
+        {state === "busy" ? t("agent.adding") : t("agent.addToCart")}
       </button>
       {state === "error" && (
-        <span className="text-on-surface-variant/70"> (chiếc này hiện chưa bán được)</span>
+        <span className="text-on-surface-variant/70"> ({t("agent.addUnavailable")})</span>
       )}
     </span>
   );
@@ -126,6 +128,7 @@ function AlertFeed({
   isAdmin: boolean;
   getSessionId: () => string | null;
 }) {
+  const { t, locale } = useLocale();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [lastRun, setLastRun] = useState<number | null>(null);
 
@@ -173,13 +176,13 @@ function AlertFeed({
     <section className="mt-space-lg border border-outline-variant/25 bg-surface-container/30 p-space-md">
       <div className="flex items-center justify-between gap-space-md">
         <p className="font-label-spec text-label-spec uppercase tracking-[0.25em] text-primary">
-          Agent tự phát hiện (proactive)
+          {t("agent.proactive")}
         </p>
         <button
           onClick={load}
           className="font-body-sm text-body-sm text-on-surface-variant underline hover:text-primary"
         >
-          làm mới
+          {t("agent.proactiveRefresh")}
         </button>
       </div>
       <ul className="mt-space-md space-y-space-sm">
@@ -218,7 +221,7 @@ function AlertFeed({
       </ul>
       {lastRun && (
         <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/50">
-          Vòng quét gần nhất: {new Date(lastRun * 1000).toLocaleTimeString("vi-VN")}
+          {t("agent.lastScan")}: {new Date(lastRun * 1000).toLocaleTimeString(locale === "en" ? "en-US" : "vi-VN")}
         </p>
       )}
     </section>
@@ -250,6 +253,7 @@ function DeepLinkLauncher({
 }
 
 export default function AgentChatPage() {
+  const { t, locale } = useLocale();
   const {
     role,
     switchRole,
@@ -289,7 +293,7 @@ export default function AgentChatPage() {
             Aurel &amp; Co. · AI Agents
           </p>
           <h1 className="font-display-hero text-headline-lg text-on-surface mt-2">
-            Concierge Trực Tuyến
+            {t("agent.onlineTitle")}
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant mt-2 max-w-2xl">
             Chat với trợ lý AI chạy trên commerce-agents của Anthropic, nối thẳng vào
@@ -309,7 +313,7 @@ export default function AgentChatPage() {
                     : "border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary"
                 }`}
               >
-                {r === "shop" ? "Khách hàng" : "Vận hành"}
+                {r === "shop" ? t("agent.tabShop") : t("agent.tabOps")}
               </button>
             ))}
             {role === "shop" && me && (
@@ -322,7 +326,7 @@ export default function AgentChatPage() {
                     : "border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary"
                 }`}
               >
-                {actAsMe ? "● Đang hành động hộ bạn" : "Dùng tài khoản của tôi"}
+                {actAsMe ? t("agent.actingAsYou") : t("agent.actAsMe")}
               </button>
             )}
             {role === "shop" && (
@@ -336,7 +340,7 @@ export default function AgentChatPage() {
                 title="Xóa transcript, memory, watch và task của phiên chat này"
                 className="border border-outline-variant/40 px-4 py-2 font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant transition-colors hover:border-error hover:text-error"
               >
-                Xóa phiên chat
+                {t("agent.forgetChat")}
               </button>
             )}
           </div>
@@ -352,7 +356,10 @@ export default function AgentChatPage() {
           className="mb-space-md max-h-[60vh] space-y-space-lg overflow-y-auto border border-outline-variant/25 bg-surface-container/30 p-space-lg"
         >
           {messages.length === 0 && (
-            <SuggestionsChips suggestions={SUGGESTIONS[role]} onPick={(s) => send(s)} />
+            <SuggestionsChips
+              suggestions={(locale === "en" ? SUGGESTIONS_EN : SUGGESTIONS)[role]}
+              onPick={(s) => send(s)}
+            />
           )}
           {messages.map((m, i) => (
             <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
@@ -374,7 +381,7 @@ export default function AgentChatPage() {
                 {m.role === "assistant" && m.done && m.receipt.length > 0 && (
                   <div className="mt-space-sm border-t border-outline-variant/15 p-space-md">
                     <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
-                      ✓ Đã làm trong lượt này
+                      {t("agent.receiptTitle")}
                     </p>
                     <ul className="mt-space-xs space-y-1">
                       {m.receipt.map((line, ri) => (
@@ -390,7 +397,7 @@ export default function AgentChatPage() {
                 )}
                 {!m.done && busy && (
                   <p className="p-space-md font-body-sm text-body-sm text-on-surface-variant animate-pulse">
-                    ▍{statusLine ?? "đang suy nghĩ…"}
+                    ▍{statusLine ?? t("agent.thinking")}
                   </p>
                 )}
               </div>
@@ -421,8 +428,8 @@ export default function AgentChatPage() {
             disabled={busy}
             placeholder={
               role === "shop"
-                ? "Hỏi concierge về đồng hồ, đặt hàng, chính sách…"
-                : "Hỏi trợ lý vận hành về số liệu, tồn kho, đơn…"
+                ? t("agent.inputShop")
+                : t("agent.inputOps")
             }
             className="flex-1 border border-outline-variant/40 bg-surface-lowest/60 px-space-md py-space-sm font-body-md text-body-md text-on-surface focus:border-primary focus:outline-none"
           />
