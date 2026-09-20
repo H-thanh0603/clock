@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { signSession } from '../common/session';
+import { decodeJwt } from 'jose';
+import { DELEGATION_MAX_AGE, signDelegation, signSession } from '../common/session';
 
 export type PublicUser = {
   id: string;
@@ -106,6 +107,91 @@ export class AuthService {
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
+  }
+
+  /**
+   * Cấp vé delegation mới cho session đang sống (CUSTOMER only).
+   * `dkey` ngẫu nhiên/vé → lưu vào bản ghi refresh volatile trong DB.
+   */
+  async issueDelegation(
+    userId: string,
+  ): Promise<{ token: string; expires_in: number }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role === 'ADMIN') {
+      throw new UnauthorizedException('Không cấp được quyền hành động hộ');
+    }
+    const dkey = `${Date.now().toString(36)}${Math.floor(Math.random() * 0xffffffff).toString(36)}`;
+    await this.prisma.delegationKey.create({
+      data: {
+        key: dkey,
+        userId: user.id,
+        version: user.tokenVersion,
+        expiresAt: new Date(
+          Date.now() + (DELEGATION_MAX_AGE + 24 * 3600) * 1000,
+        ),
+      },
+    });
+    const token = await signDelegation(
+      {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        v: user.tokenVersion,
+      },
+      dkey,
+    );
+    return { token, expires_in: DELEGATION_MAX_AGE };
+  }
+
+  /**
+   * Refresh vé cũ → vé mới, KHÔNG cần mật khẩu, với 3 kiểm tra:
+   * - vé cũ verify chữ ký/aud/scope đúng (bỏ qua expiry — đúng ý nghĩa vé
+   *   refresh: nó chỉ nói "tôi từng được cấp");
+   * - `dkey` còn bản ghi, khớp userId yêu cầu;
+   * - tokenVersion hiện tại == version lúc cấp (logout/đổi pass giết refresh).
+   *
+   * Vé dùng 1 lần: bản ghi cũ bị xóa (rotate). Kẻ cắp vé cũ mà user đã
+   * refresh thì vé đó chết ngay (replay bị từ chối).
+   */
+  async refreshDelegation(
+    requesterId: string,
+    oldToken: string,
+  ): Promise<{ token: string; expires_in: number } | null> {
+    let payload: Record<string, unknown>;
+    try {
+      payload = decodeJwt(oldToken) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+    if (
+      payload.scope !== 'shop-on-behalf' ||
+      typeof payload.sub !== 'string' ||
+      typeof payload.dkey !== 'string'
+    ) {
+      return null;
+    }
+    let rec: { userId: string; version: number } | null = null;
+    try {
+      rec = await this.prisma.delegationKey.findUnique({
+        where: { key: payload.dkey },
+        select: { userId: true, version: true },
+      });
+    } catch {
+      return null;
+    }
+    // dkey đã dùng/xóa, hoặc vé của user khác → từ chối câm (không lộ lý do).
+    if (!rec || rec.userId !== requesterId) return null;
+    const user = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+    });
+    if (!user || user.role === 'ADMIN' || user.tokenVersion !== rec.version) {
+      return null;
+    }
+    // Rotate: xóa bản ghi cũ rồi cấp vé mới (vé dùng 1 lần).
+    await this.prisma.delegationKey
+      .deleteMany({ where: { key: payload.dkey } })
+      .catch(() => null);
+    return this.issueDelegation(requesterId);
   }
 
   async updateProfile(

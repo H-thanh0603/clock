@@ -84,9 +84,9 @@ function makePrisma(seed: FakeUser[] = []) {
 const REAL_HASH = bcrypt.hashSync('CorrectHorse1', 10);
 
 let seq = 0;
+// (Xem chú thích JWT_SECRET ở delegation.test.ts: không gán lại secret.)
 beforeAll(() => {
-  // signSession cần JWT_SECRET — mỗi run một secret riêng.
-  process.env.JWT_SECRET = `TEST_AUTH_SECRET_${Date.now()}_${seq++}`;
+  process.env.JWT_SECRET ??= `TEST_AUTH_SECRET_${Date.now()}_${seq++}`;
 });
 
 describe('bcryptCost', () => {
@@ -182,7 +182,8 @@ describe('AuthService.register', () => {
 
 describe('AuthService.revokeSessions / changePassword (tokenVersion)', () => {
   beforeEach(() => {
-    process.env.JWT_SECRET = `TEST_AUTH_SECRET_${Date.now()}_${seq++}`;
+    // (Xem chú thích JWT_SECRET ở delegation.test.ts: không gán lại secret.)
+    process.env.JWT_SECRET ??= `TEST_AUTH_SECRET_${Date.now()}_${seq++}`;
   });
 
   it('revokeSessions tăng tokenVersion → token cũ verify thất bại (logout thật)', async () => {

@@ -18,7 +18,6 @@ const USER: SessionUser = {
 };
 
 beforeAll(() => {
-  process.env.JWT_SECRET = "TEST_SECRET_SESSION_0987654321";
 });
 
 describe("signSession / verifySessionToken", () => {
@@ -56,12 +55,14 @@ describe("signSession / verifySessionToken", () => {
   });
 
   it("thiếu JWT_SECRET → throw rõ ràng", async () => {
-    const prev = process.env.JWT_SECRET;
+    const saved = process.env.JWT_SECRET;
     delete process.env.JWT_SECRET;
     try {
       await expect(signSession(USER)).rejects.toThrow("JWT_SECRET");
     } finally {
-      process.env.JWT_SECRET = prev;
+      // Khôi phục NGAY (finally): secret này là tài sản chung của cả
+      // tiến trình vitest — để mất là mọi test file khác verify fail theo.
+      if (saved !== undefined) process.env.JWT_SECRET = saved;
     }
   });
 });

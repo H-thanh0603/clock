@@ -9,7 +9,6 @@ import {
 } from './session';
 import type { ExecutionContext } from '@nestjs/common';
 
-process.env.JWT_SECRET = `TEST_SESSION_ONLY_${Date.now()}`;
 
 const user = { id: 'u1', email: 'a@x', role: 'CUSTOMER', v: 0 };
 const prisma = {

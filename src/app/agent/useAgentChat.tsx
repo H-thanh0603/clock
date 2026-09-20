@@ -66,6 +66,62 @@ export function useAgentChat() {
   // Delegation (agentic web): agent hành động THAY user — giỏ/đơn/wishlist
   // thật. Bật = xin JWT ngắn hạn (30 phút) từ BE /auth/delegation.
   const [actAsMe, setActAsMe] = useState(false);
+  const delegationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Hẹn gia hạn vé delegation trước khi nó chết (sliding window, không cần
+   * user bấm lại). Gọi sau mỗi lần nhận vé mới (issue hoặc refresh).
+   *
+   * - thành công → nhận vé mới + hẹn tiếp (vé dùng 1 lần, rotate ở BE);
+   * - 401 (logout/session chết) → tắt actAsMe, user bật lại khi muốn;
+   * - lỗi mạng → thử lại sau 60s (không tắt vội giữa phiên mua).
+   */
+  const armDelegationRefresh = useCallback(
+    (expiresInS: number) => {
+      if (delegationTimerRef.current) {
+        clearTimeout(delegationTimerRef.current);
+        delegationTimerRef.current = null;
+      }
+      // Trừ hao 60s để vé mới về tay trước khi vé cũ chết giữa turn.
+      const waitMs = Math.max(30_000, (expiresInS - 60) * 1000);
+      delegationTimerRef.current = setTimeout(async () => {
+        const old = delegationRef.current;
+        if (!old) return;
+        try {
+          const res = await csrfFetch("/auth/delegation/refresh", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ token: old }),
+          });
+          if (!res.ok) {
+            // 401 = session chết → tắt êm, báo user bật lại khi cần.
+            delegationRef.current = null;
+            setActAsMe(false);
+            return;
+          }
+          const data = (await res.json()) as {
+            token: string;
+            expires_in?: number;
+          };
+          delegationRef.current = data.token;
+          armDelegationRefresh(
+            typeof data.expires_in === "number" ? data.expires_in : 1800,
+          );
+        } catch {
+          // Rớt mạng chớp nhoáng: thử lại sau 60s thay vì cắt quyền.
+          armDelegationRefresh(120);
+        }
+      }, waitMs);
+    },
+    [],
+  );
+
+  // Unmount/đổi tab → hủy hẹn (không refresh cho session đã đi).
+  useEffect(() => {
+    return () => {
+      if (delegationTimerRef.current) clearTimeout(delegationTimerRef.current);
+    };
+  }, []);
   const [me, setMe] = useState<{ name?: string; role?: string } | null>(null);
   // Khay so sánh đeo bám xuyên turn (G2-6): SP agent từng giới thiệu được
   // giữ lại theo slug — mở tab khác quay lại vẫn còn (trong phiên trang).
@@ -92,6 +148,10 @@ export function useAgentChat() {
     if (actAsMe) {
       setActAsMe(false);
       delegationRef.current = null;
+      if (delegationTimerRef.current) {
+        clearTimeout(delegationTimerRef.current);
+        delegationTimerRef.current = null;
+      }
       return;
     }
     const res = await csrfFetch("/auth/delegation", { method: "POST" });
@@ -107,8 +167,12 @@ export function useAgentChat() {
       ]);
       return;
     }
-    const data = (await res.json()) as { token: string };
+    const data = (await res.json()) as { token: string; expires_in?: number };
     delegationRef.current = data.token;
+    // Gia hạn ngầm: vé TTL 30 phút nhưng user có thể chat 2-3 tiếng.
+    // Hẹn refresh trước khi vé chết (trừ hao 60s) qua /auth/delegation/refresh
+    // — cần cookie session còn sống; logout rồi thì 401 → tắt actAsMe.
+    armDelegationRefresh(typeof data.expires_in === "number" ? data.expires_in : 1800);
     setActAsMe(true);
   }, [actAsMe]);
 
@@ -308,30 +372,57 @@ export function useAgentChat() {
                 patch((b) => ({ ...b, text: b.text + `\n\n⚠ ${ev.message}` }));
                 break;
               case "delegation_expired":
-                // Token delegation hết hạn giữa turn — xin lại + báo user.
-                setActAsMe(false);
-                delegationRef.current = null;
-                patch((b) => ({
-                  ...b,
-                  done: true,
-                  text:
-                    b.text +
-                    `\n\n⚠ ${ev.message}`,
-                  ux: [
-                    ...b.ux,
-                    {
-                      id: uxSeq++,
-                      node: (
-                        <button
-                          onClick={toggleDelegation}
-                          className="border border-primary/50 px-3 py-1.5 font-body-sm text-body-sm text-primary underline"
-                        >
-                          Cấp lại quyền hành động hộ
-                        </button>
-                      ),
-                    },
-                  ],
-                }));
+                // Vé chết GIỮA turn (hiếm khi xảy ra vì đã refresh ngầm
+                // trước hạn): thử refresh câm 1 lần bằng vé cũ. Được → báo
+                // user gửi lại tin nhắn; không được → nút bật lại như cũ.
+                patch(await (async () => {
+                  const old = delegationRef.current;
+                  const retried =
+                    old &&
+                    (await csrfFetch("/auth/delegation/refresh", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ token: old }),
+                    })
+                      .then((r) => (r.ok ? r.json() : null))
+                      .catch(() => null));
+                  if (retried && typeof retried.token === "string") {
+                    delegationRef.current = retried.token as string;
+                    armDelegationRefresh(
+                      typeof retried.expires_in === "number"
+                        ? (retried.expires_in as number)
+                        : 1800,
+                    );
+                    return (b: Bubble) => ({
+                      ...b,
+                      done: true,
+                      text:
+                        b.text +
+                        `\n\n⚠ ${ev.message} (Đã tự gia hạn — bạn gửi lại tin nhắn nhé.)`,
+                    });
+                  }
+                  setActAsMe(false);
+                  delegationRef.current = null;
+                  return (b: Bubble) => ({
+                    ...b,
+                    done: true,
+                    text: b.text + `\n\n⚠ ${ev.message}`,
+                    ux: [
+                      ...b.ux,
+                      {
+                        id: uxSeq++,
+                        node: (
+                          <button
+                            onClick={toggleDelegation}
+                            className="border border-primary/50 px-3 py-1.5 font-body-sm text-body-sm text-primary underline"
+                          >
+                            Cấp lại quyền hành động hộ
+                          </button>
+                        ),
+                      },
+                    ],
+                  });
+                })());
                 break;
               case "turn_complete":
               case "done":

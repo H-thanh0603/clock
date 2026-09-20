@@ -108,16 +108,12 @@ function makeDeps(paymentStatus = 'PENDING') {
 
 describe('PaymentsService.handleReturn', () => {
   const prevHash = process.env.VNPAY_HASH_SECRET;
-  const prevJwt = process.env.JWT_SECRET;
   beforeAll(() => {
     process.env.VNPAY_HASH_SECRET = HASH_SECRET;
-    process.env.JWT_SECRET = JWT;
   });
   afterAll(() => {
     if (prevHash === undefined) delete process.env.VNPAY_HASH_SECRET;
     else process.env.VNPAY_HASH_SECRET = prevHash;
-    if (prevJwt === undefined) delete process.env.JWT_SECRET;
-    else process.env.JWT_SECRET = prevJwt;
   });
 
   it('success → redirect paid=1 kèm sig + notify + invoice', async () => {
@@ -179,16 +175,12 @@ describe('PaymentsService.handleReturn', () => {
 
 describe('PaymentsService.handleIpn', () => {
   const prevHash = process.env.VNPAY_HASH_SECRET;
-  const prevJwt = process.env.JWT_SECRET;
   beforeAll(() => {
     process.env.VNPAY_HASH_SECRET = HASH_SECRET;
-    process.env.JWT_SECRET = JWT;
   });
   afterAll(() => {
     if (prevHash === undefined) delete process.env.VNPAY_HASH_SECRET;
     else process.env.VNPAY_HASH_SECRET = prevHash;
-    if (prevJwt === undefined) delete process.env.JWT_SECRET;
-    else process.env.JWT_SECRET = prevJwt;
   });
 
   it('success → RspCode 00 + notify', async () => {

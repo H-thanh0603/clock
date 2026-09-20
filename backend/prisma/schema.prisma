@@ -32,18 +32,35 @@ enum PaymentStatus {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  name         String?
-  phone        String?
-  passwordHash String?
-  role         Role       @default(CUSTOMER)
-  tokenVersion Int        @default(0)
-  orders       Order[]
-  cartItems    CartItem[]
-  wishlist     WishlistItem[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id            String          @id @default(cuid())
+  email         String          @unique
+  name          String?
+  phone         String?
+  passwordHash  String?
+  role          Role            @default(CUSTOMER)
+  tokenVersion  Int             @default(0)
+  orders        Order[]
+  cartItems     CartItem[]
+  wishlist      WishlistItem[]
+  delegationKey DelegationKey[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+/// Bản ghi refresh cho vé delegation của agent (volatile, dùng 1 lần).
+/// - `key` = dkey trong payload JWT — đoán được mới dùng được;
+/// - `version` = tokenVersion lúc cấp — logout/đổi pass làm lệch → refresh chết;
+/// - `expiresAt` = vé + 24h — refresh quá hạn cũng chết (FE xin vé mới).
+/// Không lưu secret/password — lộ bảng này cũng không giả được session.
+model DelegationKey {
+  key       String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version   Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Product {

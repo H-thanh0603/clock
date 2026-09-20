@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { SignJWT, jwtVerify } from 'jose';
 
 /**
@@ -27,6 +28,11 @@ export type SessionUser = {
    * header `x-aurel-actor` hay không (chống giả danh từ browser).
    */
   viaAgent?: boolean;
+  /**
+   * Khóa refresh của delegation (payload.dkey). Vé vắng dkey = vé cấp trước
+   * đợt nâng cấp này → không refresh được (FE xin vé mới qua /delegation).
+   */
+  dkey?: string;
 };
 
 /**
@@ -57,13 +63,22 @@ export async function signSession(user: SessionUser): Promise<string> {
  * "act on behalf of"). Khác session: aud='aurel-agent' (agent host verify
  * được), TTL 30 phút, và chỉ cấp cho CUSTOMER (admin không delegate cho
  * agent shopping — tách quyền).
+ *
+ * Refresh không cần mật khẩu: JWT mang `dkey` (delegation key) trỏ vào bản
+ * ghi volatile bên BE (`refreshDelegation`, TTL +24h so với vé). FE đưa vé
+ * cũ → BE đối chiếu session cookie còn sống (user chưa logout) rồi cấp vé
+ * mới. User logout/đổi pass → version đổi → vé cũ lẫn bản ghi đều chết.
  */
-export async function signDelegation(user: SessionUser): Promise<string> {
+export async function signDelegation(
+  user: SessionUser,
+  dkey?: string,
+): Promise<string> {
   return new SignJWT({
     email: user.email,
     role: user.role,
     v: user.v ?? 0,
     scope: 'shop-on-behalf',
+    dkey: dkey ?? randomUUID(),
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(user.id)
@@ -94,6 +109,8 @@ export async function verifyDelegationToken(
       role: (payload.role as string) ?? 'CUSTOMER',
       v: typeof payload.v === 'number' ? payload.v : 0,
       viaAgent: true,
+      // dkey có thể vắng ở vé cấp trước đợt nâng cấp — refresh lúc đó 403.
+      dkey: typeof payload.dkey === 'string' ? payload.dkey : undefined,
     };
   } catch {
     return null;

@@ -466,21 +466,14 @@ describe('OrdersService.byCode contact-verify + sig', () => {
   });
 
   it('sig hợp lệ → full; sig giả → tối thiểu', async () => {
-    const prev = process.env.JWT_SECRET;
-    process.env.JWT_SECRET = 'test-jwt-secret-du-32-ky-tu-abcdef';
-    try {
-      const { signOrderCode } = await import('./orders.service');
-      const svc = new OrdersService(fake() as never, notifyStub);
-      const good = await svc.byCode('AC-2026-GUEST', {
-        sig: signOrderCode('AC-2026-GUEST'),
-      });
-      expect(good).toHaveProperty('items');
-      const bad = await svc.byCode('AC-2026-GUEST', { sig: '0'.repeat(32) });
-      expect(bad).not.toHaveProperty('items');
-    } finally {
-      if (prev === undefined) delete process.env.JWT_SECRET;
-      else process.env.JWT_SECRET = prev;
-    }
+    const { signOrderCode } = await import('./orders.service');
+    const svc = new OrdersService(fake() as never, notifyStub);
+    const good = await svc.byCode('AC-2026-GUEST', {
+      sig: signOrderCode('AC-2026-GUEST'),
+    });
+    expect(good).toHaveProperty('items');
+    const bad = await svc.byCode('AC-2026-GUEST', { sig: '0'.repeat(32) });
+    expect(bad).not.toHaveProperty('items');
   });
 });
 

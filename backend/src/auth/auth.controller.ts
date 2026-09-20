@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
@@ -96,8 +97,37 @@ export class AuthController {
     if (user.role === 'ADMIN') {
       throw new ForbiddenException('Admin không delegate cho agent shopping');
     }
-    const token = await signDelegation(user);
-    return { token, expires_in: 30 * 60, scope: 'shop-on-behalf' };
+    const out = await this.auth.issueDelegation(user.id);
+    return { ...out, scope: 'shop-on-behalf' };
+  }
+
+  /**
+   * Refresh vé delegation hết hạn KHÔNG bắt user bấm lại (sliding window).
+   *
+   * An toàn vì đồng thời thỏa 3 điều:
+   * 1. `SessionOnlyGuard` — cookie session browser còn sống (chưa logout),
+   * 2. `dkey` trong vé cũ trỏ đúng bản ghi refresh (id + userId + version),
+   * 3. Throttle 6/phút — không thành oracle dò vé.
+   *
+   * Vé cũ hết hạn VẪN DÙNG để verify (verify cho qua hết hạn nhưng kiểm aud/
+   * scope/chữ ký) vì thời gian sống của nó đã qua — kiểm expiry ở đây khiến
+   * ai cầm vé cũng refresh được thì chẳng còn ý nghĩa TTL. Điểm chặn thật sự
+   * là (1): kẻ cầm vé mà không có cookie session của user thì 401.
+   */
+  @Post('delegation/refresh')
+  @HttpCode(200)
+  @UseGuards(SessionOnlyGuard)
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  async refreshDelegation(
+    @CurrentUser() user: SessionUser,
+    @Body() body: { token?: string },
+  ) {
+    if (!body?.token || typeof body.token !== 'string') {
+      throw new UnauthorizedException('Thiếu vé delegation cũ');
+    }
+    const out = await this.auth.refreshDelegation(user.id, body.token);
+    if (!out) throw new UnauthorizedException('Không gia hạn được');
+    return { ...out, scope: 'shop-on-behalf' };
   }
 
   /** Cấp CSRF token (cookie readable + body) cho double-submit. */
