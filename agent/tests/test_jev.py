@@ -279,6 +279,62 @@ def test_alert_filter_error_publishes(respx_mock):
     assert jev.classify_alert("low_stock", "t", "d", **_akw()) is None
 
 
+# --- #4 pre-router intent ------------------------------------------------------------
+
+
+def test_intent_router_order_status(respx_mock):
+    respx_mock.post(BASE).respond(
+        json={
+            "answers": {
+                "intent": {"type": "choice", "choice": "order_status", "confidence": 0.9}
+            }
+        }
+    )
+    v = jev.classify_intent("đơn của tôi tới đâu rồi", **_akw())
+    assert v is not None and v.bucket == "order_status"
+    assert v.confidence == pytest.approx(0.9)
+
+
+def test_intent_router_no_key():
+    assert jev.classify_intent("hello", **_akw(api_key=None)) is None
+
+
+def test_intent_router_error_none(respx_mock):
+    respx_mock.post(BASE).respond(status_code=500)
+    assert jev.classify_intent("hello", **_akw()) is None
+
+
+def test_intent_hint_mapping(tmp_path, monkeypatch):
+    """Bucket → hint tiếng Việt; smalltalk → None (không giả vờ xử lý)."""
+    from aurel_agents.host import _jev_classify_intent_sync
+
+    monkeypatch.setattr(
+        "aurel_agents.jev.classify_intent",
+        lambda *a, **k: jev.IntentVerdict(bucket="order_status", confidence=0.9),
+    )
+    monkeypatch.setattr("aurel_agents.host.get_settings", lambda: Settings(jev_api_key="k"))
+    assert _jev_classify_intent_sync("đơn tới đâu rồi") == "Đang tra đơn hàng của bạn…"
+
+    monkeypatch.setattr(
+        "aurel_agents.jev.classify_intent",
+        lambda *a, **k: jev.IntentVerdict(bucket="smalltalk", confidence=0.9),
+    )
+    assert _jev_classify_intent_sync("hi bạn") is None
+
+
+def test_intent_hint_fail_safe(tmp_path, monkeypatch):
+    """Jev chết → None → turn không có hint, agent chạy như cũ."""
+
+    def _boom(*a, **k):
+        raise RuntimeError("jev down")
+
+    monkeypatch.setattr("aurel_agents.jev.classify_intent", _boom)
+    monkeypatch.setattr("aurel_agents.host.get_settings", lambda: Settings(jev_api_key="k"))
+    from aurel_agents.host import _jev_classify_intent_sync
+
+    assert _jev_classify_intent_sync("hello") is None
+
+
 @pytest.mark.asyncio
 async def test_async_jev_down_fallback_no_ticket(tmp_path, monkeypatch):
     """Jev chết → None, không ticket rác (giữ đúng hành vi heuristic cũ)."""

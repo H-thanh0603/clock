@@ -223,6 +223,64 @@ def classify_alert(
         return None
 
 
+# --- #4 pre-router intent (hint sớm cho FE, giảm cảm giác chờ) -----------------------
+
+QUESTIONS_INTENT = {
+    "intent": {
+        "type": "choice",
+        "instructions": "Ý định chính của tin nhắn khách này?",
+        "criteria": {
+            "browse": "Tìm/xem/so sánh sản phẩm, hỏi giá",
+            "order_status": "Hỏi trạng thái đơn hàng đang chờ",
+            "complaint": "Khiếu nại, báo sự cố đơn/sản phẩm",
+            "policy_question": "Hỏi chính sách (bảo hành, đổi trả, hoàn tiền, ship)",
+            "smalltalk": "Chào hỏi, ngoài chủ đề mua sắm",
+        },
+    },
+}
+
+
+@dataclass(frozen=True)
+class IntentVerdict:
+    bucket: str
+    confidence: float = 0.0
+
+
+def classify_intent(
+    message: str,
+    *,
+    api_key: str | None,
+    base_url: str,
+    model: str,
+    timeout_s: float,
+) -> IntentVerdict | None:
+    """#4: pre-router 1 call — bucket intent. Host dùng làm hint `progress`
+    sớm cho FE (model reasoning mất 1-3s mới có token đầu). None = Jev
+    tắt/chết → không hint, agent chạy như cũ."""
+    if not api_key:
+        return None
+    try:
+        resp = httpx.post(
+            base_url.rstrip("/"),
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": model, "state": message[:2000], "questions": QUESTIONS_INTENT},
+            timeout=timeout_s,
+        )
+        resp.raise_for_status()
+        answer = resp.json().get("answers", {}).get("intent", {})
+        bucket = answer.get("choice")
+        conf = answer.get("confidence")
+        if not isinstance(bucket, str):
+            return None
+        return IntentVerdict(
+            bucket=bucket,
+            confidence=float(conf) if isinstance(conf, (int, float)) else 0.0,
+        )
+    except Exception:
+        logger.warning("Jev intent lỗi (không hint, agent chạy như cũ)", exc_info=True)
+        return None
+
+
 def classify(
     message: str,
     *,

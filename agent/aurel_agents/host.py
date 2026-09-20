@@ -463,6 +463,36 @@ def _sse(payload: dict[str, Any] | str) -> str:
     return f"data: {body}\n\n"
 
 
+def _jev_classify_intent_sync(message: str) -> str | None:
+    """#4: Jev pre-router — bucket intent của message (None = không hint).
+
+    Không bao giờ raise: Jev lỗi → None → turn bỏ qua hint, agent như cũ.
+    """
+    from aurel_agents import jev
+
+    settings = get_settings()
+    try:
+        verdict = jev.classify_intent(
+            message,
+            api_key=settings.jev_api_key,
+            base_url=settings.jev_url,
+            model=settings.jev_model,
+            timeout_s=settings.jev_timeout_s,
+        )
+    except Exception:
+        logger.warning("Jev intent hint lỗi (bỏ qua)", exc_info=True)
+        return None
+    if verdict is None:
+        return None
+    return {
+        "browse": "Đang xem sản phẩm cho bạn…",
+        "order_status": "Đang tra đơn hàng của bạn…",
+        "complaint": "Đang ghi nhận sự cố của bạn…",
+        "policy_question": "Đang tra chính sách cửa hàng…",
+        "smalltalk": None,  # chào hỏi → đừng giả vờ "đang xử lý"
+    }.get(verdict.bucket)
+
+
 async def _run_shopping_turn(
     agent: Any,
     message: str,
@@ -494,6 +524,18 @@ async def _run_shopping_turn(
     state = ShoppingSessionState()
 
     yield _sse({"type": "session", "session_id": sid})
+    # #4 pre-router: Jev bucket intent (~300ms) về TRƯỚC token đầu của model
+    # reasoning (1-3s) → FE hiện status line ngay, giảm cảm giác chờ. Hint
+    # là progress event (FE đã render sẵn); Jev lỗi thì bỏ qua, agent như cũ.
+    try:
+        intent = await asyncio.to_thread(
+            _jev_classify_intent_sync,
+            message,
+        )
+    except Exception:
+        intent = None
+    if intent is not None:
+        yield _sse({"type": "progress", "message": intent})
     try:
         async for event in agent.stream_turn(transcript, context, state):
             yield _sse(event)
