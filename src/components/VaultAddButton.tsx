@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCart } from "./CartProvider";
+import { useLocale } from "./LocaleProvider";
 
 type Props = {
   slug: string;
@@ -20,23 +21,25 @@ export default function VaultAddButton({
   priceUsd,
   priceVnd,
   image,
-  strap = "Tiêu chuẩn Atelier",
+  strap,
   className = "px-space-sm py-1.5 rounded bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface font-label-spec text-label-spec uppercase tracking-wider transition-all",
 }: Props) {
+  const { t } = useLocale();
   const { addItem } = useCart();
+  const defaultStrap = strap ?? t("agent.defaultStrap");
   const [added, setAdded] = useState(false);
 
   return (
     <button
       type="button"
       onClick={() => {
-        addItem({ slug, name, priceUsd, priceVnd, image, strap });
+        addItem({ slug, name, priceUsd, priceVnd, image, strap: defaultStrap });
         setAdded(true);
         window.setTimeout(() => setAdded(false), 1600);
       }}
       className={className}
     >
-      {added ? "Đã Thêm ✓" : "Thêm Vào Vault"}
+      {added ? t("detail.added") : t("detail.addVault")}
     </button>
   );
 }

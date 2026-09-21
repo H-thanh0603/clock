@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useCart } from "@/components/CartProvider";
 import VaultItemCard from "@/components/VaultItemCard";
 import AskConciergeButton from "@/components/AskConciergeButton";
-import { cartQuestion } from "@/lib/agent-link";
+import { cartQuestion, cartQuestionEn } from "@/lib/agent-link";
 import { formatUsd, formatVnd } from "@/data/products";
 import { useLocale } from "@/components/LocaleProvider";
 
 export default function Page() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { items, totalQty, totalUsd, totalVnd } = useCart();
   const deposit = Math.round(totalUsd * 0.2);
 
@@ -387,7 +387,7 @@ export default function Page() {
     qua delegation; khách vãng lai vẫn được tư vấn chung. */}
 <div className="pt-space-xs">
 <AskConciergeButton
-  question={cartQuestion()}
+  question={locale === "en" ? cartQuestionEn() : cartQuestion()}
   label="✦ Hỏi concierge về giỏ này"
 />
 </div>

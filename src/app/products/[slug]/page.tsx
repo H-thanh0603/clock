@@ -4,7 +4,7 @@ import Image from "next/image";
 import { getProduct } from "@/lib/db";
 import VaultAddButton from "@/components/VaultAddButton";
 import AskConciergeButton from "@/components/AskConciergeButton";
-import { compareQuestion, watchQuestion } from "@/lib/agent-link";
+import { compareQuestion, compareQuestionEn, watchQuestion, watchQuestionEn } from "@/lib/agent-link";
 import { notFound } from "next/navigation";
 import { collectionLabels, formatUsd } from "@/data/products";
 import { linePrice } from "@/lib/pricing";
@@ -24,6 +24,7 @@ export default async function Page({
   const { slug } = await params;
   const locale = await serverLocale();
   const S = await productStrings(locale);
+  const en = locale === "en";
   // Song song hóa 2 fetch độc lập (SP chính + phụ kiện đi kèm).
   const [product, accessory] = await Promise.all([
     getProduct(slug),
@@ -215,13 +216,13 @@ export default async function Page({
   <AskConciergeButton
     slug={product.slug}
     name={product.name}
-    question={compareQuestion(product.name)}
+    question={en ? compareQuestionEn(product.name) : compareQuestion(product.name)}
     label={S.compareCta}
   />
   <AskConciergeButton
     slug={product.slug}
     name={product.name}
-    question={watchQuestion(product.name)}
+    question={en ? watchQuestionEn(product.name) : watchQuestion(product.name)}
     label={S.watchCta}
   />
 </div>

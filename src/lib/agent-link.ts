@@ -34,3 +34,26 @@ export function cartQuestion(): string {
 export function detailQuestion(name: string): string {
   return `Tôi đang xem ${name} — chiếc này phù hợp với tôi không? Có chiếc nào tương tự để so sánh?`;
 }
+
+/** Bản EN của câu hỏi preset (locale=en) — agent đọc được cả 2 thứ tiếng. */
+export function compareQuestionEn(name: string): string {
+  return (
+    `Compare ${name} with 2 peers in the same price range — ` +
+    `build a pros/cons table and recommend the best fit for me.`
+  );
+}
+
+export function watchQuestionEn(name: string, pct = 10): string {
+  return `Notify me when ${name} drops at least ${pct}%.`;
+}
+
+export function cartQuestionEn(): string {
+  return (
+    "Review my cart for anything missing to place the order " +
+    "(details, payment method) and advise the next step."
+  );
+}
+
+export function detailQuestionEn(name: string): string {
+  return `I'm looking at ${name} — is it right for me? Any similar pieces to compare?`;
+}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useLocale } from "./LocaleProvider";
 import { useCart } from "./CartProvider";
 import {
   products,
@@ -27,6 +28,7 @@ const STRAP_DOT: Record<string, string> = {
  * Strap + giá dùng chung catalog strapOptions và lib/pricing.
  */
 export default function DetailPurchase({ product: dbProduct }: { product: Product | null }) {
+  const { t } = useLocale();
   const router = useRouter();
   const { addItem } = useCart();
   const product = dbProduct ?? products[0];
@@ -70,8 +72,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
           <span className="material-symbols-outlined text-[14px] text-primary">
             verified_user
           </span>
-          Đã bao gồm thuế tiêu thụ đặc biệt, bảo hiểm vận chuyển bọc thép quốc
-          tế và thủ tục hải quan VIP.
+          {t("detail.taxNote")}
         </p>
       </div>
 
@@ -81,7 +82,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
         <div className="flex flex-col gap-space-xs">
           <div className="flex items-center justify-between">
             <span className="font-label-spec text-label-spec text-on-surface uppercase tracking-[0.14em]">
-              Chất Liệu Dây Đeo Atelier
+              {t("detail.strapTitle")}
             </span>
             <span
               className="font-body-sm text-body-sm text-primary"
@@ -132,11 +133,11 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
                 draw
               </span>
               <span className="font-label-spec text-label-spec text-on-surface uppercase tracking-[0.14em]">
-                Khắc Laser Bespoke Đáy Vỏ
+                {t("detail.engraveTitle")}
               </span>
             </div>
             <span className="font-label-badge text-[10px] uppercase tracking-wider text-secondary">
-              Đặc Quyền Miễn Phí
+              {t("detail.engraveFree")}
             </span>
           </div>
           <div className="relative">
@@ -146,16 +147,15 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
               className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-0 focus:bg-surface-container-highest uppercase tracking-widest font-title-editorial"
               id="engraving-text"
               maxLength={24}
-              placeholder="Ví dụ: L. H. D. • GENÈVE 2024"
+              placeholder={t("detail.engravePh")}
               type="text"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 font-label-badge text-[10px] text-on-surface-variant">
-              {engraving.length}/24 ký tự
+              {engraving.length}{t("detail.chars")}
             </span>
           </div>
           <p className="font-body-sm text-body-sm text-on-surface-variant/70 italic">
-            Nghệ nhân Geneva sẽ khắc họa thủ công theo phông chữ ký hiệu truyền
-            thống của hãng.
+            {t("detail.engraveHint")}
           </p>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
           className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.18em] font-bold hover:bg-secondary transition-all shadow-xl flex items-center justify-center gap-space-sm transform hover:-translate-y-0.5 active:translate-y-0"
         >
           <span className="material-symbols-outlined text-[20px]">verified</span>
-          <span>Mua Ngay &amp; Đặt Vận Chuyển Bọc Thép</span>
+          <span>{t("detail.buyNow")}</span>
         </button>
         {/* Secondary Actions Split */}
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-space-sm">
@@ -179,7 +179,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
             <span className="material-symbols-outlined text-[18px] text-secondary">
               event_seat
             </span>
-            <span>Đặt Lịch Trải Nghiệm Tại Salon VIP</span>
+            <span>{t("detail.bookSalon")}</span>
           </Link>
           <button
             className="sm:col-span-1 py-space-sm px-space-xs rounded bg-surface-container-high text-primary hover:bg-primary hover:text-on-primary transition-all shadow-md flex items-center justify-center gap-1 group"
@@ -187,7 +187,7 @@ export default function DetailPurchase({ product: dbProduct }: { product: Produc
           >
             <span className="material-symbols-outlined text-[20px]">chat</span>
             <span className="font-label-badge text-[10px] uppercase tracking-widest sm:hidden">
-              Tư Vấn
+              {t("detail.consult")}
             </span>
           </button>
         </div>
