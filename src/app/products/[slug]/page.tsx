@@ -10,6 +10,8 @@ import { collectionLabels, formatUsd } from "@/data/products";
 import { linePrice } from "@/lib/pricing";
 import { absoluteMediaUrl, absoluteSiteUrl, safeJsonLd } from "@/lib/json-ld";
 import { mediaUrl } from "@/lib/media";
+import { serverLocale } from "@/components/OrderStatusLabel";
+import { productStrings } from "./strings";
 
 // Phụ kiện đi kèm hiển thị cuối trang — lấy từ DB (trước đây hardcode).
 const ACCESSORY_SLUG = "travel-roll-calfskin-18k";
@@ -20,6 +22,8 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const locale = await serverLocale();
+  const S = await productStrings(locale);
   // Song song hóa 2 fetch độc lập (SP chính + phụ kiện đi kèm).
   const [product, accessory] = await Promise.all([
     getProduct(slug),
@@ -85,9 +89,9 @@ export default async function Page({
 <div className="max-w-[1360px] mx-auto px-gutter-desktop pt-space-md pb-space-sm w-full">
 <div className="flex flex-wrap items-center justify-between gap-y-space-xs text-on-surface-variant font-label-spec text-label-spec uppercase tracking-[0.14em]">
 <div className="flex items-center gap-space-xs flex-wrap">
-<a className="hover:text-primary transition-colors" href="/collections">Trang Chủ</a>
+<a className="hover:text-primary transition-colors" href="/collections">{S.breadcrumbHome}</a>
 <span className="text-surface-container-highest">/</span>
-<a className="hover:text-primary transition-colors" href="/collections">Bộ Sưu Tập</a>
+<a className="hover:text-primary transition-colors" href="/collections">{S.breadcrumbCollection}</a>
 <span className="text-surface-container-highest">/</span>
 <a className="hover:text-primary transition-colors" href="/collections">{collectionLabel}</a>
 <span className="text-surface-container-highest">/</span>
@@ -96,7 +100,7 @@ export default async function Page({
 <div className="flex items-center gap-space-sm">
 <span className="inline-flex items-center gap-1.5 px-space-xs py-0.5 rounded bg-surface-container-high text-secondary text-[10px] font-label-badge tracking-widest uppercase">
 <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-ping"></span>
-            {product.inBoutique ? "Kho bảo mật Genève: Sẵn hàng độc bản" : "Đặt trước tại Atelier"}
+            {S.status(product.inBoutique)}
           </span>
 </div>
 </div>
@@ -125,11 +129,11 @@ export default async function Page({
 <div className="flex items-center gap-space-xs pointer-events-auto">
 <button className="px-space-sm py-space-xs rounded bg-surface-container-high/90 backdrop-blur-md text-on-surface hover:text-primary hover:bg-surface-container-highest transition-all flex items-center gap-1.5 shadow-lg font-label-spec text-label-spec uppercase tracking-wider" id="btn-360">
 <span className="material-symbols-outlined text-[16px] text-primary">360</span>
-<span>Xoay 360°</span>
+<span>{S.spin360}</span>
 </button>
 <button className="px-space-sm py-space-xs rounded bg-surface-container-high/90 backdrop-blur-md text-on-surface hover:text-primary hover:bg-surface-container-highest transition-all flex items-center gap-1.5 shadow-lg font-label-spec text-label-spec uppercase tracking-wider" id="btn-ar">
 <span className="material-symbols-outlined text-[16px] text-secondary">view_in_ar</span>
-<span>Thử AR Cổ Tay</span>
+<span>{S.tryAR}</span>
 </button>
 <button className="px-space-sm py-space-xs rounded bg-surface-container-high/90 backdrop-blur-md text-on-surface hover:text-primary hover:bg-surface-container-highest transition-all flex items-center gap-1.5 shadow-lg font-label-spec text-label-spec uppercase tracking-wider" id="btn-macro">
 <span className="material-symbols-outlined text-[16px] text-primary">zoom_in</span>
@@ -198,7 +202,7 @@ export default async function Page({
 <span className="text-surface-container-highest">•</span>
 <span className="text-primary flex items-center gap-1">
 <span className="material-symbols-outlined text-[14px]">workspace_premium</span>
-                Độc Bản Giới Hạn
+                {S.limited}
               </span>
 </div>
 </div>
@@ -212,28 +216,28 @@ export default async function Page({
     slug={product.slug}
     name={product.name}
     question={compareQuestion(product.name)}
-    label="⚖ So với 2 chiếc cùng tầm giá"
+    label={S.compareCta}
   />
   <AskConciergeButton
     slug={product.slug}
     name={product.name}
     question={watchQuestion(product.name)}
-    label="◷ Báo khi giảm 10%"
+    label={S.watchCta}
   />
 </div>
 {/* Security & Atelier Assurances */}
 <div className="grid grid-cols-1 gap-space-xs pt-space-xs font-body-sm text-body-sm text-on-surface-variant">
 <div className="flex items-center gap-space-sm p-space-xs rounded bg-surface-container-low">
 <span className="material-symbols-outlined text-primary text-[20px] shrink-0">local_police</span>
-<span><strong>An ninh tuyệt đối:</strong> Vận chuyển bằng chuyên xa bọc thép và bàn giao trực tiếp tại tư gia hoặc private salon.</span>
+<span><strong>{S.securityTitle}</strong> {S.securityBody}</span>
 </div>
 <div className="flex items-center gap-space-sm p-space-xs rounded bg-surface-container-low">
 <span className="material-symbols-outlined text-primary text-[20px] shrink-0">workspace_premium</span>
-<span><strong>Bảo chứng di sản:</strong> Bảo hành quốc tế 5 năm, tự động nâng cấp thành bảo dưỡng Calibre trọn đời khi kích hoạt thẻ Private Client.</span>
+<span><strong>{S.heritageTitle}</strong> {S.heritageBody}</span>
 </div>
 <div className="flex items-center gap-space-sm p-space-xs rounded bg-surface-container-low">
 <span className="material-symbols-outlined text-primary text-[20px] shrink-0">published_with_changes</span>
-<span><strong>Đổi trả an tâm:</strong> Quyền hoàn trả trong 14 ngày kèm kiểm định kép độc lập của hiệp hội Haute Horlogerie.</span>
+<span><strong>{S.returnTitle}</strong> {S.returnBody}</span>
 </div>
 </div>
 </div>
@@ -247,7 +251,7 @@ export default async function Page({
 <span className="font-label-badge text-label-badge text-primary uppercase tracking-[0.25em]">Spécifications Horlogères</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-          Bảng Thông Số Kỹ Thuật Vi Cơ Học
+          {S.specsTitle}
         </h2>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
           {product.narrative}
