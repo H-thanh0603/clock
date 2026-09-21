@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useCart } from "@/components/CartProvider";
 import VaultItemCard from "@/components/VaultItemCard";
+import { CompanionGifts } from "@/components/CompanionGifts";
 import AskConciergeButton from "@/components/AskConciergeButton";
 import { cartQuestion, cartQuestionEn } from "@/lib/agent-link";
 import { formatUsd, formatVnd } from "@/data/products";
@@ -103,91 +104,7 @@ export default function Page() {
               ))}
             </div>
           )}
-          {/* Included Atelier Artifacts (Gratis) */}
-<div className="mt-space-lg pt-space-md bg-surface-container-low/80 p-space-md rounded">
-<h3 className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.2em] mb-space-sm flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-[18px]">inventory_2</span>
-              Vật Phẩm Đồng Hành Hoàng Gia Đi Kèm (Complimentary Atelier Suites)
-            </h3>
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-space-md">
-<div className="bg-surface-container p-space-sm rounded flex gap-space-xs items-start">
-<span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">nest_eco_leaf</span>
-<div>
-<h4 className="font-title-editorial text-body-sm text-on-surface font-semibold">Hộp Gỗ Óc Chó Jura</h4>
-<p className="font-body-sm text-[11px] text-on-surface-variant/80 mt-1 leading-snug">Chế tác thủ công từ thung lũng Vallée de Joux, lót nhung tơ tằm.</p>
-</div>
-</div>
-<div className="bg-surface-container p-space-sm rounded flex gap-space-xs items-start">
-<span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">workspace_premium</span>
-<div>
-<h4 className="font-title-editorial text-body-sm text-on-surface font-semibold">Chứng Thư COSC Da Thật</h4>
-<p className="font-body-sm text-[11px] text-on-surface-variant/80 mt-1 leading-snug">Sổ da thuộc thảo mộc ghi nhận 360 giờ kiểm định áp suất và độ chuẩn xác.</p>
-</div>
-</div>
-<div className="bg-surface-container p-space-sm rounded flex gap-space-xs items-start">
-<span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">search_insights</span>
-<div>
-<h4 className="font-title-editorial text-body-sm text-on-surface font-semibold">Kính Lúp Horloger Mạ Vàng</h4>
-<p className="font-body-sm text-[11px] text-on-surface-variant/80 mt-1 leading-snug">Kính quang học độ phóng đại 10x chế tác riêng phục vụ chiêm ngưỡng chi tiết vi cơ.</p>
-</div>
-</div>
-</div>
-</div>
-</div>
-{/* Section: Royal Gifting & Bespoke Crafting Services */}
-<div className="bg-surface-container-lowest rounded-lg p-space-lg md:p-space-xl shadow-xl space-y-space-lg">
-<div className="flex items-center justify-between pb-space-sm bg-surface-container-low/60 -mx-space-lg -mt-space-lg px-space-lg pt-space-md rounded-t-lg">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-primary text-[20px]">card_giftcard</span>
-<span className="font-label-spec text-label-spec text-primary uppercase tracking-[0.2em]">Dịch Vụ Đóng Gói Quà Tặng Hoàng Gia &amp; Métiers d’Art</span>
-</div>
-<span className="font-label-badge text-label-badge text-secondary bg-surface-container-high px-2 py-0.5 rounded uppercase">Complimentary Bespoke</span>
-</div>
-{/* Feature 1: Calligraphy Card & Wax Seal */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
-<div className="bg-surface-container p-space-md rounded flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-space-xs">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-secondary text-[20px]">history_edu</span>
-<h3 className="font-title-editorial text-body-md text-on-surface">Thiệp Thư Pháp Viết Tay Mạ Vàng</h3>
-</div>
-<input aria-label="Thiệp Thư Pháp Viết Tay Mạ Vàng" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
-</div>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
-                  Nghệ nhân thư pháp tại Genève chép tay bằng mực vàng 24K trên giấy dó sợi bông truyền thống nước Ý.
-                </p>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Thông điệp đề tặng (Tối đa 120 ký tự):</label>
-<textarea aria-label="Thông điệp đề tặng" className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
-</div>
-<span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Bao gồm huy hiệu đóng dấu nổi của xưởng Aurel &amp; Co.</span>
-</div>
-{/* Feature 2: Signature Wax Seal & Silk Ribbon */}
-<div className="bg-surface-container p-space-md rounded flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-space-xs">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-secondary text-[20px]">verified</span>
-<h3 className="font-title-editorial text-body-md text-on-surface">Niêm Phong Xi Đỏ &amp; Lụa Satin Cao Cấp</h3>
-</div>
-<input aria-label="Niêm Phong Xi Đỏ & Lụa Satin Cao Cấp" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
-</div>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
-                  Bao bọc trong vải nhung đen chống tĩnh điện, thắt ruy băng lụa tơ tằm dệt tay và niêm phong bằng sáp ong đỏ tự nhiên có con dấu gia huy của hãng.
-                </p>
-<div className="bg-surface-container-lowest p-space-sm rounded flex items-center gap-space-sm">
-<div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary font-title-editorial font-bold text-headline-sm shadow-inner">
-                    A
-                  </div>
-<div>
-<span className="font-label-spec text-label-spec text-on-surface block uppercase">Dấu Xi Thụy Sĩ Độc Quyền</span>
-<span className="text-on-surface-variant/80 text-xs">Chỉ được mở lần đầu tiên bởi chủ nhân sở hữu kiệt tác.</span>
-</div>
-</div>
-</div>
-<span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Đạt tiêu chuẩn an ninh di sản lưu trữ bảo tàng.</span>
-</div>
-</div>
+          <CompanionGifts />
 {/* Feature 3: Bespoke Engraving Preview */}
 <div className="bg-surface-container p-space-md rounded">
 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs mb-space-sm">
@@ -288,39 +205,39 @@ export default function Page() {
 {/* Order Summary Card */}
 <div className="bg-surface-container-lowest rounded-lg p-space-lg shadow-2xl space-y-space-md">
 <div className="flex items-center justify-between pb-space-sm bg-surface-container-low/60 -mx-space-lg -mt-space-lg px-space-lg pt-space-md rounded-t-lg">
-<span className="font-title-editorial text-title-editorial text-on-surface uppercase tracking-wider">Hóa Đơn Bảo Chứng</span>
+<span className="font-title-editorial text-title-editorial text-on-surface uppercase tracking-wider">{t("cart.invoice")}</span>
 <span className="font-label-badge text-label-badge text-primary uppercase">Vault Certificate</span>
 </div>
 {/* Breakdown items */}
 <div className="space-y-space-sm font-body-sm text-body-sm">
 <div className="flex justify-between text-on-surface-variant">
-<span>Giá trị ({totalQty} kiệt tác trong Vault):</span>
+<span>{t("cart.valueLine", { n: totalQty })}</span>
 <span className="font-semibold text-on-surface">{formatUsd(totalUsd)}</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Hộp gỗ óc chó &amp; Chứng chỉ COSC:</span>
-<span className="text-secondary font-medium">Bao gồm ($0)</span>
+<span>{t("cart.boxLine")}</span>
+<span className="text-secondary font-medium">{t("cart.included0")}</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Nghệ thuật đóng gói hoàng gia &amp; Xi sáp:</span>
+<span>{t("cart.packLine")}</span>
 <span className="text-secondary font-medium">Complimentary</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Khắc tên riêng bằng tia laser:</span>
+<span>{t("cart.engraveLine")}</span>
 <span className="text-secondary font-medium">Complimentary</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Vận chuyển an ninh bọc thép có vệ sĩ:</span>
-<span className="text-secondary font-medium">Miễn phí ($0)</span>
+<span>{t("cart.armoredLine")}</span>
+<span className="text-secondary font-medium">{t("cart.free0")}</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span>Thuế nhập khẩu &amp; Bảo hiểm hàng hải:</span>
-<span className="text-secondary font-medium">Đã thanh toán đủ</span>
+<span>{t("cart.taxLine")}</span>
+<span className="text-secondary font-medium">{t("cart.paidEnough")}</span>
 </div>
 </div>
 {/* Total Calculation */}
 <div className="pt-space-md bg-surface-container p-space-md rounded">
-<span className="font-label-spec text-label-spec text-on-surface-variant uppercase tracking-widest block mb-1">Tổng Quyết Toán Chuyển Nhượng:</span>
+<span className="font-label-spec text-label-spec text-on-surface-variant uppercase tracking-widest block mb-1">{t("cart.grandTotal")}</span>
 <div className="flex items-baseline justify-between">
 <span className="font-headline-md text-headline-md text-primary font-bold tracking-tight">{formatUsd(totalUsd)}</span>
 <span className="font-label-badge text-label-badge text-on-surface-variant uppercase font-semibold">USD NET</span>
@@ -331,7 +248,7 @@ export default function Page() {
 <div className="pt-space-sm space-y-space-sm">
 <h4 className="font-label-spec text-label-spec text-primary uppercase tracking-[0.15em] flex items-center gap-space-xs">
 <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
-              Phương Thức Thanh Toán Đặc Quyền
+              {t("cart.payMethod")}
             </h4>
 {/* Option A: Centurion Black Card / Visa Infinite */}
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
@@ -340,23 +257,23 @@ export default function Page() {
 <span className="font-body-md text-body-md text-on-surface font-medium flex items-center gap-1">
                   Centurion Black Card / Visa Infinite
                 </span>
-<span className="text-xs text-on-surface-variant/70">Mã hóa chuẩn PCI-DSS Level 1</span>
+<span className="text-xs text-on-surface-variant/70">{t("cart.pci")}</span>
 </div>
 </label>
 {/* Option B: Escrow Wire Transfer */}
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="escrow"/>
 <div className="flex flex-col">
-<span className="font-body-md text-body-md text-on-surface font-medium">Chuyển Khoản Bảo Chứng (Swiss Escrow Wire)</span>
-<span className="text-xs text-on-surface-variant/70">Ký quỹ an toàn tại Credit Suisse Genève</span>
+<span className="font-body-md text-body-md text-on-surface font-medium">{t("cart.escrowWire")}</span>
+<span className="text-xs text-on-surface-variant/70">{t("cart.escrowHint")}</span>
 </div>
 </label>
 {/* Option C: 20% Deposit & 80% on Delivery */}
 <label className="flex items-center gap-space-sm p-space-sm rounded bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
 <input className="accent-primary w-4 h-4 cursor-pointer" name="payment_tier" type="radio" value="deposit"/>
 <div className="flex flex-col">
-<span className="font-body-md text-body-md text-on-surface font-medium">Đặt Cọc 20% ({formatUsd(deposit)} USD)</span>
-<span className="text-xs text-on-surface-variant/70">Quyết toán 80% còn lại khi diện kiến thử đồng hồ</span>
+<span className="font-body-md text-body-md text-on-surface font-medium">{t("cart.deposit20", { amount: formatUsd(deposit) })}</span>
+<span className="text-xs text-on-surface-variant/70">{t("cart.depositHint")}</span>
 </div>
 </label>
 </div>
@@ -364,22 +281,22 @@ export default function Page() {
 <div className="bg-surface-container-high p-space-sm rounded text-xs text-on-surface-variant space-y-1">
 <div className="flex items-center gap-space-xs text-secondary font-medium">
 <span className="material-symbols-outlined text-[16px]">lock_clock</span>
-<span>Bảo mật chuẩn Ngân hàng Thụy Sĩ (FINMA Compliant)</span>
+<span>{t("cart.finma")}</span>
 </div>
 <p className="text-[11px] leading-snug">
-              Thông tin thượng khách được lưu trữ phân tán, chỉ giải mã duy nhất cho Concierge Officer phụ trách.
+              {t("cart.privacyNote")}
             </p>
 </div>
 {/* Primary Gold Glowing CTA */}
 <Link href="/checkout" className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all shadow-xl flex items-center justify-center gap-space-xs group">
-<span>XÁC NHẬN ĐẶT HÀNG &amp; KÍCH HOẠT DỊCH VỤ CONCIERGE</span>
+<span>{t("cart.confirmOrder")}</span>
 <span className="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
 </Link>
 {/* Direct Hotline to Private Banker/Concierge */}
 <div className="text-center pt-space-xs">
 <a className="inline-flex items-center gap-space-xs text-xs text-on-surface-variant hover:text-primary transition-colors" href="/collections">
 <span className="material-symbols-outlined text-[14px]">support_agent</span>
-<span>Cần trợ giúp riêng? Kết nối trực tiếp Giám đốc Salon Genève (+41 22 819 0000)</span>
+<span>{t("cart.hotline")}</span>
 </a>
 </div>
 {/* Agentic web: hỏi concierge về chính giỏ này (G1-3). Đã đăng nhập (+ bật
@@ -388,7 +305,7 @@ export default function Page() {
 <div className="pt-space-xs">
 <AskConciergeButton
   question={locale === "en" ? cartQuestionEn() : cartQuestion()}
-  label="✦ Hỏi concierge về giỏ này"
+  label={t("cart.askCart")}
 />
 </div>
 </div>
@@ -398,9 +315,9 @@ export default function Page() {
 <span className="material-symbols-outlined text-[28px]">token</span>
 </div>
 <div>
-<h5 className="font-title-editorial text-body-sm text-on-surface font-semibold">Thẻ Nhận Diện Kim Loại NFC Kèm Theo</h5>
+<h5 className="font-title-editorial text-body-sm text-on-surface font-semibold">{t("cart.nfcTitle")}</h5>
 <p className="font-body-sm text-[11px] text-on-surface-variant mt-0.5">
-              Tích hợp chip mã hóa lưu trữ lịch sử chế tác, danh tính nghệ nhân trưởng và quyền vào các dạ tiệc kín.
+              {t("cart.nfcBody")}
             </p>
 </div>
 </div>

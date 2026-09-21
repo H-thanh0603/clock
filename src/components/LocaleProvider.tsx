@@ -37,8 +37,11 @@ const STORAGE_KEY = "aurel-locale";
 type LocaleContextValue = {
   locale: Locale;
   setLocale: (l: Locale) => void;
-  /** Dịch key; thiếu key → hiện key thô (fail-loud để review phát hiện). */
-  t: (key: TKey) => string;
+  /**
+   * Dịch key; hỗ trợ nội suy `{name}` qua vars (vd t("cart.valueLine",
+   * { n: totalQty })). Thiếu key → hiện key thô (fail-loud để review).
+   */
+  t: (key: TKey, vars?: Record<string, string | number>) => string;
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
@@ -72,12 +75,17 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: TKey): string => {
+    (key: TKey, vars?: Record<string, string | number>): string => {
       const hit = (dict[locale] as LocaleDict)[key];
-      if (typeof hit === "string" && hit.length > 0) return hit;
-      // Fallback vi rồi mới hiện key thô — user không bao giờ thấy màn trắng.
-      const fb = (dict.vi as LocaleDict)[key];
-      return typeof fb === "string" && fb.length > 0 ? fb : key;
+      const raw =
+        typeof hit === "string" && hit.length > 0
+          ? hit
+          : ((dict.vi as LocaleDict)[key] ?? key);
+      if (!vars) return raw;
+      // Nội suy {name} — chỉ thay key có trong vars, còn lại giữ nguyên.
+      return raw.replace(/\{(\w+)\}/g, (m, k: string) =>
+        k in vars ? String(vars[k]) : m,
+      );
     },
     [locale]
   );

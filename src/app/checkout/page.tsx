@@ -12,6 +12,7 @@ import {
   getCheckoutKey,
 } from "@/lib/idempotency";
 import VaultItemCard from "@/components/VaultItemCard";
+import { CompanionGifts } from "@/components/CompanionGifts";
 import { formatUsd, formatVnd } from "@/data/products";
 
 export default function Page() {
@@ -243,91 +244,7 @@ export default function Page() {
               ))}
             </div>
           )}
-          {/* Included Atelier Artifacts (Gratis) */}
-<div className="mt-space-lg pt-space-md bg-surface-container-low/80 p-space-md rounded">
-<h3 className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.2em] mb-space-sm flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-[18px]">inventory_2</span>
-              Vật Phẩm Đồng Hành Hoàng Gia Đi Kèm (Complimentary Atelier Suites)
-            </h3>
-<div className="grid grid-cols-1 sm:grid-cols-3 gap-space-md">
-<div className="bg-surface-container p-space-sm rounded flex gap-space-xs items-start">
-<span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">nest_eco_leaf</span>
-<div>
-<h4 className="font-title-editorial text-body-sm text-on-surface font-semibold">Hộp Gỗ Óc Chó Jura</h4>
-<p className="font-body-sm text-[11px] text-on-surface-variant/80 mt-1 leading-snug">Chế tác thủ công từ thung lũng Vallée de Joux, lót nhung tơ tằm.</p>
-</div>
-</div>
-<div className="bg-surface-container p-space-sm rounded flex gap-space-xs items-start">
-<span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">workspace_premium</span>
-<div>
-<h4 className="font-title-editorial text-body-sm text-on-surface font-semibold">Chứng Thư COSC Da Thật</h4>
-<p className="font-body-sm text-[11px] text-on-surface-variant/80 mt-1 leading-snug">Sổ da thuộc thảo mộc ghi nhận 360 giờ kiểm định áp suất và độ chuẩn xác.</p>
-</div>
-</div>
-<div className="bg-surface-container p-space-sm rounded flex gap-space-xs items-start">
-<span className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5">search_insights</span>
-<div>
-<h4 className="font-title-editorial text-body-sm text-on-surface font-semibold">Kính Lúp Horloger Mạ Vàng</h4>
-<p className="font-body-sm text-[11px] text-on-surface-variant/80 mt-1 leading-snug">Kính quang học độ phóng đại 10x chế tác riêng phục vụ chiêm ngưỡng chi tiết vi cơ.</p>
-</div>
-</div>
-</div>
-</div>
-</div>
-{/* Section: Royal Gifting & Bespoke Crafting Services */}
-<div className="bg-surface-container-lowest rounded-lg p-space-lg md:p-space-xl shadow-xl space-y-space-lg">
-<div className="flex items-center justify-between pb-space-sm bg-surface-container-low/60 -mx-space-lg -mt-space-lg px-space-lg pt-space-md rounded-t-lg">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-primary text-[20px]">card_giftcard</span>
-<span className="font-label-spec text-label-spec text-primary uppercase tracking-[0.2em]">Dịch Vụ Đóng Gói Quà Tặng Hoàng Gia &amp; Métiers d’Art</span>
-</div>
-<span className="font-label-badge text-label-badge text-secondary bg-surface-container-high px-2 py-0.5 rounded uppercase">Complimentary Bespoke</span>
-</div>
-{/* Feature 1: Calligraphy Card & Wax Seal */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
-<div className="bg-surface-container p-space-md rounded flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-space-xs">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-secondary text-[20px]">history_edu</span>
-<h3 className="font-title-editorial text-body-md text-on-surface">Thiệp Thư Pháp Viết Tay Mạ Vàng</h3>
-</div>
-<input aria-label="Thiệp Thư Pháp Viết Tay Mạ Vàng" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
-</div>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
-                  Nghệ nhân thư pháp tại Genève chép tay bằng mực vàng 24K trên giấy dó sợi bông truyền thống nước Ý.
-                </p>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.dedication")}</label>
-<textarea aria-label="Thông điệp đề tặng" className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
-</div>
-<span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Bao gồm huy hiệu đóng dấu nổi của xưởng Aurel &amp; Co.</span>
-</div>
-{/* Feature 2: Signature Wax Seal & Silk Ribbon */}
-<div className="bg-surface-container p-space-md rounded flex flex-col justify-between">
-<div>
-<div className="flex items-center justify-between mb-space-xs">
-<div className="flex items-center gap-space-xs">
-<span className="material-symbols-outlined text-secondary text-[20px]">verified</span>
-<h3 className="font-title-editorial text-body-md text-on-surface">Niêm Phong Xi Đỏ &amp; Lụa Satin Cao Cấp</h3>
-</div>
-<input aria-label="Niêm Phong Xi Đỏ & Lụa Satin Cao Cấp" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
-</div>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
-                  Bao bọc trong vải nhung đen chống tĩnh điện, thắt ruy băng lụa tơ tằm dệt tay và niêm phong bằng sáp ong đỏ tự nhiên có con dấu gia huy của hãng.
-                </p>
-<div className="bg-surface-container-lowest p-space-sm rounded flex items-center gap-space-sm">
-<div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary font-title-editorial font-bold text-headline-sm shadow-inner">
-                    A
-                  </div>
-<div>
-<span className="font-label-spec text-label-spec text-on-surface block uppercase">Dấu Xi Thụy Sĩ Độc Quyền</span>
-<span className="text-on-surface-variant/80 text-xs">Chỉ được mở lần đầu tiên bởi chủ nhân sở hữu kiệt tác.</span>
-</div>
-</div>
-</div>
-<span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Đạt tiêu chuẩn an ninh di sản lưu trữ bảo tàng.</span>
-</div>
-</div>
+          <CompanionGifts />
 {/* Feature 3: Bespoke Engraving Preview */}
 <div className="bg-surface-container p-space-md rounded">
 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs mb-space-sm">
