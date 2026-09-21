@@ -963,6 +963,7 @@ async def index() -> dict:
             "health": "GET /health",
             "mcp_shop": "/mcp/shop/mcp — MCP catalog/giỏ công khai (agent ngoài)",
             "mcp_merchant": "/mcp/merchant/mcp — MCP vận hành (x-agent-token + approve từng apply)",
+            "a2a": "POST /a2a (message/send|tasks/*) + POST /a2a/stream (message/stream) + GET /.well-known/agent-card.json",
         },
         "runtimes": {
             "messages_api": "host này (uvicorn aurel_agents.host:app)",
@@ -1020,6 +1021,65 @@ async def shop_chat(req: ChatRequest, request: Request):
         ),
         media_type="text/event-stream",
     )
+
+
+# --- A2A (Agent-to-Agent, Google) -----------------------------------------------
+# Agent ngoài gọi concierge shop qua JSON-RPC chuẩn (message/send|stream,
+# tasks/get|cancel) + AgentCard ở /.well-known/agent-card.json. Chỉ shop —
+# merchant KHÔNG expose (ghi tiền/kho). Logic trong aurel_agents/a2a.py để
+# host.py chỉ còn route mỏng; test ở tests/test_a2a.py.
+
+
+@app.get("/.well-known/agent-card.json")
+async def agent_card(request: Request) -> dict:
+    """AgentCard A2A (public, không auth — chỉ mô tả khả năng)."""
+    from aurel_agents.a2a import build_agent_card
+
+    base = str(request.base_url).rstrip("/")
+    return build_agent_card(base)
+
+
+@app.post("/a2a")
+async def a2a_jsonrpc(body: dict, request: Request):
+    """JSON-RPC cho message/send + tasks/* (non-streaming)."""
+    import sys as _sys
+
+    from aurel_agents.a2a import RpcRequest, dispatch
+
+    rpc = RpcRequest(**body) if isinstance(body, dict) else RpcRequest(method="")
+    trace = _sanitize_trace_id(
+        body.get("trace_id") if isinstance(body, dict) else None
+    )
+    out = await dispatch(
+        _sys.modules[__name__], rpc, trace, _client_ip(request)
+    )
+    if "__sse__" in out:  # gọi nhầm stream qua POST thường
+        return out
+    return out
+
+
+@app.post("/a2a/stream")
+async def a2a_jsonrpc_stream(body: dict, request: Request):
+    """SSE cho message/stream (A2A streaming)."""
+    import sys as _sys
+
+    from fastapi.responses import StreamingResponse as _SR
+
+    from aurel_agents.a2a import RpcRequest, dispatch
+
+    rpc = RpcRequest(**body) if isinstance(body, dict) else RpcRequest(method="")
+    out = await dispatch(
+        _sys.modules[__name__], rpc, None, _client_ip(request)
+    )
+    gen = out.get("__sse__")
+    if gen is None:  # không phải stream (vd tasks/get) → trả JSON thường
+        return out
+
+    async def _sse_gen():
+        async for chunk in gen():
+            yield chunk
+
+    return _SR(_sse_gen(), media_type="text/event-stream")
 
 
 @app.post("/merchant/chat")

@@ -21,6 +21,14 @@
 		reverse_proxy agent:8100
 	}
 
+	# A2A (agent ngoai) + AgentCard: cung origin, TLS + rate-limit cua Caddy.
+	handle_path /a2a* {
+		reverse_proxy agent:8100
+	}
+	handle /.well-known/agent-card.json {
+		reverse_proxy agent:8100
+	}
+
 	encode gzip
 	log {
 		output stdout

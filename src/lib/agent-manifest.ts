@@ -71,6 +71,8 @@ export function buildAgentManifest(base: string): AgentManifest {
     endpoints: {
       chat: `${root}/agent/chat`,
       mcp: `${root}/mcp`,
+      // A2A thật (agent/aurel_agents/a2a.py): JSON-RPC message/send|stream +
+      // tasks/get|cancel ở /a2a, AgentCard ở /.well-known/agent-card.json.
       a2a: `${root}/a2a`,
       activity: `${root}/api/agent/activity`,
       watches: `${root}/api/agent/watches`,
