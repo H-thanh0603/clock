@@ -6,16 +6,8 @@ import { ClearCartOnPaid } from "./ClearCartOnPaid";
 import { CancelGuestButton } from "./CancelGuestButton";
 import { ContactReveal } from "./ContactReveal";
 import { OrderStatusPoller } from "./OrderStatusPoller";
-
-const STATUS_VN: Record<string, string> = {
-  PENDING: "Chờ xác nhận",
-  CONFIRMED: "Đã xác nhận",
-  PAID: "Đã thanh toán",
-  SHIPPED: "Đang vận chuyển",
-  COMPLETED: "Hoàn tất",
-  CANCELLED: "Đã hủy",
-  REFUNDED: "Đã hoàn tiền",
-};
+import { orderStatusLabel, serverLocale } from "@/components/OrderStatusLabel";
+import { serverT } from "@/i18n/server";
 
 export default async function OrderSuccessPage({
   params,
@@ -26,6 +18,8 @@ export default async function OrderSuccessPage({
 }) {
   const { code } = await params;
   const sp = await searchParams;
+  const locale = await serverLocale();
+  const { t } = await serverT(locale);
   // sig từ URL redirect VNPay (không login/nhớ SĐT vẫn xem được đơn mình).
   // Không sig + không session chính chủ → BE trả tối thiểu, trang hiện
   // trạng thái + form nhập contact để reveal (P1-6).
@@ -53,18 +47,18 @@ export default async function OrderSuccessPage({
           <h1 className="font-display text-3xl font-medium md:text-4xl">
             {paid ? (
               <>
-                Thanh Toán <span className="text-gold-gradient">Thành Công</span>
+                {t("orders.paidOk")} <span className="text-gold-gradient">{t("orders.paidOkSuffix")}</span>
               </>
             ) : (
               <>
-                Đơn Đã Được <span className="text-gold-gradient">Tiếp Nhận</span>
+                {t("orders.received")} <span className="text-gold-gradient">{t("orders.receivedSuffix")}</span>
               </>
             )}
           </h1>
           <p className="font-body-md text-body-md text-on-surface-variant/85">
             {paid
-              ? "VNPay đã xác nhận giao dịch. Concierge sẽ liên hệ bàn giao trong 2 giờ làm việc."
-              : `Trạng thái hiện tại: ${STATUS_VN[order.status] ?? order.status}. Concierge sẽ liên hệ xác nhận trong 2 giờ làm việc.`}
+              ? t("orders.paidConfirmed")
+              : `${t("orders.currentStatus")}: ${orderStatusLabel(order.status, locale)}. ${t("orders.conciergeConfirm")}`}
           </p>
           <OrderStatusPoller
             code={order.code}
@@ -88,7 +82,7 @@ export default async function OrderSuccessPage({
                 </div>
               ))}
               <div className="font-body-md text-body-md flex items-center justify-between pt-space-xs">
-                <span className="text-on-surface">Tổng quyết toán</span>
+                <span className="text-on-surface">{t("orders.grandTotal")}</span>
                 <span className="font-display text-xl text-primary">
                   {formatUsd(order.totalUsd)} (~{formatVnd(Number(order.totalVnd))})
                 </span>
@@ -102,13 +96,13 @@ export default async function OrderSuccessPage({
               href="/collections"
               className="px-space-xl py-3 rounded bg-primary text-on-primary font-label-spec text-label-spec tracking-[0.2em] uppercase font-semibold hover:bg-secondary transition-colors"
             >
-              Tiếp Tục Sưu Tầm
+              {t("orders.continue")}
             </Link>
             <Link
               href="/account"
               className="px-space-xl py-3 rounded border border-primary-container/50 text-primary font-label-spec text-label-spec tracking-[0.2em] uppercase hover:bg-primary hover:text-on-primary transition-colors"
             >
-              Theo Dõi Đơn
+              {t("orders.track")}
             </Link>
             {order.status === "PENDING" && (
               <CancelGuestButton code={order.code} />

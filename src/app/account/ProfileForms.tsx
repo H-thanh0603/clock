@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useLocale } from "@/components/LocaleProvider";
 
 /** Đổi tên hiển thị + mật khẩu trong trang tài khoản. */
 export function ProfileForms() {
+  const { t } = useLocale();
   const { user, updateProfile, changePassword } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   const [current, setCurrent] = useState("");
@@ -20,9 +22,9 @@ export function ProfileForms() {
     setMsg("");
     try {
       await updateProfile(name);
-      setMsg("Đã cập nhật danh xưng.");
+      setMsg(t("account.nameUpdated"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Cập nhật thất bại");
+      setMsg(e instanceof Error ? e.message : t("account.updateFailed"));
     } finally {
       setBusy(false);
     }
@@ -35,9 +37,9 @@ export function ProfileForms() {
       await changePassword(current, next);
       setCurrent("");
       setNext("");
-      setMsg("Đã đổi mật khẩu. Hãy đăng nhập lại.");
+      setMsg(t("account.passwordChanged"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Đổi mật khẩu thất bại");
+      setMsg(e instanceof Error ? e.message : t("account.passwordChangeFailed"));
     } finally {
       setBusy(false);
     }
@@ -46,7 +48,7 @@ export function ProfileForms() {
   return (
     <div className="gold-border-card mt-space-md p-6">
       <h2 className="font-title-editorial text-title-editorial text-on-surface">
-        Hồ Sơ Thượng Khách
+        {t("account.profileTitle")}
       </h2>
       <p className="font-body-sm text-body-sm text-on-surface-variant">
         {user?.email}
@@ -54,27 +56,27 @@ export function ProfileForms() {
       <div className="mt-space-sm grid grid-cols-1 gap-space-md md:grid-cols-2">
         <div>
           <label className="font-label-spec text-label-spec mb-1 block tracking-wider text-on-surface-variant uppercase">
-            Danh xưng & họ tên
+            {t("account.displayName")}
           </label>
           <div className="flex gap-2">
             <input
               className={inputCls}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ngài / Bà..."
+              placeholder={t("auth.namePh")}
             />
             <button
               onClick={saveName}
               disabled={busy}
               className="shrink-0 rounded bg-primary px-4 py-2 font-label-spec text-label-spec font-semibold tracking-[0.15em] text-on-primary uppercase hover:bg-secondary disabled:opacity-50"
             >
-              Lưu
+              {t("common.save")}
             </button>
           </div>
         </div>
         <div>
           <label className="font-label-spec text-label-spec mb-1 block tracking-wider text-on-surface-variant uppercase">
-            Đổi mật khẩu
+            {t("account.changePassword")}
           </label>
           <div className="flex flex-col gap-2">
             <input
@@ -82,7 +84,7 @@ export function ProfileForms() {
               type="password"
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
-              placeholder="Mật khẩu hiện tại"
+              placeholder={t("account.currentPassword")}
               autoComplete="current-password"
             />
             <div className="flex gap-2">
@@ -91,7 +93,7 @@ export function ProfileForms() {
                 type="password"
                 value={next}
                 onChange={(e) => setNext(e.target.value)}
-                placeholder="Mật khẩu mới (6-72 ký tự)"
+                placeholder={t("account.newPassword")}
                 autoComplete="new-password"
               />
               <button
@@ -99,7 +101,7 @@ export function ProfileForms() {
                 disabled={busy || !current || !next}
                 className="shrink-0 rounded bg-primary px-4 py-2 font-label-spec text-label-spec font-semibold tracking-[0.15em] text-on-primary uppercase hover:bg-secondary disabled:opacity-50"
               >
-                Đổi
+                {t("account.change")}
               </button>
             </div>
           </div>

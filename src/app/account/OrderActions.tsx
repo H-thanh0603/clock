@@ -3,20 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cancelMyOrder } from "@/lib/order-actions";
+import { useLocale } from "@/components/LocaleProvider";
 
 /** Nút hủy đơn PENDING trong trang tài khoản. */
 export function CancelOrderButton({ id }: { id: string }) {
+  const { t } = useLocale();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   const cancel = async () => {
-    if (!confirm("Quý khách chắc chắn muốn hủy đơn này? Kho sẽ được hoàn lại.")) return;
+    if (!confirm(t("account.cancelConfirm"))) return;
     setBusy(true);
     try {
       await cancelMyOrder(id);
       router.refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Không hủy được đơn");
+      alert(e instanceof Error ? e.message : t("account.cancelFail"));
     } finally {
       setBusy(false);
     }
@@ -28,7 +30,7 @@ export function CancelOrderButton({ id }: { id: string }) {
       disabled={busy}
       className="font-label-spec text-label-spec tracking-[0.2em] text-error uppercase hover:underline disabled:opacity-50"
     >
-      {busy ? "Đang hủy..." : "Hủy đơn"}
+      {busy ? t("account.cancelling") : t("account.cancelOrder")}
     </button>
   );
 }
