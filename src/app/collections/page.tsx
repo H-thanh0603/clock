@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { formatUsd, formatVnd, type Product } from "@/data/products";
 import { apiUrl } from "@/lib/api-client";
 import { useWishlist } from "@/components/WishlistProvider";
+import { useLocale } from "@/components/LocaleProvider";
 import { mediaUrl } from "@/lib/media";
 
 function WishBtn({ slug }: { slug: string }) {
@@ -23,6 +24,7 @@ function WishBtn({ slug }: { slug: string }) {
 }
 
 export default function Page() {
+  const { t } = useLocale();
   const [mov, setMov] = useState<string[]>([]);
   const [mat, setMat] = useState("");
   const [size, setSize] = useState("");
@@ -187,29 +189,29 @@ export default function Page() {
 <span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-on-surface-variant">Edition 2025</span>
 </div>
 <h1 className="font-display-hero text-display-hero text-on-surface tracking-tight uppercase">
-          BỘ SƯU TẬP HOÀNG GIA<br/>
+          {t("collections.title")}<br/>
 <span className="font-headline-lg italic font-normal text-secondary">Genève Masterpieces</span>
 </h1>
 <p className="mt-space-md font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-          Khám phá 24 tuyệt tác cơ học đo thời gian được tuyển chọn khắt khe nhất, chế tác giới hạn dưới sự giám sát trực tiếp của các nghệ nhân bậc thầy Thụy Sĩ.
+          {t("collections.subtitle")}
         </p>
 </div>
 {/* Live Curator Stats Bar */}
 <div className="grid grid-cols-2 md:grid-cols-4 gap-space-md mt-space-2xl pt-space-xl bg-surface-container-low/60 rounded-xl p-space-md backdrop-blur-md">
 <div className="flex flex-col">
-<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">Tổng Tuyệt Tác</span>
-<span className="font-headline-md text-headline-md text-primary mt-space-2xs">24 <span className="font-body-sm text-body-sm text-on-surface-variant/70 font-normal">Mẫu Sưu Tầm</span></span>
+<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">{t("collections.statTotal")}</span>
+<span className="font-headline-md text-headline-md text-primary mt-space-2xs">24 <span className="font-body-sm text-body-sm text-on-surface-variant/70 font-normal">{t("collections.statPieces")}</span></span>
 </div>
 <div className="flex flex-col">
-<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">Chứng Thư Thụy Sĩ</span>
+<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">{t("collections.statCert")}</span>
 <span className="font-headline-md text-headline-md text-on-surface mt-space-2xs">100% <span className="font-body-sm text-body-sm text-secondary font-normal">COSC &amp; Poinçon</span></span>
 </div>
 <div className="flex flex-col">
-<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">Sẵn Sàng Tại Salon</span>
-<span className="font-headline-md text-headline-md text-on-surface mt-space-2xs">09 <span className="font-body-sm text-body-sm text-on-surface-variant/70 font-normal">Hà Nội &amp; HCM</span></span>
+<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">{t("collections.statSalon")}</span>
+<span className="font-headline-md text-headline-md text-on-surface mt-space-2xs">09 <span className="font-body-sm text-body-sm text-on-surface-variant/70 font-normal">{t("collections.statCities")}</span></span>
 </div>
 <div className="flex flex-col">
-<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">Chế Tác Độc Bản</span>
+<span className="font-label-badge text-label-badge uppercase tracking-widest text-on-surface-variant">{t("collections.statUnique")}</span>
 <span className="font-headline-md text-headline-md text-secondary mt-space-2xs">04 <span className="font-body-sm text-body-sm text-on-surface-variant/70 font-normal">Piece Unique</span></span>
 </div>
 </div>
@@ -221,11 +223,11 @@ export default function Page() {
 <div className="flex items-center gap-space-md">
 <button className="flex items-center gap-space-xs px-space-md py-space-xs rounded bg-surface-container-high text-on-surface hover:text-primary transition-colors text-body-sm font-label-spec uppercase tracking-wider" id="toggleFilterBtn" onClick={() => setOpen((v) => !v)}>
 <span className="material-symbols-outlined text-[18px]">tune</span>
-<span className="hidden sm:inline">Bộ Lọc Horlogerie</span>
+<span className="hidden sm:inline">{t("collections.filterBtn")}</span>
 {activeCount > 0 && (<span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[10px] font-bold flex items-center justify-center">{activeCount}</span>)}
 </button>
 <span className="font-label-spec text-label-spec tracking-widest uppercase text-on-surface-variant hidden md:inline">
-          Hiển Thị: <span className="text-primary font-bold">{items.length}</span> / {total} Kiệt Tác
+          {t("collections.showing")}: <span className="text-primary font-bold">{items.length}</span> / {total} {t("collections.pieces")}
         </span>
 </div>
 <div className="flex items-center gap-space-lg">
@@ -235,19 +237,19 @@ export default function Page() {
 <input
   value={q}
   onChange={(e) => setQ(e.target.value)}
-  placeholder="Tìm tên / reference..."
+  placeholder={t("collections.searchPh")}
   className="bg-surface-container pl-10 pr-4 py-space-xs rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-primary w-56"
 />
 </div>
 {/* Sort Control */}
 <div className="flex items-center gap-space-xs">
-<label htmlFor="collections-sort" className="font-label-spec text-label-spec uppercase tracking-widest text-on-surface-variant hidden sm:inline">Sắp Xếp:</label>
+<label htmlFor="collections-sort" className="font-label-spec text-label-spec uppercase tracking-widest text-on-surface-variant hidden sm:inline">{t("collections.sortLabel")}</label>
 <div className="relative">
 <select id="collections-sort" value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} className="appearance-none bg-surface-container px-space-md py-space-xs pr-8 rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer uppercase font-label-spec text-[12px] tracking-wider">
-<option value="featured">Mới Ra Mắt (Genève 2025)</option>
-<option value="price-desc">Giá Trị Cao Nhất (Giá Giảm Dần)</option>
-<option value="complications">Độ Phức Tạp Bộ Máy (Complication Tier)</option>
-<option value="price-asc">Số Lượng Giới Hạn Tối Thiểu</option>
+<option value="featured">{t("collections.sortFeatured")}</option>
+<option value="price-desc">{t("collections.sortPriceDesc")}</option>
+<option value="complications">{t("collections.sortComplication")}</option>
+<option value="price-asc">{t("collections.sortPriceAsc")}</option>
 </select>
 <span className="material-symbols-outlined pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">expand_more</span>
 </div>
@@ -271,13 +273,13 @@ export default function Page() {
 <aside className={`${open ? "flex" : "hidden"} lg:flex lg:col-span-3 flex-col gap-space-xl`} id="filterSidebar">
 <div className="bg-surface-container-low p-space-lg rounded-xl shadow-sm flex flex-col gap-space-xl">
 <div className="flex items-center justify-between pb-space-sm">
-<h3 className="font-title-editorial text-title-editorial uppercase text-on-surface tracking-wider">Bộ Lọc Chuyên Sâu</h3>
-<button className="font-label-badge text-label-badge text-primary hover:text-secondary transition-colors uppercase tracking-widest underline decoration-primary/40" onClick={resetAll}>Thiết Lập Lại</button>
+<h3 className="font-title-editorial text-title-editorial uppercase text-on-surface tracking-wider">{t("collections.deepFilter")}</h3>
+<button className="font-label-badge text-label-badge text-primary hover:text-secondary transition-colors uppercase tracking-widest underline decoration-primary/40" onClick={resetAll}>{t("collections.reset")}</button>
 </div>
 {/* Bộ máy (Movement) */}
 <div className="flex flex-col gap-space-sm">
 <div className="flex items-center justify-between">
-<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">Bộ Máy Cơ Khí (Calibre)</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.movement")}</span>
 <span className="material-symbols-outlined text-[16px] text-on-surface-variant">expand_less</span>
 </div>
 <div className="flex flex-col gap-space-xs text-body-sm text-on-surface-variant">
@@ -298,7 +300,7 @@ export default function Page() {
 <label className="flex items-center justify-between cursor-pointer p-space-xs rounded hover:bg-surface-container transition-colors">
 <span className="flex items-center gap-space-xs">
 <input checked={mov.includes("manual")} onChange={() => toggleMov("manual")} className="accent-primary rounded w-3.5 h-3.5" type="checkbox"/>
-<span>Manual Winding (Lên Cót Tay)</span>
+<span>{t("collections.manual")}</span>
 </span>
 <span className="font-label-badge text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded text-on-surface-variant">04</span>
 </label>
@@ -313,11 +315,11 @@ export default function Page() {
 </div>
 {/* Chất liệu vỏ (Case Material) */}
 <div className="flex flex-col gap-space-sm">
-<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">Chất Liệu Vỏ Quý Kim</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.material")}</span>
 <div className="grid grid-cols-2 gap-space-xs font-label-badge text-label-badge uppercase">
 <button onClick={() => setMat(mat === "rose" ? "" : "rose")} className={mat === "rose" ? "p-space-xs rounded bg-surface-container-high text-primary font-semibold text-left flex items-center gap-1.5" : "p-space-xs rounded bg-surface-container text-on-surface-variant hover:text-on-surface text-left flex items-center gap-1.5"}>
 <span className="w-2.5 h-2.5 rounded-full bg-secondary"></span>
-<span>Vàng Hồng 18K</span>
+<span>{t("collections.roseGold")}</span>
 </button>
 <button onClick={() => setMat(mat === "platinum" ? "" : "platinum")} className={mat === "platinum" ? "p-space-xs rounded bg-surface-container-high text-primary font-semibold text-left flex items-center gap-1.5" : "p-space-xs rounded bg-surface-container text-on-surface-variant hover:text-on-surface text-left flex items-center gap-1.5"}>
 <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
@@ -335,7 +337,7 @@ export default function Page() {
 </div>
 {/* Kích thước mặt (Case Diameter) */}
 <div className="flex flex-col gap-space-sm">
-<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">Kích Thước Đường Kính (mm)</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.diameter")}</span>
 <div className="flex items-center justify-between gap-space-xs">
 <button onClick={() => setSize(size === "39" ? "" : "39")} className={size === "39" ? "flex-1 py-2 rounded bg-primary text-center font-label-spec text-label-spec text-on-primary font-bold shadow" : "flex-1 py-2 rounded bg-surface-container text-center font-label-spec text-label-spec text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all"}>39mm</button>
 <button onClick={() => setSize(size === "40" ? "" : "40")} className={size === "40" ? "flex-1 py-2 rounded bg-primary text-center font-label-spec text-label-spec text-on-primary font-bold shadow" : "flex-1 py-2 rounded bg-surface-container text-center font-label-spec text-label-spec text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all"}>40mm</button>
@@ -345,18 +347,18 @@ export default function Page() {
 </div>
 {/* Tính năng phức tạp (Complications) */}
 <div className="flex flex-col gap-space-sm">
-<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">Tính Năng Phức Tạp (Complications)</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.complications")}</span>
 <div className="flex flex-wrap gap-space-xs">
-<button onClick={() => toggleComp("perpetual")} className={comp.includes("perpetual") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>Lịch Vạn Niên</button>
-<button onClick={() => toggleComp("moonphase")} className={comp.includes("moonphase") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>Tuần Trăng Moonphase</button>
-<button onClick={() => toggleComp("repeater")} className={comp.includes("repeater") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>Điểm Chuông Minute Repeater</button>
-<button onClick={() => toggleComp("skeleton")} className={comp.includes("skeleton") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>Lộ Cơ Skeleton</button>
+<button onClick={() => toggleComp("perpetual")} className={comp.includes("perpetual") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>{t("collections.perpetual")}</button>
+<button onClick={() => toggleComp("moonphase")} className={comp.includes("moonphase") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>{t("collections.moonphase")}</button>
+<button onClick={() => toggleComp("repeater")} className={comp.includes("repeater") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>{t("collections.repeater")}</button>
+<button onClick={() => toggleComp("skeleton")} className={comp.includes("skeleton") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>{t("collections.skeleton")}</button>
 </div>
 </div>
 {/* Mức giá Khoảng từ $15,000 -> $250,000+ */}
 <div className="flex flex-col gap-space-sm">
 <div className="flex items-center justify-between">
-<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">Khoảng Giá Tuyển Chọn</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.priceRange")}</span>
 <span className="font-label-badge text-label-badge text-secondary">$15,000 — $250,000+</span>
 </div>
 <div className="w-full bg-surface-container-high h-1.5 rounded-full relative mt-2">
@@ -371,32 +373,32 @@ export default function Page() {
 </div>
 {/* Trạng thái & Địa điểm Boutique */}
 <div className="flex flex-col gap-space-sm">
-<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">Trạng Thái Sẵn Sàng</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.availability")}</span>
 <div className="flex flex-col gap-space-xs text-body-sm text-on-surface-variant">
 <label className="flex items-center gap-space-xs cursor-pointer p-space-xs rounded hover:bg-surface-container transition-colors">
 <input defaultChecked className="accent-primary rounded" type="checkbox"/>
-<span className="text-on-surface">Boutique Hà Nội &amp; TP. HCM</span>
+<span className="text-on-surface">{t("collections.boutiqueVn")}</span>
 </label>
 <label className="flex items-center gap-space-xs cursor-pointer p-space-xs rounded hover:bg-surface-container transition-colors">
 <input defaultChecked className="accent-primary rounded" type="checkbox"/>
-<span className="text-on-surface">Phiên Bản Limited Edition</span>
+<span className="text-on-surface">{t("collections.limited")}</span>
 </label>
 <label className="flex items-center gap-space-xs cursor-pointer p-space-xs rounded hover:bg-surface-container transition-colors">
 <input className="accent-primary rounded" type="checkbox"/>
-<span>Đặt Chế Tác Riêng (Made-to-Order)</span>
+<span>{t("collections.madeToOrder")}</span>
 </label>
 </div>
 </div>
 <button className="w-full py-space-sm px-space-md rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] font-semibold hover:bg-secondary transition-colors shadow">
-            Áp Dụng Bộ Lọc (6 Kết Quả)
+            {t("collections.applyFilter")}
           </button>
 </div>
 {/* Curatorial Certificate Micro-box */}
 <div className="bg-surface-container p-space-md rounded-xl flex items-start gap-space-sm">
 <span className="material-symbols-outlined text-primary text-[24px]">verified</span>
 <div>
-<p className="font-label-spec text-label-spec text-on-surface uppercase tracking-wider">Chứng Thư Bảo Tồn Toàn Cầu</p>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1 leading-normal">Tất cả sản phẩm bao gồm sổ bảo hành vi cơ học điện tử gắn chip NFC và hồ sơ lưu trữ Genève 100 năm.</p>
+<p className="font-label-spec text-label-spec text-on-surface uppercase tracking-wider">{t("collections.certTitle")}</p>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1 leading-normal">{t("collections.certBody")}</p>
 </div>
 </div>
 </aside>
@@ -419,19 +421,19 @@ export default function Page() {
           ) : loadError ? (
             <div className="col-span-full flex flex-col items-center gap-space-sm rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-space-lg py-space-3xl text-center">
               <span className="material-symbols-outlined text-5xl text-error">cloud_off</span>
-              <p className="font-body-md text-body-md text-on-surface-variant">Không kết nối được cơ sở dữ liệu. Kiểm tra Postgres rồi thử lại.</p>
-              <button onClick={() => window.location.reload()} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">Tải Lại Trang</button>
+              <p className="font-body-md text-body-md text-on-surface-variant">{t("collections.dbError")}</p>
+              <button onClick={() => window.location.reload()} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">{t("common.retry")}</button>
             </div>
           ) : items.length === 0 ? (
             <div className="col-span-full flex flex-col items-center gap-space-sm rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-space-lg py-space-3xl text-center">
               <span className="material-symbols-outlined text-5xl text-outline-variant">hourglass_empty</span>
-              <p className="font-body-md text-body-md text-on-surface-variant">Không có kiệt tác nào phù hợp bộ lọc hiện tại.</p>
+              <p className="font-body-md text-body-md text-on-surface-variant">{t("collections.noMatch")}</p>
               {hint && (
                 <button onClick={applyHint} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-secondary hover:text-primary transition-colors">
-                  Ý bạn là {hint.label}?
+                  {t("collections.hintPrefix")} {hint.label}?
                 </button>
               )}
-              <button onClick={resetAll} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">Thiết Lập Lại Bộ Lọc</button>
+              <button onClick={resetAll} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">{t("collections.resetFilter")}</button>
             </div>
           ) : (
             items.map((p) => (
@@ -453,7 +455,7 @@ export default function Page() {
                     />
                   </Link>
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-surface-container-high/90 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] font-label-badge text-on-surface-variant uppercase tracking-wider">Dây:</span>
+                    <span className="text-[10px] font-label-badge text-on-surface-variant uppercase tracking-wider">{t("collections.strap")}</span>
                     <button className="w-3.5 h-3.5 rounded-full bg-stone-900 ring-1 ring-primary" title="Dây Da Cá Sấu Đen"></button>
                     <button className="w-3.5 h-3.5 rounded-full bg-secondary" title="Dây Kim Loại Vàng Hồng"></button>
                   </div>
@@ -475,11 +477,11 @@ export default function Page() {
                     <div className="grid grid-cols-2 gap-space-xs mt-space-sm">
                       <Link href={`/products/${p.slug}`} className="py-2 rounded bg-surface-container-high text-on-surface hover:text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1">
                         <span className="material-symbols-outlined text-[16px]">visibility</span>
-                        <span>Xem Nhanh</span>
+                        <span>{t("collections.quickView")}</span>
                       </Link>
                       <Link href="/#private-salon" className="py-2 rounded bg-primary text-on-primary hover:bg-secondary font-label-spec text-label-spec uppercase tracking-wider font-semibold transition-colors flex items-center justify-center gap-1">
                         <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                        <span>Đặt Hẹn</span>
+                        <span>{t("collections.bookVisit")}</span>
                       </Link>
                     </div>
                   </div>
@@ -491,7 +493,7 @@ export default function Page() {
 {/* Curatorial Pagination */}
 <div className="mt-space-3xl pt-space-xl flex flex-col sm:flex-row items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl">
 <div className="font-body-sm text-body-sm text-on-surface-variant">
-            Đang hiển thị <span className="text-on-surface font-semibold">{items.length === 0 ? 0 : (page - 1) * LIMIT + 1} — {(page - 1) * LIMIT + items.length}</span> trong số <span className="text-primary font-semibold">{total}</span> kiệt tác tuyển chọn
+            {t("collections.paging")} <span className="text-on-surface font-semibold">{items.length === 0 ? 0 : (page - 1) * LIMIT + 1} — {(page - 1) * LIMIT + items.length}</span> / <span className="text-primary font-semibold">{total}</span> {t("collections.pieces")}
           </div>
 <nav className="flex items-center gap-space-xs">
 <button aria-label="Previous Page" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="w-9 h-9 rounded bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors disabled:opacity-40">
@@ -525,42 +527,42 @@ export default function Page() {
 </div>
 <div className="absolute -bottom-2 bg-surface-container-high px-space-md py-1 rounded-full shadow flex items-center gap-space-xs">
 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-<span className="font-label-badge text-label-badge text-secondary uppercase tracking-widest">Trực Tuyến Tại Genève</span>
+<span className="font-label-badge text-label-badge text-secondary uppercase tracking-widest">{t("collections.onlineGeneve")}</span>
 </div>
 </div>
 <div className="lg:col-span-8 flex flex-col justify-center">
 <div className="flex items-center gap-space-xs text-secondary mb-space-xs">
 <span className="material-symbols-outlined text-[20px]">support_agent</span>
-<span className="font-label-badge text-label-badge uppercase tracking-[0.2em]">Tư Vấn Chuyên Môn Độc Quyền</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.2em]">{t("collections.expertTitle")}</span>
 </div>
 <h3 className="font-headline-lg text-headline-lg text-on-surface">
-            Chưa Tìm Thấy Cỗ Máy Thời Gian Độc Bản Cho Bộ Sưu Tập?
+            {t("collections.expertHeading")}
           </h3>
 <p className="font-body-lg text-body-lg text-on-surface-variant mt-space-xs max-w-2xl">
-            Các chuyên gia cao cấp của Aurel &amp; Co. sẵn sàng kết nối bảo mật 1-1, hỗ trợ giám tuyển, cung cấp thông tin chuyển đổi ngoại tệ, vận chuyển bảo an tư gia hoặc đặt lịch tiếp đón riêng tại Private Salon Hà Nội &amp; TP. Hồ Chí Minh.
+            {t("collections.expertBody")}
           </p>
 <div className="mt-space-xl flex flex-wrap items-center gap-space-md">
 <button className="px-space-xl py-space-md rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] font-semibold hover:bg-secondary transition-colors shadow flex items-center gap-space-xs">
 <span className="material-symbols-outlined text-[18px]">call</span>
-<span>Kết Nối Concierge Ngay</span>
+<span>{t("collections.callConcierge")}</span>
 </button>
 <button className="px-space-xl py-space-md rounded bg-surface-container-high text-on-surface hover:text-primary font-label-spec text-label-spec uppercase tracking-[0.15em] transition-colors flex items-center gap-space-xs">
 <span className="material-symbols-outlined text-[18px]">meeting_room</span>
-<span>Đặt Lịch Tiếp Đón Salon</span>
+<span>{t("collections.bookSalon")}</span>
 </button>
 </div>
 <div className="flex flex-wrap items-center gap-space-lg mt-space-lg pt-space-md text-on-surface-variant/70 font-body-sm text-body-sm">
 <span className="flex items-center gap-1">
 <span className="material-symbols-outlined text-primary text-[16px]">lock</span>
-              Bảo mật danh tính thượng khách
+              {t("collections.trustPrivacy")}
             </span>
 <span className="flex items-center gap-1">
 <span className="material-symbols-outlined text-primary text-[16px]">flight</span>
-              Hỗ trợ giao dịch hải ngoại
+              {t("collections.trustOverseas")}
             </span>
 <span className="flex items-center gap-1">
 <span className="material-symbols-outlined text-primary text-[16px]">verified</span>
-              Hồ sơ bảo hành vi cơ học điện tử
+              {t("collections.trustWarranty")}
             </span>
 </div>
 </div>
