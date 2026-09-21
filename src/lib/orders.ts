@@ -181,3 +181,35 @@ export async function getAdminUserDetail(
     return null;
   }
 }
+
+export type AdminInvoice = {
+  id: string;
+  orderCode: string;
+  number: string | null;
+  externalRef: string | null;
+  status: 'PENDING_ISSUE' | 'ISSUED' | 'FAILED';
+  amountVnd: number;
+  buyerName: string;
+  buyerEmail: string | null;
+  createdAt: string;
+  issuedAt: string | null;
+};
+
+export async function getAdminInvoices(
+  status?: string,
+  page = 1,
+  limit = 20
+): Promise<{
+  items: AdminInvoice[];
+  total: number;
+  page: number;
+  limit: number;
+} | null> {
+  try {
+    const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) qs.set('status', status);
+    return await apiJson(`/admin/invoices?${qs}`, { forwardCookies: true });
+  } catch {
+    return null;
+  }
+}

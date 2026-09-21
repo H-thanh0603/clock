@@ -9,6 +9,7 @@ const NAV = [
   { href: "/admin/orders", label: "Đơn Hàng", icon: "receipt_long" },
   { href: "/admin/products", label: "Sản Phẩm", icon: "watch" },
   { href: "/admin/customers", label: "Khách Hàng", icon: "group" },
+  { href: "/admin/invoices", label: "Hóa Đơn", icon: "request_quote" },
 ];
 
 export function AdminSidebar() {

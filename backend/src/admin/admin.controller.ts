@@ -161,4 +161,41 @@ export class AdminController {
   ) {
     return this.admin.metrics(metric || 'sales', granularity || 'day', Number(days) || 30);
   }
+
+  // -- Hóa đơn điện tử (kế toán phát hành tay qua portal NCC) --
+
+  @Get('invoices')
+  listInvoices(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.admin.listInvoices(
+      status || undefined,
+      Number(page) || 1,
+      Math.min(Number(limit) || 20, 100),
+    );
+  }
+
+  /**
+   * Đánh dấu ISSUED tay sau khi phát hành qua portal nhà cung cấp.
+   * Cần `number` (số hóa đơn AUR-...) để đối chiếu sau này; FAILED khi
+   * NCC từ chối (ghi externalRef = lý do để lần sau tra được).
+   */
+  @Patch('invoices/:id')
+  @HttpCode(200)
+  setInvoiceStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: string; number?: string; externalRef?: string },
+    @ActorId() actor: string | undefined,
+  ) {
+    return this.admin.setInvoiceStatus(id, body, actor);
+  }
+
+  /** Phát hành lại qua NCC đã cấu hình (EINVOICE_*) — retry cho FAILED. */
+  @Post('invoices/:id/retry')
+  @HttpCode(200)
+  retryInvoice(@Param('id') id: string) {
+    return this.admin.retryInvoice(id);
+  }
 }

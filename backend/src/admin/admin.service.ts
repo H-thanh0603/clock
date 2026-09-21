@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../../generated/prisma/client';
+import { InvoiceService } from '../invoices/invoice.service';
 import { serializeOrder } from '../orders/orders.service';
 import { linePrice } from '../common/pricing';
 import { ProductsService } from '../products/products.service';
@@ -79,6 +80,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly products: ProductsService,
     private readonly meili: MeiliService,
+    private readonly invoices: InvoiceService,
   ) {}
 
   async list(status?: string, page = 1, limit = 20) {
@@ -719,5 +721,78 @@ export class AdminService {
       };
     }
     return { metric, granularity: gran, points: [] };
+  }
+
+  // -- Hóa đơn điện tử (backoffice cho kế toán) --
+
+  async listInvoices(status?: string, page = 1, limit = 20) {
+    const where =
+      status === 'PENDING_ISSUE' || status === 'ISSUED' || status === 'FAILED'
+        ? { status }
+        : {};
+    const [total, items] = await Promise.all([
+      this.prisma.invoice.count({ where }),
+      this.prisma.invoice.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (Math.max(1, page) - 1) * limit,
+        take: limit,
+      }),
+    ]);
+    return {
+      total,
+      page,
+      limit,
+      // BigInt không JSON được — serialize 1 chỗ duy nhất.
+      items: items.map((i) => ({ ...i, amountVnd: Number(i.amountVnd) })),
+    };
+  }
+
+  async setInvoiceStatus(
+    id: string,
+    body: { status?: string; number?: string; externalRef?: string },
+    byUserId?: string,
+  ) {
+    const status = String(body.status ?? '').toUpperCase();
+    if (status !== 'ISSUED' && status !== 'FAILED') {
+      throw new BadRequestException(
+        'status chỉ nhận ISSUED (đã phát hành qua portal) hoặc FAILED (NCC từ chối)',
+      );
+    }
+    const inv = await this.prisma.invoice.findUnique({ where: { id } });
+    if (!inv) throw new NotFoundException('Không thấy hóa đơn');
+    if (inv.status === 'ISSUED' && status === 'ISSUED') return inv;
+    const number = String(body.number ?? '').trim().slice(0, 40) || null;
+    if (status === 'ISSUED' && !number) {
+      throw new BadRequestException('ISSUED cần có số hóa đơn (number) để đối chiếu');
+    }
+    const row = await this.prisma.invoice.update({
+      where: { id },
+      data: {
+        status,
+        number,
+        externalRef: String(body.externalRef ?? '').trim().slice(0, 120) || null,
+        issuedAt: status === 'ISSUED' ? new Date() : inv.issuedAt,
+      },
+    });
+    // Audit trail: ai đánh dấu, số nào — nối được với ProductEvent qua actor.
+    await this.prisma.productEvent.create({
+      data: {
+        slug: `invoice:${inv.orderCode}`,
+        action: status === 'ISSUED' ? 'INVOICE_ISSUED' : 'INVOICE_FAILED',
+        byUserId: byUserId ?? null,
+        summary: number ?? inv.orderCode,
+      },
+    });
+    return { ...row, amountVnd: Number(row.amountVnd) };
+  }
+
+  async retryInvoice(id: string) {
+    const inv = await this.prisma.invoice.findUnique({ where: { id } });
+    if (!inv) throw new NotFoundException('Không thấy hóa đơn');
+    if (inv.status === 'ISSUED') return inv;
+    await this.invoices.issueViaProvider(id);
+    const row = await this.prisma.invoice.findUnique({ where: { id } });
+    return row ? { ...row, amountVnd: Number(row.amountVnd) } : row;
   }
 }
