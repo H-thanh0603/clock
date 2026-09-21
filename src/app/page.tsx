@@ -61,7 +61,7 @@ export default function Home() {
 <div className="absolute w-[360px] h-[360px] sm:w-[460px] sm:h-[460px] rounded-full bg-gradient-to-tr from-primary/10 to-transparent blur-2xl"></div>
 {/* Micro Chrono Dial Graphic Overlay */}
 <div className="relative w-full max-w-[480px] aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-surface-container">
-<img className="w-full h-full object-cover object-center scale-105 hover:scale-100 transition-transform duration-1000" data-alt="Macro high-end photograph of a luxury Swiss skeleton rose gold tourbillon watch with exposed flying balance wheel, sapphire crystal casing, hand-beveled bridges, dark obsidian studio backdrop with subtle amber gold cinematic side rim lighting" src={mediaUrl("/images/stitch/02_AB6AXuAiPb.jpg")}/>
+<img className="w-full h-full object-cover object-center scale-105 hover:scale-100 transition-transform duration-1000" alt="Macro high-end photograph of a luxury Swiss skeleton rose gold tourbillon watch with exposed flying balance wheel, sapphire crystal casing, hand-beveled bridges, dark obsidian studio backdrop with subtle amber gold cinematic side rim lighting" src={mediaUrl("/images/stitch/02_AB6AXuAiPb.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
 {/* Floating Spec Plate */}
 <div className="absolute bottom-space-md left-space-md right-space-md p-space-md rounded bg-surface-container-lowest/85 backdrop-blur-md flex items-center justify-between">
@@ -135,7 +135,7 @@ export default function Home() {
 {/* CARD 1 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Aurel &amp; Co. Grand Complication Tourbillon luxury watch with transparent double sapphire crystal, visible complex escapement gears, deep slate dial, cinematic lighting" src={mediaUrl("/images/stitch/03_AB6AXuClCG.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Aurel &amp; Co. Grand Complication Tourbillon luxury watch with transparent double sapphire crystal, visible complex escapement gears, deep slate dial, cinematic lighting" src={mediaUrl("/images/stitch/03_AB6AXuClCG.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-primary">Masterpiece No. 01</span>
 </div>
@@ -165,7 +165,7 @@ export default function Home() {
 {/* CARD 2 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Celestial Moonphase Obsidian watch with black iridescent meteorite mother of pearl dial, hyper-detailed astronomical golden moon disc, 18K rose gold casing" src={mediaUrl("/images/stitch/04_AB6AXuBFmG.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Celestial Moonphase Obsidian watch with black iridescent meteorite mother of pearl dial, hyper-detailed astronomical golden moon disc, 18K rose gold casing" src={mediaUrl("/images/stitch/04_AB6AXuBFmG.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-secondary">Astronomie</span>
 </div>
@@ -195,7 +195,7 @@ export default function Home() {
 {/* CARD 3 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Royal Chronograph Flyback watch with black ceramic bezel, high precision chronograph sub-dials, integrated platinum bracelet, luxury horology aesthetic" src={mediaUrl("/images/stitch/05_AB6AXuBFXA.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Royal Chronograph Flyback watch with black ceramic bezel, high precision chronograph sub-dials, integrated platinum bracelet, luxury horology aesthetic" src={mediaUrl("/images/stitch/05_AB6AXuBFXA.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-primary">Haute Sport</span>
 </div>
@@ -225,7 +225,7 @@ export default function Home() {
 {/* CARD 4 */}
 <div className="group flex flex-col bg-surface-container rounded-xl overflow-hidden shadow-lg hover:-translate-y-1.5 transition-all duration-300">
 <div className="relative aspect-[3/4] overflow-hidden bg-surface-container-high">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Atelier Skeleton Pure Gold timepiece showcasing 32 vivid blue sapphire jewels, hand-carved guilloche patterns on rose gold bridges, high luxury Swiss finishing" src={mediaUrl("/images/stitch/06_AB6AXuDxn0.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Atelier Skeleton Pure Gold timepiece showcasing 32 vivid blue sapphire jewels, hand-carved guilloche patterns on rose gold bridges, high luxury Swiss finishing" src={mediaUrl("/images/stitch/06_AB6AXuDxn0.jpg")}/>
 <div className="absolute top-space-sm left-space-sm">
 <span className="px-space-xs py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur font-label-badge text-[9px] uppercase tracking-widest text-secondary">Métiers d'Art</span>
 </div>
@@ -274,7 +274,7 @@ export default function Home() {
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-stretch">
 {/* Left Macro Showcase Image */}
 <div className="lg:col-span-5 relative rounded-xl overflow-hidden shadow-2xl bg-surface-container min-h-[380px]">
-<img className="w-full h-full object-cover object-center" data-alt="Extreme macro extreme close-up view of a watch tourbillon cage with mirror-polished steel arms, gold balance screws, oscillating hairspring and rubies, captured in warm dramatic watchmaking atelier lighting" src={mediaUrl("/images/stitch/07_AB6AXuBpdu.jpg")}/>
+<img className="w-full h-full object-cover object-center" alt="Extreme macro extreme close-up view of a watch tourbillon cage with mirror-polished steel arms, gold balance screws, oscillating hairspring and rubies, captured in warm dramatic watchmaking atelier lighting" src={mediaUrl("/images/stitch/07_AB6AXuBpdu.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/90 via-surface-container-lowest/30 to-transparent"></div>
 <div className="absolute bottom-space-lg left-space-lg right-space-lg">
 <div className="flex items-center gap-space-xs text-primary mb-1">
@@ -398,7 +398,7 @@ export default function Home() {
 <div className="bg-surface-container rounded-2xl overflow-hidden shadow-2xl grid grid-cols-1 lg:grid-cols-12">
 {/* Salon Atmosphere Image & Intro */}
 <div className="lg:col-span-5 relative p-space-2xl flex flex-col justify-between min-h-[460px]">
-<div className="absolute inset-0 bg-cover bg-center" data-alt="Exclusive luxury VIP private lounge salon with dark walnut wood panels, plush velvet armchairs, crystal champagne flutes, soft warm atmospheric lighting, high-end Swiss horology boutique atmosphere" style={{ backgroundImage: "url('/images/stitch/08_AB6AXuDI5O.jpg')" }}></div>
+<div className="absolute inset-0 bg-cover bg-center" role="img" aria-label="Exclusive luxury VIP private lounge salon with dark walnut wood panels, plush velvet armchairs, crystal champagne flutes, soft warm atmospheric lighting, high-end Swiss horology boutique atmosphere" style={{ backgroundImage: "url('/images/stitch/08_AB6AXuDI5O.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/70 to-surface-container-lowest/30"></div>
 <div className="relative z-10">
 <div className="inline-flex items-center gap-space-xs px-2.5 py-1 rounded bg-surface-container-high text-primary mb-space-md">

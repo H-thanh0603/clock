@@ -29,7 +29,7 @@ export default function VaultItemCard({ item }: { item: CartItem }) {
           <div className="aspect-square bg-surface-container-high rounded overflow-hidden relative shadow-inner flex items-center justify-center">
             <img
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              data-alt={item.name}
+              alt={item.name}
               src={mediaUrl(item.image)}
             />
             <div className="absolute bottom-2 left-2 bg-surface-container-lowest/80 backdrop-blur-md px-2 py-1 rounded text-primary font-label-badge text-[9px] uppercase tracking-widest">

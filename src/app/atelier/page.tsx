@@ -40,7 +40,7 @@ export default function Page() {
 {/* Hero Cinematic Visual Collage (Magazine Asymmetric Composition) */}
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-end mb-space-3xl">
 <div className="lg:col-span-7 relative group overflow-hidden rounded-lg shadow-2xl bg-surface-container">
-<div className="w-full h-[460px] bg-cover bg-center transition-transform duration-700 group-hover:scale-[1.03]" data-alt="High-end Swiss watchmaker in La Chaux-de-Fonds atelier hand-finishing a gold mechanical tourbillon balance wheel under warm brass studio lighting, micro-tools, tweezers, dark obsidian atmosphere, extreme close-up macro photography with shallow depth of field." style={{ backgroundImage: "url('/images/stitch/09_AB6AXuBNMk.jpg')" }}></div>
+<div className="w-full h-[460px] bg-cover bg-center transition-transform duration-700 group-hover:scale-[1.03]" role="img" aria-label="High-end Swiss watchmaker in La Chaux-de-Fonds atelier hand-finishing a gold mechanical tourbillon balance wheel under warm brass studio lighting, micro-tools, tweezers, dark obsidian atmosphere, extreme close-up macro photography with shallow depth of field." style={{ backgroundImage: "url('/images/stitch/09_AB6AXuBNMk.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
 <div className="absolute bottom-0 left-0 p-space-xl">
 <span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-primary">Haute Horlogerie Workshop</span>
@@ -50,7 +50,7 @@ export default function Page() {
 </div>
 <div className="lg:col-span-5 flex flex-col gap-space-lg">
 <div className="relative group overflow-hidden rounded-lg shadow-xl bg-surface-container h-[220px]">
-<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-[1.03]" data-alt="Vintage 19th-century guilloche rose engine lathe turning machine in a historic Swiss watch workshop, intricate brass gears, dark mood, polished steel and dark oak bench, soft warm candlelight glints on champagne gold engravings." style={{ backgroundImage: "url('/images/stitch/10_AB6AXuBB9V.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-[1.03]" role="img" aria-label="Vintage 19th-century guilloche rose engine lathe turning machine in a historic Swiss watch workshop, intricate brass gears, dark mood, polished steel and dark oak bench, soft warm candlelight glints on champagne gold engravings." style={{ backgroundImage: "url('/images/stitch/10_AB6AXuBB9V.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
 <div className="absolute bottom-0 left-0 p-space-lg">
 <span className="font-label-badge text-label-badge uppercase tracking-widest text-secondary font-semibold">Machinerie Historique</span>
@@ -136,7 +136,7 @@ export default function Page() {
 {/* Craft 1: Guilloché Bằng Tay */}
 <div className="bg-surface-container-low rounded-lg overflow-hidden shadow-xl flex flex-col group hover:bg-surface-container transition-all duration-300">
 <div className="relative h-72 overflow-hidden bg-surface-container-high">
-<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Close up artisan hands engraving guilloche pattern on a solid 18k champagne gold watch dial using a vintage 19th-century rose engine turning lathe, shimmering geometric sunburst motif, macro horology capture, dark obsidian studio backdrop." style={{ backgroundImage: "url('/images/stitch/11_AB6AXuBvTO.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" role="img" aria-label="Close up artisan hands engraving guilloche pattern on a solid 18k champagne gold watch dial using a vintage 19th-century rose engine turning lathe, shimmering geometric sunburst motif, macro horology capture, dark obsidian studio backdrop." style={{ backgroundImage: "url('/images/stitch/11_AB6AXuBvTO.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-transparent"></div>
 <span className="absolute top-4 right-4 bg-surface-container-lowest/90 px-3 py-1 rounded font-label-badge text-label-badge text-primary uppercase tracking-widest">
               Métier 01
@@ -161,7 +161,7 @@ export default function Page() {
 {/* Craft 2: Anglage & Poli Noir */}
 <div className="bg-surface-container-low rounded-lg overflow-hidden shadow-xl flex flex-col group hover:bg-surface-container transition-all duration-300">
 <div className="relative h-72 overflow-hidden bg-surface-container-high">
-<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Macro shot of watchmaker performing black mirror polishing (poli noir) and chamfering (anglage) on a titanium bridge of a skeleton tourbillon caliber, wood lap tool, diamond paste, dazzling reflection, deep dark ambient." style={{ backgroundImage: "url('/images/stitch/12_AB6AXuCVpg.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" role="img" aria-label="Macro shot of watchmaker performing black mirror polishing (poli noir) and chamfering (anglage) on a titanium bridge of a skeleton tourbillon caliber, wood lap tool, diamond paste, dazzling reflection, deep dark ambient." style={{ backgroundImage: "url('/images/stitch/12_AB6AXuCVpg.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-transparent"></div>
 <span className="absolute top-4 right-4 bg-surface-container-lowest/90 px-3 py-1 rounded font-label-badge text-label-badge text-primary uppercase tracking-widest">
               Métier 02
@@ -186,7 +186,7 @@ export default function Page() {
 {/* Craft 3: Tourbillon Balancing */}
 <div className="bg-surface-container-low rounded-lg overflow-hidden shadow-xl flex flex-col group hover:bg-surface-container transition-all duration-300">
 <div className="relative h-72 overflow-hidden bg-surface-container-high">
-<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Watchmaster using precision loupe to delicately regulate the hairspring and balance screws of an ultra-thin flying tourbillon cage in titanium, dark luxury background, warm golden light accents on escapement ruby jewels." style={{ backgroundImage: "url('/images/stitch/13_AB6AXuBYmY.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" role="img" aria-label="Watchmaster using precision loupe to delicately regulate the hairspring and balance screws of an ultra-thin flying tourbillon cage in titanium, dark luxury background, warm golden light accents on escapement ruby jewels." style={{ backgroundImage: "url('/images/stitch/13_AB6AXuBYmY.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-transparent"></div>
 <span className="absolute top-4 right-4 bg-surface-container-lowest/90 px-3 py-1 rounded font-label-badge text-label-badge text-primary uppercase tracking-widest">
               Métier 03
@@ -211,7 +211,7 @@ export default function Page() {
 {/* Craft 4: Grand Feu Enamel */}
 <div className="bg-surface-container-low rounded-lg overflow-hidden shadow-xl flex flex-col group hover:bg-surface-container transition-all duration-300">
 <div className="relative h-72 overflow-hidden bg-surface-container-high">
-<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Grand Feu enamel dial baking inside a red-hot kiln at 800 degrees Celsius, vibrant deep obsidian black and gold pigment vitrification, traditional craftsmanship, dramatic thermal glow and artisan tongs." style={{ backgroundImage: "url('/images/stitch/14_AB6AXuDiWF.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105" role="img" aria-label="Grand Feu enamel dial baking inside a red-hot kiln at 800 degrees Celsius, vibrant deep obsidian black and gold pigment vitrification, traditional craftsmanship, dramatic thermal glow and artisan tongs." style={{ backgroundImage: "url('/images/stitch/14_AB6AXuDiWF.jpg')" }}></div>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-transparent"></div>
 <span className="absolute top-4 right-4 bg-surface-container-lowest/90 px-3 py-1 rounded font-label-badge text-label-badge text-primary uppercase tracking-widest">
               Métier 04
@@ -274,7 +274,7 @@ export default function Page() {
 </div>
 <div className="mt-space-md lg:mt-0 lg:w-[46%]">
 <div className="rounded-lg overflow-hidden h-56 bg-surface-container shadow-lg">
-<div className="w-full h-full bg-cover bg-center" data-alt="Archival black and white sepia photograph of late 19th-century Geneva watchmaker workshop with Antoine Aurel seated at a wooden bench surrounded by mechanical pendulum clocks and antique loupes." style={{ backgroundImage: "url('/images/stitch/15_AB6AXuAApr.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Archival black and white sepia photograph of late 19th-century Geneva watchmaker workshop with Antoine Aurel seated at a wooden bench surrounded by mechanical pendulum clocks and antique loupes." style={{ backgroundImage: "url('/images/stitch/15_AB6AXuAApr.jpg')" }}></div>
 </div>
 </div>
 </div>
@@ -299,7 +299,7 @@ export default function Page() {
 </div>
 <div className="mt-space-md lg:mt-0 lg:w-[46%]">
 <div className="rounded-lg overflow-hidden h-56 bg-surface-container shadow-lg">
-<div className="w-full h-full bg-cover bg-center" data-alt="Vintage 1920s aviation chronograph pocket watch with monopusher on weathered leather aviator map, brass patina, radium luminous numerals, dark mood historical setting." style={{ backgroundImage: "url('/images/stitch/16_AB6AXuCXif.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Vintage 1920s aviation chronograph pocket watch with monopusher on weathered leather aviator map, brass patina, radium luminous numerals, dark mood historical setting." style={{ backgroundImage: "url('/images/stitch/16_AB6AXuCXif.jpg')" }}></div>
 </div>
 </div>
 </div>
@@ -324,7 +324,7 @@ export default function Page() {
 </div>
 <div className="mt-space-md lg:mt-0 lg:w-[46%]">
 <div className="rounded-lg overflow-hidden h-56 bg-surface-container shadow-lg">
-<div className="w-full h-full bg-cover bg-center" data-alt="Historical mechanical watch movement assembly tooling neatly organized in dark walnut drawers in an underground Swiss vault, preserving mechanical legacy during 1970s." style={{ backgroundImage: "url('/images/stitch/17_AB6AXuD9SQ.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Historical mechanical watch movement assembly tooling neatly organized in dark walnut drawers in an underground Swiss vault, preserving mechanical legacy during 1970s." style={{ backgroundImage: "url('/images/stitch/17_AB6AXuD9SQ.jpg')" }}></div>
 </div>
 </div>
 </div>
@@ -349,7 +349,7 @@ export default function Page() {
 </div>
 <div className="mt-space-md lg:mt-0 lg:w-[46%]">
 <div className="rounded-lg overflow-hidden h-56 bg-surface-container shadow-lg">
-<div className="w-full h-full bg-cover bg-center" data-alt="Technical mechanical blueprint schematics of the Calibre AC-901 flying tourbillon watch movement layered next to real polished titanium parts on dark slate glass." style={{ backgroundImage: "url('/images/stitch/18_AB6AXuAoBT.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Technical mechanical blueprint schematics of the Calibre AC-901 flying tourbillon watch movement layered next to real polished titanium parts on dark slate glass." style={{ backgroundImage: "url('/images/stitch/18_AB6AXuAoBT.jpg')" }}></div>
 </div>
 </div>
 </div>
@@ -374,7 +374,7 @@ export default function Page() {
 </div>
 <div className="mt-space-md lg:mt-0 lg:w-[46%]">
 <div className="rounded-lg overflow-hidden h-56 bg-surface-container shadow-lg">
-<div className="w-full h-full bg-cover bg-center" data-alt="Modern ultra-luxury private salon interior with dark obsidian display cases showcasing illuminated gold timepieces, warm champagne gold lighting, plush velvet seating in Hanoi flagship salon." style={{ backgroundImage: "url('/images/stitch/19_AB6AXuBJsb.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Modern ultra-luxury private salon interior with dark obsidian display cases showcasing illuminated gold timepieces, warm champagne gold lighting, plush velvet seating in Hanoi flagship salon." style={{ backgroundImage: "url('/images/stitch/19_AB6AXuBJsb.jpg')" }}></div>
 </div>
 </div>
 </div>
@@ -503,7 +503,7 @@ export default function Page() {
 <div className="lg:col-span-5 flex flex-col gap-space-md">
 <div className="bg-surface-container-high/90 rounded-lg p-space-lg shadow-lg flex items-center gap-space-md">
 <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0 bg-surface">
-<div className="w-full h-full bg-cover bg-center" data-alt="Geneva Switzerland Lake Leman view at dusk with Aurel &amp; Co atelier headquarters lights glowing softly." style={{ backgroundImage: "url('/images/stitch/20_AB6AXuA1G0.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Geneva Switzerland Lake Leman view at dusk with Aurel &amp; Co atelier headquarters lights glowing softly." style={{ backgroundImage: "url('/images/stitch/20_AB6AXuA1G0.jpg')" }}></div>
 </div>
 <div>
 <span className="font-label-badge text-label-badge text-primary uppercase tracking-wider">Manufacture Principale</span>
@@ -513,7 +513,7 @@ export default function Page() {
 </div>
 <div className="bg-surface-container-high/90 rounded-lg p-space-lg shadow-lg flex items-center gap-space-md">
 <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0 bg-surface">
-<div className="w-full h-full bg-cover bg-center" data-alt="Hanoi French colonial heritage villa luxury watch salon interior with gold details and intimate private viewing room." style={{ backgroundImage: "url('/images/stitch/21_AB6AXuDFHx.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Hanoi French colonial heritage villa luxury watch salon interior with gold details and intimate private viewing room." style={{ backgroundImage: "url('/images/stitch/21_AB6AXuDFHx.jpg')" }}></div>
 </div>
 <div>
 <span className="font-label-badge text-label-badge text-primary uppercase tracking-wider">Vietnam Private Salon</span>
@@ -523,7 +523,7 @@ export default function Page() {
 </div>
 <div className="bg-surface-container-high/90 rounded-lg p-space-lg shadow-lg flex items-center gap-space-md">
 <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0 bg-surface">
-<div className="w-full h-full bg-cover bg-center" data-alt="Saigon modern penthouse salon overlooking District 1 skyline with collectors tasting vintage champagne while viewing haute horlogerie timepieces." style={{ backgroundImage: "url('/images/stitch/22_AB6AXuDSDE.jpg')" }}></div>
+<div className="w-full h-full bg-cover bg-center" role="img" aria-label="Saigon modern penthouse salon overlooking District 1 skyline with collectors tasting vintage champagne while viewing haute horlogerie timepieces." style={{ backgroundImage: "url('/images/stitch/22_AB6AXuDSDE.jpg')" }}></div>
 </div>
 <div>
 <span className="font-label-badge text-label-badge text-primary uppercase tracking-wider">Saigon Collector Suite</span>
@@ -562,8 +562,8 @@ export default function Page() {
 <input className="w-full bg-surface-container-high rounded px-space-md py-space-sm text-body-md text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary" placeholder="+84 / +41..." required type="tel"/>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-1">Địa Điểm Tiếp Đón</label>
-<select className="w-full bg-surface-container-high rounded px-space-md py-space-sm text-body-md text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+<label htmlFor="atelier-venue" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-1">Địa Điểm Tiếp Đón</label>
+<select id="atelier-venue" className="w-full bg-surface-container-high rounded px-space-md py-space-sm text-body-md text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
 <option>Atelier Genève (Thụy Sĩ)</option>
 <option>Private Salon Hà Nội</option>
 <option>Private Salon TP. Hồ Chí Minh</option>

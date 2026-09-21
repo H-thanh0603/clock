@@ -194,7 +194,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">palette</span>
 </div>
 <p className="font-title-editorial text-body-md text-on-surface-variant">Bespoke &amp; Đóng gói</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Niêm ấn xi đỏ &amp; Thư pháp</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Niêm ấn xi đỏ &amp; Thư pháp</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 {/* Step 3 */}
@@ -204,7 +204,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">local_shipping</span>
 </div>
 <p className="font-title-editorial text-body-md text-on-surface-variant">Vận chuyển VIP</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Chuyên xe bọc thép có vệ sĩ</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Chuyên xe bọc thép có vệ sĩ</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 {/* Step 4 */}
@@ -214,7 +214,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">lock</span>
 </div>
 <p className="font-title-editorial text-body-md text-on-surface-variant">Thanh toán bảo mật</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Centurion / Escrow Wire</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Centurion / Escrow Wire</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 </div>
@@ -292,13 +292,13 @@ export default function Page() {
 <span className="material-symbols-outlined text-secondary text-[20px]">history_edu</span>
 <h3 className="font-title-editorial text-body-md text-on-surface">Thiệp Thư Pháp Viết Tay Mạ Vàng</h3>
 </div>
-<input defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
+<input aria-label="Thiệp Thư Pháp Viết Tay Mạ Vàng" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
                   Nghệ nhân thư pháp tại Genève chép tay bằng mực vàng 24K trên giấy dó sợi bông truyền thống nước Ý.
                 </p>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.dedication")}</label>
-<textarea className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
+<textarea aria-label="Thông điệp đề tặng" className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
 </div>
 <span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Bao gồm huy hiệu đóng dấu nổi của xưởng Aurel &amp; Co.</span>
 </div>
@@ -310,7 +310,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-secondary text-[20px]">verified</span>
 <h3 className="font-title-editorial text-body-md text-on-surface">Niêm Phong Xi Đỏ &amp; Lụa Satin Cao Cấp</h3>
 </div>
-<input defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
+<input aria-label="Niêm Phong Xi Đỏ & Lụa Satin Cao Cấp" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
                   Bao bọc trong vải nhung đen chống tĩnh điện, thắt ruy băng lụa tơ tằm dệt tay và niêm phong bằng sáp ong đỏ tự nhiên có con dấu gia huy của hãng.
@@ -321,7 +321,7 @@ export default function Page() {
                   </div>
 <div>
 <span className="font-label-spec text-label-spec text-on-surface block uppercase">Dấu Xi Thụy Sĩ Độc Quyền</span>
-<span className="text-on-surface-variant/60 text-xs">Chỉ được mở lần đầu tiên bởi chủ nhân sở hữu kiệt tác.</span>
+<span className="text-on-surface-variant/80 text-xs">Chỉ được mở lần đầu tiên bởi chủ nhân sở hữu kiệt tác.</span>
 </div>
 </div>
 </div>
@@ -339,7 +339,7 @@ export default function Page() {
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-md items-center">
 <div className="sm:col-span-2">
-<input className="w-full bg-surface-container-lowest px-space-md py-space-xs rounded text-body-md text-primary font-title-editorial uppercase tracking-[0.2em] focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="CHOPIN 1853 - M.D."/>
+<input aria-label="Nội dung khắc khẩu hiệu" className="w-full bg-surface-container-lowest px-space-md py-space-xs rounded text-body-md text-primary font-title-editorial uppercase tracking-[0.2em] focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="CHOPIN 1853 - M.D."/>
 <span className="text-xs text-on-surface-variant/70 mt-1 block">Khắc trực tiếp lên khung rotor vàng 21K của cỗ máy chuyển động Tourbillon.</span>
 </div>
 <div className="bg-surface-container-lowest p-space-xs rounded text-center">
@@ -394,30 +394,30 @@ export default function Page() {
 <h4 className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.2em] mb-space-xs">{t("checkout.residence")}</h4>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.name")}</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder={t("checkout.namePh")} type="text" value={name} data-testid="co-name" onChange={(e) => setName(e.target.value)}/>
+<label htmlFor="co-name" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.name")}</label>
+<input id="co-name" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder={t("checkout.namePh")} type="text" value={name} data-testid="co-name" onChange={(e) => setName(e.target.value)}/>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.contact")}</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={contact} onChange={(e) => setContact(e.target.value)} data-testid="co-contact"/>
+<label htmlFor="co-contact" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.contact")}</label>
+<input id="co-contact" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={contact} onChange={(e) => setContact(e.target.value)} data-testid="co-contact"/>
 </div>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.address")}</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={address} onChange={(e) => setAddress(e.target.value)} data-testid="co-address"/>
+<label htmlFor="co-address" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.address")}</label>
+<input id="co-address" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" value={address} onChange={(e) => setAddress(e.target.value)} data-testid="co-address"/>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.slot")}</label>
-<select value={slot} onChange={(e) => setSlot(e.target.value)} className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary">
+<label htmlFor="co-slot" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.slot")}</label>
+<select id="co-slot" value={slot} onChange={(e) => setSlot(e.target.value)} className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary">
 <option>10:00 - 12:00 (Sáng) • Khung giờ kín đáo</option>
 <option>14:30 - 16:30 (Chiều) • Buổi thử trực tiếp</option>
 <option>19:00 - 21:00 (Tối) • Yến tiệc tiếp tân</option>
 </select>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.pin")}</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" value={pin} onChange={(e) => setPin(e.target.value)}/>
+<label htmlFor="co-pin" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">{t("checkout.pin")}</label>
+<input id="co-pin" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" value={pin} onChange={(e) => setPin(e.target.value)}/>
 </div>
 </div>
 </div>
@@ -541,7 +541,7 @@ export default function Page() {
 </div>
 {/* Consent Điều khoản + Chính sách bảo mật (bắt buộc — BE enforce) */}
 <label className="flex cursor-pointer items-start gap-space-sm rounded bg-surface-container-low p-space-sm text-left">
-<input data-testid="co-consent" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-primary mt-1 h-4 w-4 shrink-0 cursor-pointer" type="checkbox"/>
+<input id="co-consent" data-testid="co-consent" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="accent-primary mt-1 h-4 w-4 shrink-0 cursor-pointer" type="checkbox"/>
 <span className="font-body-sm text-body-sm text-on-surface-variant">
             Tôi đã đọc và đồng ý với{" "}
 <Link href="/legal/terms" className="text-primary underline hover:text-secondary">Điều khoản sử dụng</Link>

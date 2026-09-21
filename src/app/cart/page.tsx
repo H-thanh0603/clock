@@ -54,7 +54,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">palette</span>
 </div>
 <p className="font-title-editorial text-body-md text-on-surface-variant">{t("checkout.bespokeTitle")}</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">{t("checkout.bespokeHint")}</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">{t("checkout.bespokeHint")}</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 {/* Step 3 */}
@@ -64,7 +64,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">local_shipping</span>
 </div>
 <p className="font-title-editorial text-body-md text-on-surface-variant">{t("checkout.shippingTitle")}</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">{t("checkout.shippingHint")}</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">{t("checkout.shippingHint")}</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 {/* Step 4 */}
@@ -74,7 +74,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">lock</span>
 </div>
 <p className="font-title-editorial text-body-md text-on-surface-variant">{t("checkout.payTitle")}</p>
-<span className="font-body-sm text-body-sm text-on-surface-variant/60 mt-space-2xs">Centurion / Escrow Wire</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Centurion / Escrow Wire</span>
 <div className="w-full h-1 bg-surface-container-highest mt-space-sm rounded-full"></div>
 </div>
 </div>
@@ -152,13 +152,13 @@ export default function Page() {
 <span className="material-symbols-outlined text-secondary text-[20px]">history_edu</span>
 <h3 className="font-title-editorial text-body-md text-on-surface">Thiệp Thư Pháp Viết Tay Mạ Vàng</h3>
 </div>
-<input defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
+<input aria-label="Thiệp Thư Pháp Viết Tay Mạ Vàng" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
                   Nghệ nhân thư pháp tại Genève chép tay bằng mực vàng 24K trên giấy dó sợi bông truyền thống nước Ý.
                 </p>
 <label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Thông điệp đề tặng (Tối đa 120 ký tự):</label>
-<textarea className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
+<textarea aria-label="Thông điệp đề tặng" className="w-full bg-surface-container-lowest text-on-surface text-body-sm p-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-on-surface-variant/40 resize-none" rows={3} defaultValue={`Gửi tặng Ngài M. Du Pont, ghi dấu cột mốc vinh quang và trường cửu của di sản gia tộc. Thân ái.`} />
 </div>
 <span className="font-label-badge text-label-badge text-secondary mt-space-sm block">Bao gồm huy hiệu đóng dấu nổi của xưởng Aurel &amp; Co.</span>
 </div>
@@ -170,7 +170,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-secondary text-[20px]">verified</span>
 <h3 className="font-title-editorial text-body-md text-on-surface">Niêm Phong Xi Đỏ &amp; Lụa Satin Cao Cấp</h3>
 </div>
-<input defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
+<input aria-label="Niêm Phong Xi Đỏ & Lụa Satin Cao Cấp" defaultChecked className="w-4 h-4 accent-primary rounded cursor-pointer" type="checkbox"/>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-sm">
                   Bao bọc trong vải nhung đen chống tĩnh điện, thắt ruy băng lụa tơ tằm dệt tay và niêm phong bằng sáp ong đỏ tự nhiên có con dấu gia huy của hãng.
@@ -181,7 +181,7 @@ export default function Page() {
                   </div>
 <div>
 <span className="font-label-spec text-label-spec text-on-surface block uppercase">Dấu Xi Thụy Sĩ Độc Quyền</span>
-<span className="text-on-surface-variant/60 text-xs">Chỉ được mở lần đầu tiên bởi chủ nhân sở hữu kiệt tác.</span>
+<span className="text-on-surface-variant/80 text-xs">Chỉ được mở lần đầu tiên bởi chủ nhân sở hữu kiệt tác.</span>
 </div>
 </div>
 </div>
@@ -199,7 +199,7 @@ export default function Page() {
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-md items-center">
 <div className="sm:col-span-2">
-<input className="w-full bg-surface-container-lowest px-space-md py-space-xs rounded text-body-md text-primary font-title-editorial uppercase tracking-[0.2em] focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="CHOPIN 1853 - M.D."/>
+<input aria-label="Nội dung khắc khẩu hiệu" className="w-full bg-surface-container-lowest px-space-md py-space-xs rounded text-body-md text-primary font-title-editorial uppercase tracking-[0.2em] focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="CHOPIN 1853 - M.D."/>
 <span className="text-xs text-on-surface-variant/70 mt-1 block">Khắc trực tiếp lên khung rotor vàng 21K của cỗ máy chuyển động Tourbillon.</span>
 </div>
 <div className="bg-surface-container-lowest p-space-xs rounded text-center">
@@ -254,30 +254,30 @@ export default function Page() {
 <h4 className="font-label-spec text-label-spec text-secondary uppercase tracking-[0.2em] mb-space-xs">Thông Tin Tư Gia &amp; Đại Diện Ủy Quyền</h4>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Họ Tên Thượng Khách / Đại Diện</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" defaultValue="Michel Du Pont"/>
+<label htmlFor="cart-name" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Họ Tên Thượng Khách / Đại Diện</label>
+<input id="cart-name" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Nhập tên chính xác trên hộ chiếu..." type="text" defaultValue="Michel Du Pont"/>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Kênh Liên Lạc Bảo Mật (Signal / WhatsApp VIP)</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="+84 90 888 9999 (Private Encrypted)"/>
+<label htmlFor="cart-contact" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Kênh Liên Lạc Bảo Mật (Signal / WhatsApp VIP)</label>
+<input id="cart-contact" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="+84 90 888 9999 (Private Encrypted)"/>
 </div>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Địa Chỉ Dinh Thự / Văn Phòng Bảo Mật</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="Penthouse B-3201, Tòa tháp The Crown, Quận 1, TP. Hồ Chí Minh"/>
+<label htmlFor="cart-address" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Địa Chỉ Dinh Thự / Văn Phòng Bảo Mật</label>
+<input id="cart-address" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="text" defaultValue="Penthouse B-3201, Tòa tháp The Crown, Quận 1, TP. Hồ Chí Minh"/>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Khung Giờ Bàn Giao Mong Muốn</label>
-<select className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary">
+<label htmlFor="cart-slot" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Khung Giờ Bàn Giao Mong Muốn</label>
+<select id="cart-slot" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary">
 <option>10:00 - 12:00 (Sáng) • Khung giờ kín đáo</option>
 <option>14:30 - 16:30 (Chiều) • Buổi thử trực tiếp</option>
 <option>19:00 - 21:00 (Tối) • Yến tiệc tiếp tân</option>
 </select>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Mã Nhận Diện Bảo Mật (PIN An Ninh Bàn Giao)</label>
-<input className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" defaultValue="********"/>
+<label htmlFor="cart-pin" className="block font-label-spec text-label-spec text-on-surface-variant uppercase tracking-wider mb-1">Mã Nhận Diện Bảo Mật (PIN An Ninh Bàn Giao)</label>
+<input id="cart-pin" className="w-full bg-surface-container-lowest text-on-surface text-body-sm px-space-md py-space-sm rounded focus:outline-none focus:ring-1 focus:ring-primary" type="password" defaultValue="********"/>
 </div>
 </div>
 </div>

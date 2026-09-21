@@ -91,11 +91,17 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-      - name: Playwright e2e
+          (npm run dev > /tmp/frontend.log 2>&1 &)
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:3100/ && break
+            sleep 2
+          done
+      - name: Playwright e2e (checkout + a11y)
         run: npx playwright test
         env:
           BACKEND_URL: http://localhost:4000
           NEXT_PUBLIC_BACKEND_URL: http://localhost:4000
+          FE_URL: http://localhost:3100
       - name: Log backend khi fail
         if: failure()
         run: tail -100 /tmp/backend.log

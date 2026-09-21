@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { mediaUrl } from "@/lib/media";
 import { useLocale } from "./LocaleProvider";

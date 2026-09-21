@@ -157,7 +157,7 @@ export default function Page() {
 {/* Masterpiece 1 */}
 <article className="group flex flex-col bg-surface-container-low rounded overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-all duration-500 shadow-lg hover:shadow-[0_16px_40px_rgba(212,175,55,0.12)]">
 <div className="relative w-full h-80 overflow-hidden bg-surface-container-lowest">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Ultra-luxury bespoke Swiss wristwatch featuring genuine Muonionalusta meteorite dial with custom baguette diamond indices, floating flying tourbillon carriage at 6 o'clock, polished Platinum 950 case, deep obsidian and champagne gold reflections, macro watchmaking photography." src={mediaUrl("/images/stitch/24_AB6AXuAHV8.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Ultra-luxury bespoke Swiss wristwatch featuring genuine Muonionalusta meteorite dial with custom baguette diamond indices, floating flying tourbillon carriage at 6 o'clock, polished Platinum 950 case, deep obsidian and champagne gold reflections, macro watchmaking photography." src={mediaUrl("/images/stitch/24_AB6AXuAHV8.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-black/30"></div>
 <div className="absolute top-space-md left-space-md">
 <span className="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-md text-[10px] font-label-badge uppercase tracking-widest text-primary border border-primary/30">
@@ -210,7 +210,7 @@ export default function Page() {
 {/* Masterpiece 2 */}
 <article className="group flex flex-col bg-surface-container-low rounded overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-all duration-500 shadow-lg hover:shadow-[0_16px_40px_rgba(212,175,55,0.12)]">
 <div className="relative w-full h-80 overflow-hidden bg-surface-container-lowest">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Exquisite Haute Horlogerie split-seconds chronograph with Grand Feu enamel dial portraying an imperial golden dragon, 18k 5N rose gold sculpted case, twin column-wheel complication visible, warm golden reflections on dark obsidian backdrop." src={mediaUrl("/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Exquisite Haute Horlogerie split-seconds chronograph with Grand Feu enamel dial portraying an imperial golden dragon, 18k 5N rose gold sculpted case, twin column-wheel complication visible, warm golden reflections on dark obsidian backdrop." src={mediaUrl("/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-black/30"></div>
 <div className="absolute top-space-md left-space-md">
 <span className="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-md text-[10px] font-label-badge uppercase tracking-widest text-primary border border-primary/30">
@@ -263,7 +263,7 @@ export default function Page() {
 {/* Masterpiece 3 */}
 <article className="group flex flex-col bg-surface-container-low rounded overflow-hidden border border-outline-variant/30 hover:border-primary/50 transition-all duration-500 shadow-lg hover:shadow-[0_16px_40px_rgba(212,175,55,0.12)]">
 <div className="relative w-full h-80 overflow-hidden bg-surface-container-lowest">
-<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Hand-skeletonized cathedral gong minute repeater wristwatch, exposed intricate gears, bridges hand-beveled with black polish, titanium acoustic resonance case, dramatic macro lighting, dark luxury Swiss watch workshop aesthetics." src={mediaUrl("/images/stitch/25_AB6AXuAnMc.jpg")}/>
+<img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Hand-skeletonized cathedral gong minute repeater wristwatch, exposed intricate gears, bridges hand-beveled with black polish, titanium acoustic resonance case, dramatic macro lighting, dark luxury Swiss watch workshop aesthetics." src={mediaUrl("/images/stitch/25_AB6AXuAnMc.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-transparent to-black/30"></div>
 <div className="absolute top-space-md left-space-md">
 <span className="inline-flex items-center gap-1.5 px-space-sm py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-md text-[10px] font-label-badge uppercase tracking-widest text-primary border border-primary/30">
@@ -742,8 +742,8 @@ export default function Page() {
 </div>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Hạn Mức Ngân Sách Dự Kiến Dành Cho Dự Án</label>
-<select className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30">
+<label htmlFor="bespoke-budget" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Hạn Mức Ngân Sách Dự Kiến Dành Cho Dự Án</label>
+<select id="bespoke-budget" className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30">
 <option value="150-250k">$150,000 – $250,000 USD (Chrono Monopusher / Tourbillon Classic)</option>
 <option value="250-400k">$250,000 – $400,000 USD (Flying Tourbillon / Perpetual Celestial)</option>
 <option value="400-600k">$400,000 – $600,000 USD (Minute Repeater / Grand Feu Dragon)</option>

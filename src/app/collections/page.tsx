@@ -241,9 +241,9 @@ export default function Page() {
 </div>
 {/* Sort Control */}
 <div className="flex items-center gap-space-xs">
-<span className="font-label-spec text-label-spec uppercase tracking-widest text-on-surface-variant hidden sm:inline">Sắp Xếp:</span>
+<label htmlFor="collections-sort" className="font-label-spec text-label-spec uppercase tracking-widest text-on-surface-variant hidden sm:inline">Sắp Xếp:</label>
 <div className="relative">
-<select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} className="appearance-none bg-surface-container px-space-md py-space-xs pr-8 rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer uppercase font-label-spec text-[12px] tracking-wider">
+<select id="collections-sort" value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} className="appearance-none bg-surface-container px-space-md py-space-xs pr-8 rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer uppercase font-label-spec text-[12px] tracking-wider">
 <option value="featured">Mới Ra Mắt (Genève 2025)</option>
 <option value="price-desc">Giá Trị Cao Nhất (Giá Giảm Dần)</option>
 <option value="complications">Độ Phức Tạp Bộ Máy (Complication Tier)</option>
@@ -521,7 +521,7 @@ export default function Page() {
 <div className="bg-surface-container-lowest rounded-2xl p-space-2xl grid grid-cols-1 lg:grid-cols-12 gap-space-2xl items-center shadow-xl">
 <div className="lg:col-span-4 relative flex items-center justify-center">
 <div className="relative w-48 h-48 md:w-56 md:h-56 rounded-full overflow-hidden shadow-2xl">
-<img className="w-full h-full object-cover" data-alt="Portrait of a distinguished Swiss master watchmaker and horological consultant in a dark bespoke suit examining a movement with a brass loupe, refined ambient warm studio light" src={mediaUrl("/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg")}/>
+<img className="w-full h-full object-cover" alt="Portrait of a distinguished Swiss master watchmaker and horological consultant in a dark bespoke suit examining a movement with a brass loupe, refined ambient warm studio light" src={mediaUrl("/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg")}/>
 </div>
 <div className="absolute -bottom-2 bg-surface-container-high px-space-md py-1 rounded-full shadow flex items-center gap-space-xs">
 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>

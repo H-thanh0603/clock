@@ -305,7 +305,7 @@ export default async function Page({
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-2xl items-center">
 <div className="lg:col-span-5 relative">
 <div className="aspect-[4/5] rounded-xl overflow-hidden shadow-2xl bg-surface-container-low relative">
-<img className="w-full h-full object-cover" data-alt="Black and white atmospheric portrait of elderly Swiss master watchmaker with loupe inspecting the balance wheel of a luxury gold tourbillon watch on vintage oak workbench in Geneva." src={mediaUrl("/images/stitch/31_AB6AXuCawX.jpg")}/>
+<img className="w-full h-full object-cover" alt="Black and white atmospheric portrait of elderly Swiss master watchmaker with loupe inspecting the balance wheel of a luxury gold tourbillon watch on vintage oak workbench in Geneva." src={mediaUrl("/images/stitch/31_AB6AXuCawX.jpg")}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent"></div>
 <div className="absolute bottom-space-lg left-space-lg right-space-lg">
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block">Maître Horloger</span>
@@ -364,7 +364,7 @@ export default async function Page({
 {/* Pairing 1: High-end Watch Winder */}
 <div className="p-space-md rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-all">
 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest mb-space-md">
-<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="High-end artisan Swiss leather watch winder box with walnut wood inlays, micro-motor rotator mechanism, and glass display door illuminated with gold LED." src={mediaUrl("/images/stitch/32_AB6AXuBBdd.jpg")}/>
+<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="High-end artisan Swiss leather watch winder box with walnut wood inlays, micro-motor rotator mechanism, and glass display door illuminated with gold LED." src={mediaUrl("/images/stitch/32_AB6AXuBBdd.jpg")}/>
 <span className="absolute top-2 right-2 px-space-xs py-0.5 rounded bg-surface-container-low/90 backdrop-blur-md text-primary font-label-badge text-[9px] uppercase tracking-wider">
               Swiss Precision Winder
             </span>
@@ -386,7 +386,7 @@ export default async function Page({
 {/* Pairing 2: Bespoke Cufflinks */}
 <div className="p-space-md rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-all">
 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest mb-space-md">
-<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Pair of exquisite 18k solid rose gold cufflinks designed with miniature rotating tourbillon escapement mechanism with synthetic rubies on dark slate velvet." src={mediaUrl("/images/stitch/33_AB6AXuD10T.jpg")}/>
+<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="Pair of exquisite 18k solid rose gold cufflinks designed with miniature rotating tourbillon escapement mechanism with synthetic rubies on dark slate velvet." src={mediaUrl("/images/stitch/33_AB6AXuD10T.jpg")}/>
 <span className="absolute top-2 right-2 px-space-xs py-0.5 rounded bg-surface-container-low/90 backdrop-blur-md text-secondary font-label-badge text-[9px] uppercase tracking-wider">
               Haute Joaillerie
             </span>
@@ -408,7 +408,7 @@ export default async function Page({
 {accessory && accLine && (
 <div className="p-space-md rounded-xl bg-surface-container-low shadow-xl flex flex-col justify-between group hover:bg-surface-container transition-all">
 <div className="relative aspect-square rounded-lg overflow-hidden bg-surface-container-lowest mb-space-md">
-<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt={accessory.shortDescription} src={accessory.cardImage}/>
+<img className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={accessory.shortDescription} src={accessory.cardImage}/>
 <span className="absolute top-2 right-2 px-space-xs py-0.5 rounded bg-surface-container-low/90 backdrop-blur-md text-primary font-label-badge text-[9px] uppercase tracking-wider">
               {accessory.badges[0] ?? "Accessory"}
             </span>

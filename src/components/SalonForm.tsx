@@ -72,8 +72,8 @@ export default function SalonForm() {
     <form className="space-y-space-md" onSubmit={submit}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
         <div>
-          <label className={label}>Danh Xưng &amp; Họ Tên *</label>
-          <input
+          <label className={label} htmlFor="salon-f1">Danh Xưng &amp; Họ Tên *</label>
+          <input id="salon-f1"
             className={field}
             placeholder="Ngài / Bà..."
             type="text"
@@ -82,8 +82,8 @@ export default function SalonForm() {
           />
         </div>
         <div>
-          <label className={label}>Số Điện Thoại Bảo Mật *</label>
-          <input
+          <label className={label} htmlFor="salon-f2">Số Điện Thoại Bảo Mật *</label>
+          <input id="salon-f2"
             className={field}
             placeholder="+84 ..."
             type="tel"
@@ -94,8 +94,8 @@ export default function SalonForm() {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
         <div>
-          <label className={label}>Email</label>
-          <input
+          <label className={label} htmlFor="salon-f3">Email</label>
+          <input id="salon-f3"
             className={field}
             placeholder="email@domain.com"
             type="email"
@@ -104,8 +104,8 @@ export default function SalonForm() {
           />
         </div>
         <div>
-          <label className={label}>Địa Điểm Trải Nghiệm</label>
-          <select
+          <label className={label} htmlFor="salon-f4">Địa Điểm Trải Nghiệm</label>
+          <select id="salon-f4"
             className={field}
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
@@ -118,8 +118,8 @@ export default function SalonForm() {
         </div>
       </div>
       <div>
-        <label className={label}>Tác Phẩm Quan Tâm</label>
-        <select
+        <label className={label} htmlFor="salon-f5">Tác Phẩm Quan Tâm</label>
+        <select id="salon-f5"
           className={field}
           value={form.interest}
           onChange={(e) => setForm({ ...form, interest: e.target.value })}
