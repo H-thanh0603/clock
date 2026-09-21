@@ -19,6 +19,8 @@ export default function robots(): MetadataRoute.Robots {
           "/login",
           // Machine endpoint — agent ngoài đọc manifest rồi gọi đúng cửa.
           "/.well-known/agent",
+          // Trang nội bộ cho visual regression (fixture, không giá trị SEO).
+          "/widget-gallery",
         ],
       },
     ],
