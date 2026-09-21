@@ -75,7 +75,7 @@ const BASE_ORDER = {
 describe('OrdersService.create', () => {
   it('chốt giá DB, bỏ qua priceVnd client', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const r = await svc.create(
       {
         ...BASE_ORDER,
@@ -90,7 +90,7 @@ describe('OrdersService.create', () => {
 
   it('SP ẩn → 400', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     await expect(
       svc.create(
         { ...BASE_ORDER, items: [{ ...BASE_ITEM, slug: 'hidden-1' }] },
@@ -122,7 +122,7 @@ describe('OrdersService.create', () => {
         update: () => Promise.resolve({}),
       },
     });
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const r = await svc.create(BASE_ORDER, 'user-1');
     expect(r.code).toBe('AC-2026-EXISTING');
     expect(r.status).toBe('PENDING');
@@ -131,7 +131,7 @@ describe('OrdersService.create', () => {
 
   it('khách vãng lai (userId null) KHÔNG dedup — vẫn tạo đơn', async () => {
     const { prisma, created } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const r = await svc.create(BASE_ORDER, null);
     expect(r.code).toMatch(/^AC-/);
     expect(created).toHaveLength(1);
@@ -139,7 +139,7 @@ describe('OrdersService.create', () => {
 
   it('hết hàng → 400', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     await expect(
       svc.create(
         { ...BASE_ORDER, items: [{ ...BASE_ITEM, qty: 99 }] },
@@ -150,7 +150,7 @@ describe('OrdersService.create', () => {
 
   it('slug lạ → PENDING review, không SUCCESS', async () => {
     const { prisma, created } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const r = await svc.create(
       {
         ...BASE_ORDER,
@@ -167,7 +167,7 @@ describe('OrdersService.create', () => {
 
   it('deposit chỉ thu 20%, trả remaining', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const r = await svc.create(
       { ...BASE_ORDER, payment: { method: 'deposit' } },
       null,
@@ -179,7 +179,7 @@ describe('OrdersService.create', () => {
 
   it('vnpay → PENDING, paid = 0', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const r = await svc.create(
       { ...BASE_ORDER, payment: { method: 'vnpay' } },
       null,
@@ -194,7 +194,7 @@ describe('OrdersService.create', () => {
     process.env.NODE_ENV = 'production';
     process.env.ENABLE_SIMULATED_METHODS = '1'; // cố bật → vẫn phải bị chặn
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     await expect(
       svc.create({ ...BASE_ORDER, payment: { method: 'centurion' } }, null),
     ).rejects.toThrow(/demo/i);
@@ -216,7 +216,7 @@ describe('OrdersService.create', () => {
     const prevFlag = process.env.ENABLE_SIMULATED_METHODS;
     process.env.ENABLE_SIMULATED_METHODS = '0';
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     await expect(
       svc.create({ ...BASE_ORDER, payment: { method: 'cod' } }, null),
     ).rejects.toThrow(/demo/i);
@@ -250,7 +250,7 @@ describe('OrdersService.create', () => {
       orderEvent: { create: (a: unknown) => { events.push(a); return Promise.resolve({}); } },
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     };
-    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub, {} as never);
     const r = await svc.cancel('ord-9', { userId: 'u-1' });
     expect(r.status).toBe('CANCELLED');
     expect(stock.get('vip-1')).toBe(1);
@@ -287,7 +287,7 @@ describe('OrdersService.create', () => {
       orderEvent: { create: () => Promise.resolve({}) },
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     };
-    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub, {} as never);
     // 2 request "cùng lúc": cả hai đã qua check PENDING ngoài tx.
     const [r1, r2] = await Promise.allSettled([
       svc.cancel('ord-9', { userId: 'u-1' }),
@@ -311,7 +311,7 @@ describe('OrdersService.create', () => {
           }),
       },
     };
-    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub, {} as never);
     await expect(svc.cancel('ord-9', { userId: 'u-1' })).rejects.toThrow(
       /chờ xác nhận/,
     );
@@ -374,7 +374,7 @@ describe('OrdersService.create idempotency-key', () => {
 
   it('cùng key 2 lần → tạo 1 đơn, lần 2 replay đơn cũ', async () => {
     const f = makeIdemPrisma();
-    const svc = new OrdersService(f.prisma, notifyStub);
+    const svc = new OrdersService(f.prisma, notifyStub, {} as never);
     const r1 = await svc.create(BASE_ORDER, 'u1', { idempotencyKey: KEY });
     const r2 = await svc.create(BASE_ORDER, 'u1', { idempotencyKey: KEY });
     expect(f.creates()).toBe(1);
@@ -385,7 +385,7 @@ describe('OrdersService.create idempotency-key', () => {
 
   it('key của user khác → 409, không rò đơn', async () => {
     const f = makeIdemPrisma();
-    const svc = new OrdersService(f.prisma, notifyStub);
+    const svc = new OrdersService(f.prisma, notifyStub, {} as never);
     await svc.create(BASE_ORDER, 'u1', { idempotencyKey: KEY });
     await expect(
       svc.create(BASE_ORDER, 'u2', { idempotencyKey: KEY }),
@@ -394,7 +394,7 @@ describe('OrdersService.create idempotency-key', () => {
 
   it('key invalid (quá ngắn) → bỏ qua, tạo đơn bình thường', async () => {
     const f = makeIdemPrisma();
-    const svc = new OrdersService(f.prisma, notifyStub);
+    const svc = new OrdersService(f.prisma, notifyStub, {} as never);
     await svc.create(BASE_ORDER, 'u1', { idempotencyKey: 'x' });
     expect(f.creates()).toBe(1);
     expect(f.keys.size).toBe(0);
@@ -402,7 +402,7 @@ describe('OrdersService.create idempotency-key', () => {
 
   it('khách vãng lai: cùng key + cùng contact → replay; khác contact → 409', async () => {
     const f = makeIdemPrisma();
-    const svc = new OrdersService(f.prisma, notifyStub);
+    const svc = new OrdersService(f.prisma, notifyStub, {} as never);
     const r1 = await svc.create(BASE_ORDER, null, { idempotencyKey: KEY });
     const r2 = await svc.create(BASE_ORDER, null, { idempotencyKey: KEY });
     expect(r2.orderId).toBe(r1.orderId);
@@ -446,28 +446,28 @@ describe('OrdersService.byCode contact-verify + sig', () => {
   });
 
   it('không contact/sig → tối thiểu (không items/totals)', async () => {
-    const svc = new OrdersService(fake() as never, notifyStub);
+    const svc = new OrdersService(fake() as never, notifyStub, {} as never);
     const r = await svc.byCode('AC-2026-GUEST');
     expect(r).toEqual({ code: 'AC-2026-GUEST', status: 'PENDING' });
     expect(r).not.toHaveProperty('items');
   });
 
   it('contact khác cách viết (+84) → full chi tiết', async () => {
-    const svc = new OrdersService(fake() as never, notifyStub);
+    const svc = new OrdersService(fake() as never, notifyStub, {} as never);
     const r = await svc.byCode('AC-2026-GUEST', { contact: '+84901234567' });
     expect(r).toHaveProperty('items');
     expect((r as { totalUsd: number }).totalUsd).toBe(1000);
   });
 
   it('contact sai → tối thiểu', async () => {
-    const svc = new OrdersService(fake() as never, notifyStub);
+    const svc = new OrdersService(fake() as never, notifyStub, {} as never);
     const r = await svc.byCode('AC-2026-GUEST', { contact: '0909999999' });
     expect(r).not.toHaveProperty('items');
   });
 
   it('sig hợp lệ → full; sig giả → tối thiểu', async () => {
     const { signOrderCode } = await import('./orders.service');
-    const svc = new OrdersService(fake() as never, notifyStub);
+    const svc = new OrdersService(fake() as never, notifyStub, {} as never);
     const good = await svc.byCode('AC-2026-GUEST', {
       sig: signOrderCode('AC-2026-GUEST'),
     });
@@ -495,7 +495,7 @@ describe('OrdersService.cancel cross-format contact', () => {
       orderEvent: { create: () => Promise.resolve({}) },
       $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
     };
-    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub);
+    const svc = new OrdersService(prisma as unknown as PrismaService, notifyStub, {} as never);
     const r = await svc.cancelByCode('AC-2026-X', '+84901234567');
     expect(r.status).toBe('CANCELLED');
   });
@@ -504,7 +504,7 @@ describe('OrdersService.cancel cross-format contact', () => {
 describe('OrdersService.create agreedTerms', () => {
   it('thiếu consent → 400, không trừ kho/không tạo đơn', async () => {
     const { prisma, created } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     const { agreedTerms: _drop, ...noConsent } = BASE_ORDER;
     await expect(svc.create(noConsent, null)).rejects.toThrow(/đồng ý/);
     expect(created).toHaveLength(0);
@@ -512,7 +512,7 @@ describe('OrdersService.create agreedTerms', () => {
 
   it('agreedTerms: false tường minh → 400', async () => {
     const { prisma } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     await expect(
       svc.create({ ...BASE_ORDER, agreedTerms: false }, null),
     ).rejects.toThrow(/đồng ý/);
@@ -520,9 +520,103 @@ describe('OrdersService.create agreedTerms', () => {
 
   it('có consent → đơn lưu agreedTerms: true', async () => {
     const { prisma, created } = makePrisma();
-    const svc = new OrdersService(prisma, notifyStub);
+    const svc = new OrdersService(prisma, notifyStub, {} as never);
     await svc.create(BASE_ORDER, null);
     expect(created).toHaveLength(1);
     expect((created[0] as { agreedTerms: boolean }).agreedTerms).toBe(true);
+  });
+});
+
+describe('OrdersService.create với paymentIntent (agent thanh toán hộ)', () => {
+  function intentPrisma(intent: Record<string, unknown> | null, extra: Record<string, unknown> = {}) {
+    const { prisma } = makePrisma();
+    const b = prisma as unknown as Record<string, Record<string, unknown>>;
+    const updated: Record<string, unknown>[] = [];
+    return {
+      prisma: {
+        ...b,
+        paymentIntent: {
+          findUnique: () => Promise.resolve(intent),
+          updateMany: (args: { where: unknown; data: unknown }) => {
+            updated.push(args);
+            // Chỉ thắng khi intent còn ACTIVE (mô phỏng conditional update).
+            return Promise.resolve({ count: intent?.status === 'ACTIVE' ? 1 : 0 });
+          },
+          update: (args: { where: unknown; data: unknown }) => {
+            updated.push(args);
+            return Promise.resolve({ ...intent, ...(args.data as object) });
+          },
+        },
+        ...extra,
+      } as unknown as PrismaService,
+      updated,
+    };
+  }
+  const ACTIVE = {
+    id: 'pi-1',
+    userId: 'u1',
+    maxUsd: 2000,
+    method: 'vnpay',
+    status: 'ACTIVE',
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+  };
+  const payStub = {
+    createPayUrlForOrder: async (orderId: string) => `https://vnpay.test/pay/${orderId}`,
+  };
+
+  it('browser gửi intentId (viaAgent=false) → 400, không tạo đơn', async () => {
+    const { prisma } = intentPrisma(ACTIVE);
+    const svc = new OrdersService(prisma, notifyStub, payStub as never);
+    await expect(
+      svc.create({ ...BASE_ORDER, paymentIntentId: 'pi-1' }, 'u1', { viaAgent: false })
+    ).rejects.toThrow(/thay user/);
+  });
+
+  it('intent của user khác / hết hạn / quá trần / đã dùng → 400', async () => {
+    const cases: [string, Record<string, unknown>][] = [
+      ['khác user', { ...ACTIVE, userId: 'u2' }],
+      ['hết hạn', { ...ACTIVE, expiresAt: new Date(Date.now() - 1000) }],
+      ['quá trần', { ...ACTIVE, maxUsd: 10 }],
+      ['đã dùng', { ...ACTIVE, status: 'USED' }],
+    ];
+    for (const [name, intent] of cases) {
+      const { prisma } = intentPrisma(intent);
+      const svc = new OrdersService(prisma, notifyStub, payStub as never);
+      await expect(
+        svc.create({ ...BASE_ORDER, paymentIntentId: 'pi-1' }, 'u1', { viaAgent: true })
+      ).rejects.toThrow(name === 'khác user' || name === 'hết hạn' || name === 'quá trần' || name === 'đã dùng' ? /Hạn mức/ : /./);
+    }
+  });
+
+  it('intent lạ (null) → 400', async () => {
+    const { prisma } = intentPrisma(null);
+    const svc = new OrdersService(prisma, notifyStub, payStub as never);
+    await expect(
+      svc.create({ ...BASE_ORDER, paymentIntentId: 'pi-404' }, 'u1', { viaAgent: true })
+    ).rejects.toThrow(/Hạn mức/);
+  });
+
+  it('intent hợp lệ → tạo đơn + đóng intent (USED) + trả payUrl', async () => {
+    const { prisma, updated } = intentPrisma(ACTIVE);
+    const svc = new OrdersService(prisma, notifyStub, payStub as never);
+    // BASE_ORDER dùng method cod (simulated) — intent test dùng vnpay nên
+    // phải gửi đúng method vnpay (intent khóa theo method lúc duyệt).
+    const r = await svc.create(
+      { ...BASE_ORDER, payment: { method: 'vnpay' }, paymentIntentId: 'pi-1' },
+      'u1',
+      { viaAgent: true }
+    );
+    expect(r.code).toMatch(/^AC-/);
+    expect((r as { payUrl?: string }).payUrl).toMatch(/^https:\/\/vnpay\.test\/pay\//);
+    // LOCKED lúc validate + USED lúc chốt đơn.
+    expect(updated.some((u) => (u as { data: { status: string } }).data.status === 'LOCKED')).toBe(true);
+    expect(updated.some((u) => (u as { data: { status: string } }).data.status === 'USED')).toBe(true);
+  });
+
+  it('không intent → luồng cũ nguyên vẹn (không payUrl)', async () => {
+    const { prisma } = intentPrisma(ACTIVE);
+    const svc = new OrdersService(prisma, notifyStub, payStub as never);
+    const r = await svc.create({ ...BASE_ORDER }, 'u1', {});
+    expect((r as { payUrl?: string }).payUrl).toBeUndefined();
   });
 });

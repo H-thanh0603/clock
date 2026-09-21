@@ -50,6 +50,18 @@ VND_PER_USD = "25,200"
 
 POLICIES: list[Policy] = [
     Policy(
+        policy_id="agent_payment",
+        title="Thanh toán hộ qua AI concierge (hạn mức duyệt trước)",
+        category="thanh toán",
+        content=(
+            "User bấm 'cho phép agent thanh toán tới X USD' ở trang chat trước "
+            "(BE tạo payment_intent, TTL 15 phút, dùng 1 lần). Agent chỉ chốt "
+            "đơn trong hạn mức đó; tổng đơn do server chốt giá, link VNPay do "
+            "server ký. Hết hạn/đổi ý thì thu hồi hạn mức và thanh toán tay "
+            "ở /checkout như thường."
+        ),
+    ),
+    Policy(
         policy_id="terms",
         title="Điều khoản dịch vụ & mua hàng",
         category="điều khoản",
@@ -348,10 +360,59 @@ class AurelStorefront(StorefrontBackend):
         self, session: ShoppingSessionContext, cart: Cart
     ) -> list[CheckoutHandoff]:
         # clock có checkout riêng: handoff về trang /checkout của FE.
+        # (Agentic checkout intent-flow dùng tool place_order_with_intent riêng
+        # bên dưới — handoff này giữ nguyên cho luồng user tự bấm checkout.)
         from aurel_agents.config import get_settings
 
         frontend = get_settings().frontend_url
         return [CheckoutHandoff(url=f"{frontend}/checkout", label="Hoàn tất đặt hàng")]
+
+    async def place_order_with_intent(
+        self,
+        session: ShoppingSessionContext,
+        cart: Cart,
+        payment_intent_id: str,
+        customer: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Chốt đơn + tạo link VNPay hộ trong hạn mức user đã duyệt.
+
+        Chỉ gọi khi TẤT CẢ đúng:
+        - client là delegation (giỏ của chính user — không phải giỏ demo);
+        - `payment_intent_id` do user duyệt trước ở FE (BE kiểm ACTIVE/hạn
+          mức/hết hạn/dùng-1-lần — agent không tự quyết số tiền);
+        - giỏ đã chốt xong (không bespoke/custom chờ duyệt giá).
+        Trả về dict BE trả (gồm `payUrl` để FE redirect user đúng 1 lần).
+        """
+        if not self._client.delegated:
+            raise ValueError(
+                "Chỉ chốt hộ khi đang hành động thay user (bật 'Dùng tài khoản của tôi')"
+            )
+        items = [
+            {
+                "slug": i.product_id,
+                "name": i.title,
+                "priceUsd": i.price,
+                "priceVnd": 0,  # BE suy VND từ USD — không tin client
+                "image": i.image_url or "",
+                "strap": (i.option_values or {}).get("strap", ""),
+                "qty": i.quantity,
+            }
+            for i in (cart.items or [])
+        ]
+        if not items:
+            raise ValueError("Giỏ trống — không có gì để chốt")
+        return await self._client.order_create(
+            {
+                "customerName": str(customer.get("name", "")),
+                "contact": str(customer.get("contact", "")),
+                "address": str(customer.get("address", "")),
+                "slot": str(customer.get("slot", "") or ""),
+                "items": items,
+                "payment": {"method": "vnpay"},
+                "agreedTerms": True,
+                "paymentIntentId": payment_intent_id,
+            }
+        )
 
     # -- Orders and policies --------------------------------------------------------------
 

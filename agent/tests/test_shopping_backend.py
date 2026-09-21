@@ -228,3 +228,77 @@ async def test_get_order_tolerates_minimal_bycode(respx_mock):
     assert found.order_id == "AC-2026-999999"
     assert found.items == []
     assert found.total == 0.0
+
+
+@pytest.mark.asyncio
+async def test_place_order_with_intent_delegation_only(respx_mock):
+    """Chốt hộ: từ chối khi không phải delegation; gọi BE khi đủ điều kiện."""
+    from shopping_agent import ShoppingSessionContext
+
+    from aurel_agents.shopping.backend import AurelStorefront
+
+    ctx = ShoppingSessionContext(session_id="s1", user_id="u1")
+    cart = type("C", (), {"items": [
+        type("I", (), {
+            "product_id": "vip-1", "title": "VIP", "price": 1000,
+            "image_url": "/i", "option_values": {}, "quantity": 1,
+        })(),
+    ]})()
+
+    # 1) Client thường (giỏ demo) → từ chối ngay, không gọi BE.
+    st = make_storefront(respx_mock)
+    with pytest.raises(ValueError, match="thay user"):
+        await st.place_order_with_intent(ctx, cart, "pi-1", {"name": "A"})
+
+    # 2) Delegated + giỏ trống → từ chối.
+    respx_mock.post(f"{BASE}/auth/login").respond(
+        json={"user": {"id": "u1", "email": "s@t"}}
+    )
+    respx_mock.get(f"{BASE}/auth/csrf").respond(json={"csrfToken": "t" * 32})
+    delegated = AurelStorefront(
+        ClockClient(BASE, "x", "y", register_if_new=False, delegation_token="tok")
+    )
+    empty = type("C", (), {"items": []})()
+    with pytest.raises(ValueError, match="Giỏ trống"):
+        await delegated.place_order_with_intent(ctx, empty, "pi-1", {"name": "A"})
+
+    # 3) Delegated + giỏ có hàng → POST /orders kèm intent, trả payUrl.
+    created = respx_mock.post(f"{BASE}/orders").respond(
+        json={"code": "AC-2026-1", "status": "PENDING", "totalUsd": 1000,
+              "payUrl": "https://vnpay.test/pay/ord-1"}
+    )
+    out = await delegated.place_order_with_intent(
+        ctx, cart, "pi-1",
+        {"name": "A", "contact": "090", "address": "HCM", "slot": ""},
+    )
+    assert out["code"] == "AC-2026-1"
+    assert out["payUrl"].startswith("https://vnpay.test/")
+    import json as _json
+
+    body = _json.loads(created.calls.last.request.content)
+    assert body["paymentIntentId"] == "pi-1"
+    assert body["agreedTerms"] is True
+    assert body["payment"] == {"method": "vnpay"}
+    assert body["items"][0]["priceVnd"] == 0  # BE tự suy VND
+
+
+@pytest.mark.asyncio
+async def test_place_order_extension_guards(respx_mock):
+    """Extension: backend không hỗ trợ / giỏ trống → lỗi rõ, không gọi BE."""
+    from aurel_agents.shopping.watch_tool import build_place_order_extension
+
+    ext = build_place_order_extension()
+    assert ext.name == "place_order_with_intent"
+
+    class Nope:
+        pass
+
+    fake_ctx = type("X", (), {"session": type("S", (), {})(), "backend": Nope()})()
+    with pytest.raises(ValueError, match="không hỗ trợ"):
+        await ext.enrich(
+            type("P", (), {
+                "payment_intent_id": "pi-1", "customer_name": "A",
+                "contact": "090", "address": "HCM", "slot": None,
+            })(),
+            fake_ctx,
+        )

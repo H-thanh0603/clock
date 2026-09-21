@@ -65,6 +65,12 @@ services:
       VNPAY_HASH_SECRET: ""
       MEILI_HOST: "http://meilisearch:7700"
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dev-meili-key-0123456789}
+      # Jev TypeSafe cho backend web (inquiry triage/search hint/order risk/
+      # copy guardrail). Thiếu key → tắt, web chạy như cũ.
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_URL: ${JEV_URL:-https://api.typesafe.ai/v1/systemone}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+      JEV_TIMEOUT_S: ${JEV_TIMEOUT_S:-5.0}
     ports:
       - "4000:4000"
 

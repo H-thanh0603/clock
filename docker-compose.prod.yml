@@ -107,6 +107,11 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod-vps}
       SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+      # --- Jev TypeSafe cho backend web (optional, thiếu key = tắt) ---
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_URL: ${JEV_URL:-https://api.typesafe.ai/v1/systemone}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+      JEV_TIMEOUT_S: ${JEV_TIMEOUT_S:-5.0}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)})"]
       interval: 15s

@@ -18,6 +18,7 @@ import { useLocale } from "@/components/LocaleProvider";
 import { ComparisonTray } from "./chat-widgets";
 import type { AgentRole } from "@/lib/agent-events";
 import { apiUrl } from "@/lib/api-client";
+import { csrfFetch } from "@/lib/api-client";
 import { useCart } from "@/components/CartProvider";
 
 function SuggestionsChips({ suggestions, onPick }: { suggestions: string[]; onPick: (s: string) => void }) {
@@ -45,6 +46,95 @@ type AlertRow = {
   created_at: number;
   data?: { product_id?: string } | null;
 };
+
+/**
+ * Nút duyệt hạn mức thanh toán hộ (agentic checkout, intent-flow).
+ *
+ * User nhập trần USD → FE gọi POST /payments/intents (session cookie) →
+ * BE tạo intent ACTIVE TTL 15 phút → gửi câu xác nhận vào chat để agent
+ * gọi place_order_with_intent. Agent KHÔNG thấy nút này tự bấm được —
+ * trần luôn do NGƯỜI duyệt, BE kiểm lại khi chốt đơn.
+ */
+function PaymentLimitButton({
+  onApproved,
+}: {
+  onApproved: (maxUsd: number) => void;
+}) {
+  const { t } = useLocale();
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("50000");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const approve = async () => {
+    const maxUsd = Math.floor(Number(amount) || 0);
+    if (maxUsd <= 0 || maxUsd > 200_000) {
+      setError(t("agent.limitRange"));
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const res = await csrfFetch("/payments/intents", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ maxUsd, method: "vnpay" }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        id?: string;
+        message?: string | string[];
+      } | null;
+      if (!res.ok || !data?.id) {
+        throw new Error(
+          Array.isArray(data?.message)
+            ? data.message.join(", ")
+            : (data?.message ?? `Lỗi ${res.status}`),
+        );
+      }
+      setOpen(false);
+      onApproved(maxUsd);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("agent.limitFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        title={t("agent.limitHint")}
+        className="px-4 py-2 font-label-spec text-label-spec uppercase tracking-wider text-primary underline transition-colors hover:text-primary-hover"
+      >
+        {t("agent.limitCta")}
+      </button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-space-xs">
+      <input
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        inputMode="numeric"
+        placeholder="50000"
+        aria-label={t("agent.limitCta")}
+        className="w-28 rounded bg-surface-container-lowest px-2 py-2 font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      <span className="font-body-sm text-body-sm text-on-surface-variant">USD</span>
+      <button
+        onClick={approve}
+        disabled={busy}
+        className="px-3 py-2 font-label-spec text-label-spec uppercase tracking-wider text-primary underline disabled:opacity-50"
+      >
+        {busy ? t("agent.limitApproving") : t("agent.limitApprove")}
+      </button>
+      {error && (
+        <span className="font-body-sm text-body-sm text-error">{error}</span>
+      )}
+    </span>
+  );
+}
 
 /**
  * Nút "Thêm vào giỏ" ngay trong alert watch (G2-4): alert báo tin + hành
@@ -317,6 +407,7 @@ export default function AgentChatPage() {
               </button>
             ))}
             {role === "shop" && me && (
+              <>
               <button
                 onClick={toggleDelegation}
                 title="Concierge sẽ dùng giỏ/đơn/wishlist thật của bạn (quyền tự hết hạn sau 30 phút)"
@@ -328,6 +419,16 @@ export default function AgentChatPage() {
               >
                 {actAsMe ? t("agent.actingAsYou") : t("agent.actAsMe")}
               </button>
+              {actAsMe && (
+                <PaymentLimitButton
+                  onApproved={(maxUsd) =>
+                    send(
+                      `${t("agent.approvePrompt")} ${maxUsd} USD ${t("agent.approvePromptSuffix")}`
+                    )
+                  }
+                />
+              )}
+              </>
             )}
             {role === "shop" && (
               <button

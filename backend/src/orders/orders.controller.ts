@@ -34,7 +34,12 @@ export class OrdersController {
     // → trả đơn cũ, không trừ kho lần 2 (P1-5). Thiếu/invalid = không dedup.
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
-    return this.orders.create(body, user?.id ?? null, { idempotencyKey });
+    // viaAgent: chỉ delegation token mới có — browser gửi paymentIntentId
+    // cũng bị service bỏ qua (không leo thang từ browser).
+    return this.orders.create(body, user?.id ?? null, {
+      idempotencyKey,
+      viaAgent: user?.viaAgent === true,
+    });
   }
 
   @Get('mine')

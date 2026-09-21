@@ -9,6 +9,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { InvoiceService } from '../invoices/invoice.service';
 import { serializeOrder } from '../orders/orders.service';
 import { linePrice } from '../common/pricing';
+import { copyCheck } from '../common/jev';
 import { ProductsService } from '../products/products.service';
 import { MeiliService } from '../search/meili.service';
 
@@ -545,7 +546,10 @@ export class AdminService {
         createdById: byUserId ?? null,
       },
     });
-    return row;
+    // Jev copy guardrail (chặn mềm): tên KM có claim rủi ro → kèm warning,
+    // vẫn tạo (admin quyết). Jev tắt/chết → không warning, như cũ.
+    const warn = await copyCheck('promotion', name);
+    return warn ? { ...row, jevWarning: warn.warning } : row;
   }
 
   async setPromotionActive(id: string, active: boolean) {
@@ -657,7 +661,11 @@ export class AdminService {
         createdById: byUserId ?? null,
       },
     });
-    return row;
+    // Jev copy guardrail (chặn mềm): copyText có claim rủi ro/mơ hồ → kèm
+    // warning để admin sửa trước khi active. Vẫn tạo draft, không block.
+    const copy = body.copyText ? String(body.copyText).slice(0, 600) : '';
+    const warn = copy ? await copyCheck('campaign', copy) : null;
+    return warn ? { ...row, jevWarning: warn.warning } : row;
   }
 
   async updateCampaign(id: string, body: Record<string, unknown>) {

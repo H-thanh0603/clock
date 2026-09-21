@@ -35,6 +35,8 @@ export default function Page() {
   const [loadError, setLoadError] = useState(false);
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  // Gợi ý 1 filter của Jev khi search rỗng (BE trả `hint`, FE render nút).
+  const [hint, setHint] = useState<{ kind: string; value: string; label: string } | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [hydrated, setHydrated] = useState(false);
@@ -91,7 +93,7 @@ export default function Page() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((data: { items: Product[]; total: number }) => {
+      .then((data: { items: Product[]; total: number; hint?: { kind: string; value: string; label: string } }) => {
         if (alive) {
           let list = data.items;
           // Sort "complications" vẫn là sort tay client trên 1 page.
@@ -102,6 +104,7 @@ export default function Page() {
           }
           setItems(list);
           setTotal(data.total);
+          setHint(data.hint ?? null);
           setLoading(false);
         }
       })
@@ -132,6 +135,18 @@ export default function Page() {
     // replace (không push) — không spam history mỗi lần tick filter.
     window.history.replaceState(null, "", url);
   }, [hydrated, debouncedQ, mov, mat, size, comp, sort, page]);
+
+  // Áp filter Jev gợi ý: reset q + filter cũ, set đúng 1 filter mới.
+  const applyHint = () => {
+    if (!hint) return;
+    setQ("");
+    setDebouncedQ("");
+    setMov(hint.kind === "movements" ? [hint.value] : []);
+    setMat(hint.kind === "material" ? hint.value : "");
+    setComp(hint.kind === "complications" ? [hint.value] : []);
+    setSize("");
+    setPage(1);
+  };
 
   const toggleMov = (id: string) => {
     setMov((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -411,6 +426,11 @@ export default function Page() {
             <div className="col-span-full flex flex-col items-center gap-space-sm rounded-xl border border-dashed border-outline-variant/40 bg-surface-container-low/60 px-space-lg py-space-3xl text-center">
               <span className="material-symbols-outlined text-5xl text-outline-variant">hourglass_empty</span>
               <p className="font-body-md text-body-md text-on-surface-variant">Không có kiệt tác nào phù hợp bộ lọc hiện tại.</p>
+              {hint && (
+                <button onClick={applyHint} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-secondary hover:text-primary transition-colors">
+                  Ý bạn là {hint.label}?
+                </button>
+              )}
               <button onClick={resetAll} className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary hover:text-secondary transition-colors">Thiết Lập Lại Bộ Lọc</button>
             </div>
           ) : (

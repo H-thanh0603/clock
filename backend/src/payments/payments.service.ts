@@ -167,6 +167,95 @@ export class PaymentsService {
     return { url };
   }
 
+  /**
+   * Tạo link VNPay hộ cho agent (không có Request browser).
+   * Chỉ gọi từ OrdersService sau khi intent đã khóa — không gọi trực tiếp
+   * từ controller (không có endpoint nào gọi hàm này ngoài intent flow).
+   */
+  async createPayUrlForOrder(orderId: string, userId: string | null) {
+    // IP server-side cho vnp_IpAddr: agent gọi hộ nên không có IP user thật
+    // — dùng IP loopback, VNPay chỉ dùng để log chống gian lận.
+    const fakeReq = {
+      ip: '127.0.0.1',
+      headers: {},
+    } as unknown as Request;
+    const out = await this.createPayUrl(orderId, userId, fakeReq);
+    return out.url;
+  }
+
+  // -- Payment intent (hạn mức user duyệt trước cho agent) --
+
+  /** Trần intent: đủ mua 1 chiếc flagship nhưng không thành thẻ tín dụng mở. */
+  static readonly INTENT_MAX_USD = 200_000;
+  /** TTL intent: đủ cho 1 turn agent chốt đơn, lộ cũng nhanh chết. */
+  static readonly INTENT_TTL_MIN = 15;
+
+  async createIntent(
+    userId: string,
+    body: { maxUsd?: number; method?: string; ttlMinutes?: number },
+  ) {
+    const maxUsd = Math.floor(Number(body.maxUsd) || 0);
+    if (maxUsd <= 0 || maxUsd > PaymentsService.INTENT_MAX_USD) {
+      throw new BadRequestException(
+        `Hạn mức 1–${PaymentsService.INTENT_MAX_USD} USD`,
+      );
+    }
+    const method = String(body.method ?? 'vnpay');
+    if (method !== 'vnpay') {
+      // Đợt 1 chỉ VNPay (settle idempotent đã kiểm chứng); method mô phỏng
+      // không cho agent tự thu tiền ảo.
+      throw new BadRequestException('Agent chỉ thanh toán hộ qua VNPay');
+    }
+    const ttlMin = Math.min(
+      60,
+      Math.max(5, Math.floor(Number(body.ttlMinutes) || PaymentsService.INTENT_TTL_MIN)),
+    );
+    // Duyệt mới → revoke intent ACTIVE cũ (tránh 2 hạn mức chồng nhau gây
+    // nhầm khi đối chiếu; intent đã USED giữ lại làm chứng từ).
+    await this.prisma.paymentIntent.updateMany({
+      where: { userId, status: 'ACTIVE' },
+      data: { status: 'REVOKED' },
+    });
+    const row = await this.prisma.paymentIntent.create({
+      data: {
+        userId,
+        maxUsd,
+        method,
+        expiresAt: new Date(Date.now() + ttlMin * 60 * 1000),
+      },
+    });
+    return {
+      id: row.id,
+      maxUsd: row.maxUsd,
+      method: row.method,
+      expiresAt: row.expiresAt.toISOString(),
+    };
+  }
+
+  async listIntents(userId: string) {
+    const rows = await this.prisma.paymentIntent.findMany({
+      where: { userId, status: 'ACTIVE', expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      maxUsd: r.maxUsd,
+      method: r.method,
+      expiresAt: r.expiresAt.toISOString(),
+    }));
+  }
+
+  async revokeIntent(userId: string, id: string) {
+    const r = await this.prisma.paymentIntent.updateMany({
+      where: { id, userId, status: 'ACTIVE' },
+      data: { status: 'REVOKED' },
+    });
+    if (r.count === 0)
+      throw new NotFoundException('Không thấy hạn mức còn hiệu lực');
+    return { ok: true };
+  }
+
   private toOrderUrl(
     code: string,
     paid: boolean,

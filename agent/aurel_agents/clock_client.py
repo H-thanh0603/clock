@@ -342,6 +342,14 @@ class ClockClient:
         """GET /orders/mine — đơn của user đăng nhập."""
         return await self.request("GET", "/orders/mine", params={"page": page, "limit": limit})
 
+    async def order_create(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST /orders — tạo đơn (kèm paymentIntentId khi agent chốt hộ).
+
+        Chỉ dùng khi client là delegation (giỏ/đơn của chính user) — giỏ demo
+        của session thường không được chốt hộ (không có intent của user).
+        """
+        return await self.request("POST", "/orders", json=body)
+
     async def order_by_code(self, code: str) -> dict[str, Any]:
         """GET /orders/by-code/{code} — tra cứu công khai theo mã AC-YYYY-NNNNNN."""
         return await self.request("GET", f"/orders/by-code/{code}")

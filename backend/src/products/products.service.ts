@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MeiliService } from '../search/meili.service';
+import { searchHint, type SearchHint } from '../common/jev';
 
 /** Shape sản phẩm trả client (priceVnd number — BigInt không serialize JSON được). */
 export type ProductDto = {
@@ -152,6 +153,8 @@ export class ProductsService {
     total: number;
     page: number;
     limit: number;
+    /** Gợi ý 1 filter khi query rỗng (FE render nút "Ý bạn là ...?"). */
+    hint?: SearchHint;
   }> {
     const q = (query.q ?? '').trim();
     const collection = (query.collection ?? '').trim();
@@ -202,8 +205,17 @@ export class ProductsService {
       }
       if (slugs !== null) {
         if (!slugs.length) {
-          // Meili nói không có kết quả — tin luôn (khỏi quét DB)
-          return { items: [], total: 0, page, limit };
+          // Meili nói không có kết quả — tin luôn (khỏi quét DB), nhưng hỏi
+          // Jev 1 call xem khách đang tìm filter nào để FE gợi ý thay vì
+          // trang trắng. Jev tắt/chết → hint undefined, FE như cũ.
+          const hint = q.length >= 2 ? await searchHint(q) : null;
+          return {
+            items: [],
+            total: 0,
+            page,
+            limit,
+            ...(hint ? { hint } : {}),
+          };
         }
         and.push({ slug: { in: slugs } });
         // Sort theo relevance của Meili: lấy slug theo thứ tự rồi map lại
@@ -259,10 +271,13 @@ export class ProductsService {
       }),
       this.prisma.product.count({ where }),
     ]);
+    // Nhánh Prisma (không Meili) cũng rỗng → gợi ý như nhánh Meili rỗng.
+    if (total === 0 && q && q.length >= 2) {
+      const hint = await searchHint(q);
+      if (hint) return { items: [], total: 0, page, limit, hint };
+    }
     return { items: rows.map(toDto), total, page, limit };
   }
-
-  /** Relevance path: Meili đã xếp hạng slug — fetch theo thứ tự đó. */
   private async listBySlugs(
     slugs: string[],
     page: number,

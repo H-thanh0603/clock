@@ -151,3 +151,103 @@ def build_watch_extension(
         payload_model=SetWatchPayload,
         enrich=enrich,
     )
+
+
+class PlaceOrderPayload(BaseModel):
+    """Model validates tool input; BE kiểm lại hạn mức/total/server-side."""
+
+    payment_intent_id: str = Field(max_length=64)
+    customer_name: str = Field(max_length=200)
+    contact: str = Field(max_length=200)
+    address: str = Field(max_length=500)
+    slot: str | None = Field(default=None, max_length=200)
+
+
+def build_place_order_extension() -> PresentationExtension:
+    """Extension ``place_order_with_intent`` — agent chốt đơn hộ trong hạn mức.
+
+    Rào chắn theo lớp (không tin model):
+    1. Provenance: giỏ phải có item từ search/details (executor giữ); giỏ
+       rỗng → từ chối ngay, không gọi BE.
+    2. Delegation: backend ``place_order_with_intent`` từ chối khi client
+       không phải delegation (giỏ demo không chốt hộ được).
+    3. BE: intent ACTIVE + đúng user + chưa hết hạn + tổng ≤ trần + dùng 1
+       lần (conditional LOCKED→USED); tổng do server chốt giá.
+    4. Link VNPay do server ký HMAC — agent chỉ nhận `payUrl` để FE redirect
+       user, không tự tạo link được.
+    """
+
+    async def enrich(payload: PlaceOrderPayload, context: Any) -> dict[str, Any]:
+
+        session = context.session
+        backend = context.backend if hasattr(context, "backend") else None
+        cart = None
+        get_cart = getattr(backend, "get_cart", None)
+        place = getattr(backend, "place_order_with_intent", None)
+        if not callable(get_cart) or not callable(place):
+            raise ValueError("Backend không hỗ trợ chốt đơn hộ")
+        cart = await get_cart(session)
+        items = list(getattr(cart, "items", None) or [])
+        if not items:
+            raise ValueError("Giỏ trống — chưa có gì để chốt")
+        out = await place(
+            session,
+            cart,
+            str(payload.payment_intent_id).strip(),
+            customer={
+                "name": payload.customer_name,
+                "contact": payload.contact,
+                "address": payload.address,
+                "slot": payload.slot or "",
+            },
+        )
+        return {
+            "order_code": out.get("code"),
+            "status": out.get("status"),
+            "total_usd": out.get("totalUsd"),
+            "pay_url": out.get("payUrl"),
+        }
+
+    return PresentationExtension(
+        name="place_order_with_intent",
+        component="order_placed",
+        description=(
+            "Place the customer's CURRENT CART as a real order and get a VNPay "
+            "payment link, ONLY when ALL are true: (1) the customer explicitly "
+            "asked you to check out/pay now in this session; (2) they approved "
+            "a payment limit (payment_intent_id) covering the cart total; "
+            "(3) the cart is final (no custom/pending-review items). Ask for "
+            "name/contact/address first — never invent them. The backend "
+            "re-checks the limit, prices, and stock; failures come back as "
+            "errors to relay. Never call twice for the same cart."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "payment_intent_id": {
+                    "type": "string",
+                    "description": "Payment limit id the customer approved (from the chat UI).",
+                },
+                "customer_name": {
+                    "type": "string",
+                    "description": "Recipient full name, asked from the customer.",
+                },
+                "contact": {
+                    "type": "string",
+                    "description": "Phone or email for delivery contact.",
+                },
+                "address": {
+                    "type": "string",
+                    "description": "Full delivery address.",
+                },
+                "slot": {
+                    "type": "string",
+                    "description": "Preferred delivery time window (optional).",
+                },
+            },
+            "required": ["payment_intent_id", "customer_name", "contact", "address"],
+            "additionalProperties": False,
+        },
+        payload_model=PlaceOrderPayload,
+        enrich=enrich,
+    )

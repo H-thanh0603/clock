@@ -359,7 +359,10 @@ async def _make_shopping_agent(pool: PooledStorefront):
 
     from aurel_agents.memory_store import LockedJsonFileMemoryStore
     from aurel_agents.shopping.task_tool import build_task_extensions
-    from aurel_agents.shopping.watch_tool import build_watch_extension
+    from aurel_agents.shopping.watch_tool import (
+        build_place_order_extension,
+        build_watch_extension,
+    )
 
     settings = get_settings()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -372,6 +375,8 @@ async def _make_shopping_agent(pool: PooledStorefront):
         extra_presentation_tools=(
             build_watch_extension(_watch_store, jev_gate=_jev_watch_gate()),
             *build_task_extensions(_task_store),
+            # Agent chốt đơn hộ trong hạn mức user duyệt (BE kiểm lại hết).
+            build_place_order_extension(),
         ),
     )
     return agent

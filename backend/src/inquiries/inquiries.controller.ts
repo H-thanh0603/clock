@@ -7,6 +7,7 @@ import {
   CreateInquiryDto,
   normalizePayload,
 } from './inquiry.dto';
+import { triageInquiry } from '../common/jev';
 
 const TYPES = new Set(['SALON', 'BESPOKE']);
 
@@ -34,25 +35,42 @@ export class InquiriesController {
     // Payload configurator: cap 4KB + sanitize trước khi chạm DB / Telegram
     // (audit DATA-001 — trước đây JSON client không giới hạn kích thước).
     const payload = normalizePayload(dto.payload);
+    const name = dto.name.trim().slice(0, 120);
+    const message = dto.message?.trim().slice(0, 2000) || null;
+    // Jev triage (1 call, ~100ms): spam gate + urgency + bespoke lead.
+    // Hỏng/thiếu key → null → hành vi cũ nguyên vẹn (không ping nhầm, không
+    // mất inquiry). Chỉ BESPOKE mới hỏi lead — SALON không tốn dimension.
+    const triage = await triageInquiry({ type, name, message, payload });
+    // Spam chắc chắn (noul ≥ 0.85) → vẫn lưu để truy vết, nhưng status SPAM
+    // (không hiện hàng NEW) và KHÔNG ping Telegram/email.
     const inquiry = await this.prisma.inquiry.create({
       data: {
         type,
-        name: dto.name.trim().slice(0, 120),
+        name,
         phone: dto.phone.trim().slice(0, 40),
         email: dto.email?.trim().slice(0, 160) || null,
-        message: dto.message?.trim().slice(0, 2000) || null,
+        message,
         payload: (payload ?? undefined) as never,
+        status: triage?.isSpam ? 'SPAM' : 'NEW',
       },
     });
+    if (triage?.isSpam) return { id: inquiry.id, status: 'OK' };
 
     // Thông báo concierge — qua hàng đợi NotifyService (không chặn response,
     // Telegram/SMTP fail thì retry với backoff thay vì mất thông báo).
+    // Jev urgency: vip/hot thêm tag ưu tiên đầu tin; bespoke gắn lead score.
     const label = type === 'BESPOKE' ? 'Đơn bespoke' : 'Yêu cầu đặt lịch';
     const esc = escapeTelegramHtml;
+    const priorityPrefix =
+      triage?.urgency === 'vip' ? '🚨 <b>[VIP]</b> '
+      : triage?.urgency === 'hot' ? '🔥 <b>[GẤP]</b> '
+      : '';
     const lines = [
-      `📬 <b>${label} mới</b> (${inquiry.id.slice(-6)})`,
+      `📬 ${priorityPrefix}<b>${label} mới</b> (${inquiry.id.slice(-6)})`,
       `Khách: ${esc(inquiry.name)} — ${esc(inquiry.phone)}${inquiry.email ? ` — ${esc(inquiry.email)}` : ''}`,
     ];
+    if (type === 'BESPOKE' && triage?.lead)
+      lines.push(`Lead: ${triage.lead.toUpperCase()} (Jev)`);
     if (inquiry.message) lines.push(`Ghi chú: ${esc(inquiry.message)}`);
     if (payload) {
       // Payload đã sanitize ở trên (4KB, scalar, sâu ≤3) — render an toàn

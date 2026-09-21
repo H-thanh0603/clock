@@ -1,18 +1,24 @@
 import {
   Body,
   Controller,
+  Delete,
+  ForbiddenException,
   Get,
   HttpCode,
+  Param,
   Post,
   Query,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
+import { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
-import { OptionalSessionGuard } from '../common/guards';
+import {
+  OptionalSessionGuard,
+  RequiredAuthGuard,
+} from '../common/guards';
 import { CurrentUser } from '../common/current-user.decorator';
 import type { SessionUser } from '../common/session';
 import { simulatedMethodsEnabled } from '../orders/orders.service';
@@ -29,6 +35,47 @@ export class PaymentsMethodsController {
       (m) => m === 'vnpay' || enabled,
     );
     return { methods };
+  }
+}
+
+/**
+ * Hạn mức thanh toán hộ cho AI concierge (agentic checkout).
+ *
+ * Luồng đúng: user bấm "cho phép agent thanh toán tới X" ở FE → BE tạo
+ * intent (ACTIVE, TTL 15 phút) → agent tạo đơn kèm paymentIntentId trong
+ * hạn mức → BE khóa intent + tạo link VNPay hộ. Agent KHÔNG BAO GIỜ tự
+ * quyết số tiền: trần do user duyệt, tổng đơn do server chốt giá.
+ */
+@Controller('payments/intents')
+@UseGuards(RequiredAuthGuard)
+export class PaymentIntentsController {
+  constructor(private readonly payments: PaymentsService) {}
+
+  /** User duyệt hạn mức mới — intent cũ cùng user tự revoke để khỏi nhầm. */
+  @Post()
+  @HttpCode(201)
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  create(
+    @Body() body: { maxUsd?: number; method?: string; ttlMinutes?: number },
+    @CurrentUser() user: SessionUser,
+  ) {
+    if (user.role === 'ADMIN') {
+      throw new ForbiddenException('Admin không dùng thanh toán hộ');
+    }
+    return this.payments.createIntent(user.id, body);
+  }
+
+  /** Liệt kê intent còn hiệu lực của chính mình (FE hiện "đang cho phép"). */
+  @Get()
+  mine(@CurrentUser() user: SessionUser) {
+    return this.payments.listIntents(user.id);
+  }
+
+  /** Thu hồi hạn mức (đổi ý) — intent đã USED thì không revoke được. */
+  @Delete(':id')
+  @HttpCode(200)
+  revoke(@Param('id') id: string, @CurrentUser() user: SessionUser) {
+    return this.payments.revokeIntent(user.id, id);
   }
 }
 

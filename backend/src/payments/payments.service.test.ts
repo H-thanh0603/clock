@@ -211,3 +211,83 @@ describe('PaymentsService.handleIpn', () => {
     });
   });
 });
+
+describe('PaymentsService.paymentIntents (hạn mức agent)', () => {
+  function intentPrisma() {
+    const store = new Map<string, Record<string, unknown>>();
+    let seq = 0;
+    return {
+      store,
+      prisma: {
+        paymentIntent: {
+          updateMany: ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+            let n = 0;
+            for (const [id, r] of store) {
+              const match = Object.entries(where).every(([k, v]) => (r as Record<string, unknown>)[k] === v);
+              if (match) {
+                store.set(id, { ...r, ...data });
+                n++;
+              }
+            }
+            return Promise.resolve({ count: n });
+          },
+          create: ({ data }: { data: Record<string, unknown> }) => {
+            const row = { id: `pi-${++seq}`, status: 'ACTIVE', ...data, createdAt: new Date() };
+            store.set(row.id as string, row);
+            return Promise.resolve(row);
+          },
+          findMany: ({ where }: { where: Record<string, unknown> }) =>
+            Promise.resolve(
+              [...store.values()].filter((r) =>
+                Object.entries(where).every(([k, v]) => {
+                  if (k === 'expiresAt' && typeof v === 'object' && v !== null && 'gt' in v)
+                    return (r[k] as Date) > (v as { gt: Date }).gt;
+                  return r[k] === v;
+                })
+              )
+            ),
+        },
+      },
+    };
+  }
+  const svcOf = (p: ReturnType<typeof intentPrisma>) =>
+    new PaymentsService(p.prisma as never, {} as never, {} as never);
+
+  it('trần 1–200k USD; method lạ → 400', async () => {
+    const p = intentPrisma();
+    const svc = svcOf(p);
+    await expect(svc.createIntent('u1', { maxUsd: 0 })).rejects.toThrow(/Hạn mức/);
+    await expect(svc.createIntent('u1', { maxUsd: 999_999 })).rejects.toThrow(/Hạn mức/);
+    await expect(svc.createIntent('u1', { maxUsd: 1000, method: 'cod' })).rejects.toThrow(/VNPay/);
+  });
+
+  it('duyệt mới revoke ACTIVE cũ (không chồng hạn mức)', async () => {
+    const p = intentPrisma();
+    const svc = svcOf(p);
+    const a = await svc.createIntent('u1', { maxUsd: 1000 });
+    const b = await svc.createIntent('u1', { maxUsd: 2000 });
+    expect(p.store.get(a.id)!.status).toBe('REVOKED');
+    expect(p.store.get(b.id)!.status).toBe('ACTIVE');
+    // USED giữ lại làm chứng từ (không bị revoke).
+    p.store.get(b.id)!.status = 'USED';
+    const c = await svc.createIntent('u1', { maxUsd: 500 });
+    expect(p.store.get(b.id)!.status).toBe('USED');
+    expect(p.store.get(c.id)!.status).toBe('ACTIVE');
+  });
+
+  it('mine chỉ ACTIVE còn hạn; revoke USED → 404', async () => {
+    const p = intentPrisma();
+    const svc = svcOf(p);
+    const a = await svc.createIntent('u1', { maxUsd: 1000 });
+    p.store.get(a.id)!.expiresAt = new Date(Date.now() - 1000);
+    expect(await svc.listIntents('u1')).toEqual([]);
+    const b = await svc.createIntent('u1', { maxUsd: 1000 });
+    expect((await svc.listIntents('u1')).map((r) => r.id)).toEqual([b.id]);
+    p.store.get(b.id)!.status = 'USED';
+    await expect(svc.revokeIntent('u1', b.id)).rejects.toThrow();
+    const c = await svc.createIntent('u1', { maxUsd: 100 });
+    expect(await svc.revokeIntent('u1', c.id)).toEqual({ ok: true });
+    // revoke đơn user khác → 404 (không sờ được intent người khác).
+    await expect(svc.revokeIntent('u2', (await svc.createIntent('u1', { maxUsd: 50 })).id)).rejects.toThrow();
+  });
+});

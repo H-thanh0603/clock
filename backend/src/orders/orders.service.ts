@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotifyService } from '../notify/notify.service';
+import { orderRisk } from '../common/jev';
+import { PaymentsService } from '../payments/payments.service';
 import { linePrice } from '../common/pricing';
 import { sameContact } from '../common/phone';
 import { sessionSecret } from '../common/session';
@@ -52,11 +54,25 @@ export type CreateOrderInput = {
   payment?: { method?: string };
   /** Tick đồng ý Điều khoản + Chính sách bảo mật — BE bắt buộc (P2-1). */
   agreedTerms?: boolean;
+  /**
+   * Agent thanh toán hộ trong hạn mức user duyệt trước (payment_intent).
+   * - BE chỉ chấp nhận khi request là delegation (viaAgent) + intent còn
+   *   hiệu lực (chưa dùng, chưa hết hạn, đủ hạn mức, đúng user).
+   * - Không có intent → agent cũng tạo được đơn PENDING như browser, nhưng
+   *   KHÔNG tạo được link VNPay (phải qua /payments/vnpay/create tay).
+   */
+  paymentIntentId?: string;
 };
 
 export type CreateOrderOpts = {
   /** Idempotency-Key header: retry/double-click cùng key → trả đơn cũ. */
   idempotencyKey?: string;
+  /**
+   * True khi request mang delegation (agent thay user) — BE biết qua guard.
+   * Controller truyền vào để service phân biệt: chỉ delegation + intent hợp
+   * lệ mới được tạo link VNPay hộ; browser gửi paymentIntentId → bỏ qua.
+   */
+  viaAgent?: boolean;
 };
 
 /** Key BE chấp nhận: 8–64 ký tự URL-safe (FE sinh UUID/lần bấm). */
@@ -146,6 +162,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notify: NotifyService,
+    private readonly payments: PaymentsService,
   ) {}
 
   /** Dựng response tạo đơn từ order DB (đơn mới hay replay đều cùng shape). */
@@ -298,6 +315,47 @@ export class OrdersService {
     });
     if (totalUsd <= 0)
       throw new BadRequestException('Tổng đơn không hợp lệ');
+
+    // Agent thanh toán hộ: intent phải do CHÍNH user này duyệt trước, còn
+    // ACTIVE, chưa hết hạn, đủ hạn mức cho tổng đơn này, và request phải là
+    // delegation (viaAgent). Thiếu 1 điều → 400, không tạo đơn hộ.
+    // (Không tin intentId từ browser: controller chỉ set viaAgent khi token
+    // là delegation — browser gửi intentId cũng bị bỏ qua.)
+    let consumedIntent: { id: string } | null = null;
+    const intentId = String(input.paymentIntentId ?? '').trim();
+    if (intentId) {
+      if (!opts.viaAgent || !userId) {
+        throw new BadRequestException(
+          'Thanh toán hộ chỉ cho AI concierge hành động thay user đã đăng nhập',
+        );
+      }
+      const intent = await this.prisma.paymentIntent.findUnique({
+        where: { id: intentId },
+      });
+      const now = new Date();
+      if (
+        !intent ||
+        intent.userId !== userId ||
+        intent.status !== 'ACTIVE' ||
+        intent.expiresAt <= now ||
+        intent.maxUsd < totalUsd ||
+        (intent.method === 'vnpay') !== (method === 'vnpay')
+      ) {
+        throw new BadRequestException(
+          'Hạn mức thanh toán hộ không hợp lệ (hết hạn/đã dùng/quá trần/khác user)',
+        );
+      }
+      // Đóng intent NGAY trong create (conditional update — chống 2 đơn
+      // cùng xài 1 intent khi agent retry song song): chỉ thắng khi còn ACTIVE.
+      const closed = await this.prisma.paymentIntent.updateMany({
+        where: { id: intent.id, status: 'ACTIVE' },
+        data: { status: 'LOCKED' },
+      });
+      if (closed.count === 0) {
+        throw new BadRequestException('Hạn mức này vừa được dùng ở nơi khác');
+      }
+      consumedIntent = { id: intent.id };
+    }
 
     // Hàng custom phải qua concierge duyệt giá → không auto-confirm.
     const simulated = method !== 'vnpay' && !hasCustom;
@@ -466,16 +524,65 @@ export class OrdersService {
       itemCount: lines.reduce((s, l) => s + l.qty, 0),
     });
 
-    return this.toCreateResult({
-      id: order.id,
-      code: order.code,
-      totalUsd: order.totalUsd,
-      totalVnd: order.totalVnd,
-      paidUsd: order.paidUsd,
-      paidVnd: order.paidVnd,
-      status: order.status,
-      items: lines.map((l) => ({ productSlug: l.productSlug })),
-    });
+    // Jev risk advisory (fire-and-forget, không chặn response): đơn rủi ro
+    // cao → thêm 1 tin Telegram cho merchant xem lại TRƯỚC khi confirm.
+    // Advisory only — không auto-hủy/khóa, Jev chết thì đơn đi như cũ.
+    // Chỉ check đơn đáng ngờ (vãng lai + ≥$5k, hoặc custom, hoặc ≥10 món).
+    {
+      const itemCount = lines.reduce((s, l) => s + l.qty, 0);
+      const worthCheck =
+        (!userId && order.totalUsd >= 5000) ||
+        lines.some((l) => !l.productSlug) ||
+        itemCount >= 10;
+      if (worthCheck) {
+        const code = order.code;
+        void orderRisk({
+          totalUsd: order.totalUsd,
+          itemCount,
+          method,
+          guest: !userId,
+          hasCustom: lines.some((l) => !l.productSlug),
+        }).then((risk) => {
+          if (risk?.risky)
+            return this.notify.enqueueText(
+              `⚠️ <b>Cần xem lại đơn ${code}</b> (Jev: ${risk.reason ?? 'risky'})\nKhách: ${customerName} — ${contact}`,
+            );
+        });
+      }
+    }
+
+    // Agent thanh toán hộ: intent đã trừ hạn mức lúc duyệt (xem createIntent
+    // phía payments) — ở đây chỉ đóng intent (USED + gắn đơn) trong cùng
+    // transaction logic với tạo đơn. Không có intent → bỏ qua êm.
+    let payUrl: string | null = null;
+    if (consumedIntent) {
+      await this.prisma.paymentIntent.update({
+        where: { id: consumedIntent.id },
+        data: { status: 'USED', orderId: order.id, usedAt: new Date() },
+      });
+      // VNPay URL cho agent: trả về để FE/agent redirect user đúng 1 lần.
+      // (Link tạo bởi server, ký HMAC — agent không tự ký được.)
+      try {
+        payUrl = await this.payments.createPayUrlForOrder(order.id, userId);
+      } catch {
+        payUrl = null; // link fail → đơn vẫn PENDING, user bấm lại ở /orders
+      }
+    }
+
+    return {
+      ...this.toCreateResult({
+        id: order.id,
+        code: order.code,
+        totalUsd: order.totalUsd,
+        totalVnd: order.totalVnd,
+        paidUsd: order.paidUsd,
+        paidVnd: order.paidVnd,
+        status: order.status,
+        items: lines.map((l) => ({ productSlug: l.productSlug })),
+      }),
+      // Chỉ có khi agent thanh toán hộ trong hạn mức đã duyệt.
+      ...(payUrl ? { payUrl } : {}),
+    };
   }
 
   /**

@@ -43,6 +43,7 @@ model User {
   cartItems     CartItem[]
   wishlist      WishlistItem[]
   delegationKey DelegationKey[]
+  paymentIntents PaymentIntent[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -113,6 +114,7 @@ model Order {
   items        OrderItem[]
   payments     Payment[]
   events       OrderEvent[]
+  paymentIntents PaymentIntent[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -152,6 +154,28 @@ model Payment {
 
   @@index([orderId])
   @@index([txnRef])
+}
+
+/// Hạn mức user duyệt TRƯỚC để agent thanh toán hộ (agentic checkout).
+/// - `maxUsd` = trần user cho phép cho intent này (BE chốt tổng đơn ≤ trần);
+/// - `status`: ACTIVE (chưa dùng) → USED (đã chốt 1 đơn) / EXPIRED / REVOKED;
+/// - dùng 1 lần, hết hạn ngắn (mặc định 15 phút) — lộ intent cũng không tái
+///   dùng được, và không bao giờ thay được session (vẫn cần delegation).
+/// - `orderId`/`usedAt` = đơn đã chốt — đối chiếu khi khiếu nại.
+model PaymentIntent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  maxUsd    Int
+  method    String   @default("vnpay")
+  status    String   @default("ACTIVE")
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, status, createdAt])
 }
 
 model CartItem {

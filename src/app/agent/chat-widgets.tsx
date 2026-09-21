@@ -426,7 +426,41 @@ export function UxEvent({ event }: { event: Extract<AgentEvent, { type: "ui" }> 
       );
     case "task_completed":
       return <TaskCompleted taskId={event.payload.task_id} />;
+    case "order_placed":
+      return <OrderPlaced payload={event.payload} />;
     default:
       return null; // host bỏ qua component không biết — đúng hợp đồng upstream
   }
+}
+
+/**
+ * Card "Đã chốt đơn hộ" — agent thanh toán trong hạn mức user duyệt.
+ * Hiện mã đơn + tổng + nút sang VNPay (link server ký, dùng đúng 1 lần).
+ */
+function OrderPlaced({ payload }: { payload: Record<string, unknown> }) {
+  const code = String(payload.order_code ?? "");
+  const payUrl = typeof payload.pay_url === "string" ? payload.pay_url : "";
+  const total = Number(payload.total_usd ?? 0);
+  return (
+    <Card className="border-primary/40">
+      <p className="font-label-spec text-label-spec uppercase tracking-wider text-primary">
+        ✓ Đã chốt đơn hộ · {code}
+      </p>
+      <p className="font-body-md text-body-md text-on-surface mt-1">
+        Tổng {total > 0 ? `$${total.toLocaleString("en-US")}` : ""} — trong hạn mức bạn đã duyệt.
+      </p>
+      {payUrl ? (
+        <a
+          href={payUrl}
+          className="mt-space-sm inline-block rounded bg-primary px-4 py-2 font-label-spec text-label-spec uppercase tracking-[0.15em] text-on-primary"
+        >
+          Sang VNPay thanh toán →
+        </a>
+      ) : (
+        <p className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant/70">
+          Đơn đang chờ — mở lại đơn {code} để thanh toán.
+        </p>
+      )}
+    </Card>
+  );
 }
