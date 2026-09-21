@@ -1,5 +1,10 @@
 
-export default function Page() {
+import { serverLocale } from "@/components/OrderStatusLabel";
+import { atelierStrings } from "./strings";
+
+export default async function Page() {
+  const locale = await serverLocale();
+  const A = await atelierStrings(locale);
   return (
   <div className="flex flex-col w-full">
   <div className="flex flex-col w-full">
@@ -29,12 +34,12 @@ export default function Page() {
 </svg>
 </div>
 <h1 className="max-w-4xl font-display-hero text-headline-lg md:text-display-hero text-on-surface uppercase tracking-tight leading-[1.12]">
-          Di Sản Thế Kỷ &amp; <br className="hidden sm:inline"/>
-<span className="italic font-normal text-secondary font-title-editorial lowercase tracking-normal">Bí Quyết</span>
-<span className="text-primary font-title-editorial uppercase tracking-wider">Chế Tác Độc Bản</span>
+          {A.heroA} &amp; <br className="hidden sm:inline"/>
+<span className="italic font-normal text-secondary font-title-editorial lowercase tracking-normal">{A.heroB}</span>
+<span className="text-primary font-title-editorial uppercase tracking-wider">{A.heroC}</span>
 </h1>
 <p className="max-w-2xl font-body-lg text-body-lg text-on-surface-variant font-light leading-relaxed">
-          Tại xưởng chế tác nép mình bên thung lũng Vallée de Joux và xưởng nghệ nhân Plan-les-Ouates Genève, mỗi tích tắc không chỉ là thời gian trôi qua, mà là sự lắng đọng của hơn 130 năm kiệt tác cơ khí thủ công tối thượng.
+          {A.heroSub}
         </p>
 </div>
 {/* Hero Cinematic Visual Collage (Magazine Asymmetric Composition) */}
@@ -44,8 +49,8 @@ export default function Page() {
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
 <div className="absolute bottom-0 left-0 p-space-xl">
 <span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-primary">Haute Horlogerie Workshop</span>
-<p className="font-title-editorial text-title-editorial text-on-surface mt-1">Xưởng Nghệ Nhân L’Atelier des Maîtres • Genève</p>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">Bảo lưu kỹ thuật trang trí thủ công hoàn toàn bằng kính phóng đại 12x</p>
+<p className="font-title-editorial text-title-editorial text-on-surface mt-1">{A.workshopTitle}</p>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-space-2xs">{A.workshopSub}</p>
 </div>
 </div>
 <div className="lg:col-span-5 flex flex-col gap-space-lg">
@@ -60,13 +65,13 @@ export default function Page() {
 <div className="bg-surface-container-low rounded-lg p-space-xl flex flex-col justify-between shadow-lg relative overflow-hidden">
 <div className="absolute right-0 top-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl"></div>
 <div className="flex items-center justify-between mb-space-md">
-<span className="font-label-spec text-label-spec uppercase tracking-widest text-primary">Tôn Chỉ Chế Tác</span>
+<span className="font-label-spec text-label-spec uppercase tracking-widest text-primary">{A.craftTitle}</span>
 <span className="material-symbols-outlined text-secondary text-[22px]">hourglass_top</span>
 </div>
 <blockquote className="font-title-editorial text-body-lg text-on-surface italic font-normal leading-snug">
-              “Chúng tôi không đong đếm giờ giấc; chúng tôi bắt giữ vĩnh cửu qua từng vi nhịp dao động bánh lắc.”
+              {A.craftQuote}
             </blockquote>
-<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-on-surface-variant/70 mt-space-md">— Antoine Aurel, Sáng lập viên (1892)</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-on-surface-variant/70 mt-space-md">{A.craftBy}</span>
 </div>
 </div>
 </div>
@@ -81,8 +86,8 @@ export default function Page() {
 <span className="font-headline-lg text-headline-lg text-on-surface font-light leading-none">133</span>
 <span className="font-title-editorial text-body-lg text-primary uppercase">Năm</span>
 </div>
-<p className="font-label-spec text-label-spec uppercase tracking-wider text-secondary mt-1">Di Sản Liên Tục</p>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1">Độc lập tự chủ qua 4 thế hệ nghệ nhân bậc thầy</p>
+<p className="font-label-spec text-label-spec uppercase tracking-wider text-secondary mt-1">{A.statYears}</p>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1">{A.statYearsSub}</p>
 </div>
 </div>
 <div className="bg-surface-container-low/70 backdrop-blur-md rounded-lg p-space-xl flex items-center gap-space-lg shadow-md hover:bg-surface-container transition-colors">
@@ -94,8 +99,8 @@ export default function Page() {
 <span className="font-headline-lg text-headline-lg text-on-surface font-light leading-none">480</span>
 <span className="font-title-editorial text-body-lg text-primary uppercase">Giờ</span>
 </div>
-<p className="font-label-spec text-label-spec uppercase tracking-wider text-secondary mt-1">Chế Tác Thủ Công</p>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1">Định chuẩn cho từng cỗ máy trước khi xuất xưởng</p>
+<p className="font-label-spec text-label-spec uppercase tracking-wider text-secondary mt-1">{A.statHours}</p>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1">{A.statHoursSub}</p>
 </div>
 </div>
 <div className="bg-surface-container-low/70 backdrop-blur-md rounded-lg p-space-xl flex items-center gap-space-lg shadow-md hover:bg-surface-container transition-colors">
@@ -107,8 +112,8 @@ export default function Page() {
 <span className="font-headline-lg text-headline-lg text-on-surface font-light leading-none">100</span>
 <span className="font-title-editorial text-headline-sm text-primary">%</span>
 </div>
-<p className="font-label-spec text-label-spec uppercase tracking-wider text-secondary mt-1">Poinçon de Genève &amp; COSC</p>
-<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1">Kiểm chuẩn độ chính xác thiên văn nghiêm ngặt</p>
+<p className="font-label-spec text-label-spec uppercase tracking-wider text-secondary mt-1">{A.statCert}</p>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mt-1">{A.statCertSub}</p>
 </div>
 </div>
 </div>
@@ -121,14 +126,14 @@ export default function Page() {
 <div>
 <div className="flex items-center gap-space-xs mb-space-2xs text-secondary">
 <span className="material-symbols-outlined text-[18px]">handyman</span>
-<span className="font-label-spec text-label-spec uppercase tracking-[0.2em]">Métiers d'Art &amp; Haute Horlogerie</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.2em]">{A.pillarsEyebrow}</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight">
-            Không Gian Xưởng Nghệ Nhân <span className="text-primary italic font-title-editorial font-normal">(L’Atelier des Maîtres)</span>
+            {A.pillarsTitle}
 </h2>
 </div>
 <p className="max-w-md font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-          Từng chi tiết cơ học siêu vi không chỉ nhằm đảm bảo sai số phần triệu giây, mà là bức tranh điêu khắc tinh xảo chỉ xuất hiện ở đỉnh cao đồng hồ Thụy Sĩ.
+          {A.pillarsSub}
         </p>
 </div>
 {/* 4 Pillars Mosaic Bento Grid */}
@@ -242,10 +247,10 @@ export default function Page() {
 <div className="text-center max-w-2xl mx-auto mb-space-3xl">
 <span className="font-label-badge text-label-badge uppercase tracking-[0.25em] text-primary">Chronologie Historique</span>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase mt-space-2xs tracking-tight">
-          Dòng Thời Gian Lịch Sử Hoàng Gia
+          {A.timelineTitle}
         </h2>
 <p className="font-body-md text-body-md text-on-surface-variant mt-space-xs">
-          Hành trình hơn một thế kỷ định hình chuẩn mực thời gian từ trung tâm Genève đến các vương triều và những nhà sưu tập lừng danh toàn cầu.
+          {A.timelineSub}
         </p>
 </div>
 {/* Timeline Container */}
@@ -388,12 +393,12 @@ export default function Page() {
 <div className="bg-surface-container-low rounded-xl p-space-2xl lg:p-space-3xl relative overflow-hidden shadow-2xl">
 <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 <div className="max-w-3xl mb-space-2xl">
-<span className="font-label-badge text-label-badge uppercase tracking-[0.25em] text-secondary">Excellence Horlogère</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.25em] text-secondary">{A.standardsEyebrow}</span>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase mt-space-2xs tracking-tight">
-            Cam Kết Tiêu Chuẩn Thụy Sĩ Tối Thượng
+            {A.standardsTitle}
           </h2>
 <p className="font-body-md text-body-md text-on-surface-variant mt-space-xs leading-relaxed">
-            Mỗi chiếc đồng hồ rời khỏi Atelier Aurel &amp; Co. đều mang trên mình những con dấu danh giá nhất của nền chế tác đồng hồ cao cấp Thụy Sĩ.
+            {A.standardsSub}
           </p>
 </div>
 <div className="grid grid-cols-1 md:grid-cols-3 gap-space-xl">
@@ -459,39 +464,38 @@ export default function Page() {
 <div className="lg:col-span-7 space-y-space-md">
 <div className="inline-flex items-center gap-space-xs px-space-md py-1 rounded bg-surface-container-highest text-primary font-label-badge text-label-badge uppercase tracking-[0.2em]">
 <span className="material-symbols-outlined text-[14px]">lock</span>
-<span>Đặc Quyền Tiếp Đón Kín • Private Salon Circle</span>
+<span>{A.visitEyebrow}</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight leading-tight">
-              Chiêm Ngưỡng Trực Tiếp Tại Xưởng Genève <br/>
-<span className="text-secondary font-title-editorial italic lowercase tracking-normal">hoặc Không Gian</span>
-<span className="text-primary font-title-editorial"> Private Salon Hà Nội &amp; Sài Gòn</span>
+              {A.visitTitleA} <br/>
+<span className="text-secondary font-title-editorial italic lowercase tracking-normal">{A.visitTitleB}</span>
 </h2>
 <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
-              Mỗi buổi tham quan được giới hạn tối đa cho 1 nhóm khách thượng lưu. Quý khách sẽ được đích thân Giám đốc Di sản tiếp đón tại phòng trưng bày kín, thưởng thức Champagne Dom Pérignon và đeo thử những cỗ máy Tourbillon phiên bản giới hạn không bán rộng rãi.
+              {A.visitBody}
             </p>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md pt-space-sm">
 <div className="flex items-center gap-space-sm text-on-surface">
 <span className="material-symbols-outlined text-primary text-[20px]">room_service</span>
-<span className="font-body-sm text-body-sm">Chuyên gia Horlogerie riêng hướng dẫn</span>
+<span className="font-body-sm text-body-sm">{A.visitExpert}</span>
 </div>
 <div className="flex items-center gap-space-sm text-on-surface">
 <span className="material-symbols-outlined text-primary text-[20px]">security</span>
-<span className="font-body-sm text-body-sm">Bảo mật danh tính &amp; xe đưa đón riêng</span>
+<span className="font-body-sm text-body-sm">{A.visitPrivacy}</span>
 </div>
 <div className="flex items-center gap-space-sm text-on-surface">
 <span className="material-symbols-outlined text-primary text-[20px]">wine_bar</span>
-<span className="font-body-sm text-body-sm">Tiếp đãi rượu Vintage Champagne hảo hạng</span>
+<span className="font-body-sm text-body-sm">{A.visitChampagne}</span>
 </div>
 <div className="flex items-center gap-space-sm text-on-surface">
 <span className="material-symbols-outlined text-primary text-[20px]">biotech</span>
-<span className="font-body-sm text-body-sm">Trực tiếp trải nghiệm kính lúp vi thao tác</span>
+<span className="font-body-sm text-body-sm">{A.visitLoupe}</span>
 </div>
 </div>
 {/* Call to Actions */}
 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-space-md pt-space-lg">
 <button className="px-space-xl py-space-md rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.18em] font-semibold hover:bg-secondary transition-all duration-300 shadow-xl flex items-center justify-center gap-space-xs cursor-pointer" id="openBookingBtn">
 <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-<span>Đăng Ký Khảo Sát Xưởng Nghệ Nhân</span>
+<span>{A.visitCta}</span>
 </button>
 <a className="px-space-xl py-space-md rounded bg-surface-container-high text-on-surface font-label-spec text-label-spec uppercase tracking-[0.18em] hover:text-primary transition-all duration-300 flex items-center justify-center gap-space-xs" href="tel:+41228190000">
 <span className="material-symbols-outlined text-secondary text-[18px]">call</span>
@@ -542,14 +546,14 @@ export default function Page() {
 <div className="flex items-center justify-between mb-space-md">
 <div>
 <span className="font-label-badge text-label-badge uppercase tracking-widest text-secondary">Rendez-Vous Privé</span>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">Đặt Lịch Tiếp Đón Atelier</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface">{A.bookTitle}</h3>
 </div>
 <button className="text-on-surface-variant hover:text-on-surface p-1" id="closeBookingBtn">
 <span className="material-symbols-outlined text-[24px]">close</span>
 </button>
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant mb-space-lg">
-        Vui lòng để lại thông tin liên hệ bảo mật. Giám đốc Khách hàng VIP của Aurel &amp; Co. sẽ chủ động liên hệ trong vòng 4 giờ làm việc.
+        {A.bookSub}
       </p>
 <form className="space-y-space-md" id="salonForm" >
 <div>
