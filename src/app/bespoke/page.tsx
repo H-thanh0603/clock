@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useCart } from "@/components/CartProvider";
 import { site } from "@/data/site";
 import { mediaUrl } from "@/lib/media";
+import { useLocale } from "@/components/LocaleProvider";
 
 const MOVEMENTS = {
   tourbillon: { name: "Flying Tourbillon 3D", price: 190000, duration: "10 – 12 Tháng" },
@@ -34,6 +35,7 @@ const fmtUsd = (n: number) =>
   "$" + new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n);
 
 export default function Page() {
+  const { t } = useLocale();
   const { addItem } = useCart();
   const [movement, setMovement] = useState<MovementKey>("tourbillon");
   const [material, setMaterial] = useState<MaterialKey>("rose-gold");
@@ -94,42 +96,42 @@ export default function Page() {
 <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
 <div className="inline-flex items-center gap-space-sm px-space-md py-1 rounded bg-surface-container-high/80 backdrop-blur-md border border-outline-variant/30 mb-space-lg shadow-sm">
 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-<span className="font-label-badge text-label-badge uppercase tracking-[0.25em] text-secondary">Cabinet des Pièces Rares • Commission de Haute Horlogerie</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.25em] text-secondary">{t("bespoke.heroEyebrow")}</span>
 </div>
 <h1 className="font-headline-lg text-headline-lg md:text-display-hero text-on-surface tracking-tight leading-tight uppercase font-display-hero mb-space-md">
-          Kiệt Tác Độc Bản &amp; <span className="text-primary italic font-normal">Đặt Chế Tác Riêng</span>
+          {t("bespoke.heroA")} &amp; <span className="text-primary italic font-normal">{t("bespoke.heroB")}</span>
 </h1>
 <p className="font-title-editorial text-body-lg text-secondary tracking-widest uppercase mb-space-lg">
           Pièce Unique &amp; Bespoke Commissions • Genève 1892
         </p>
 <p className="font-body-lg text-body-lg text-on-surface-variant max-w-3xl leading-relaxed mb-space-2xl">
-          Mỗi năm, xưởng chế tác Aurel &amp; Co. chỉ tiếp nhận tối đa <strong>07 dự án ủy thác độc bản</strong> từ các nhà sưu tập thượng lưu trên toàn cầu. Mỗi cỗ máy thời gian ra đời là một tạo tác vi cơ học duy nhất trên trần thế, mang dấu ấn linh hồn và câu chuyện vĩnh cửu của chính chủ nhân.
+          {t("bespoke.heroSub")}
         </p>
 {/* Exclusive Allocation Metrics Banner */}
 <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-px bg-outline-variant/30 rounded overflow-hidden p-px shadow-xl">
 <div className="bg-surface-container-low/90 backdrop-blur-md p-space-lg flex flex-col items-center justify-center text-center">
-<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">Hạn Ngạch Năm 2025</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">{t("bespoke.quotaTitle")}</span>
 <div className="flex items-baseline gap-2">
 <span className="font-headline-md text-headline-md text-primary font-bold">04</span>
-<span className="text-on-surface-variant text-body-md">/ 07 Ủy Thác Đã Ký</span>
+<span className="text-on-surface-variant text-body-md">{t("bespoke.quotaSigned")}</span>
 </div>
-<span className="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">Chỉ còn 03 suất tiếp nhận</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">{t("bespoke.quotaLeft")}</span>
 </div>
 <div className="bg-surface-container-low/90 backdrop-blur-md p-space-lg flex flex-col items-center justify-center text-center">
-<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">Thời Gian Chế Tác Vi Cơ Học</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">{t("bespoke.timeTitle")}</span>
 <div className="flex items-baseline gap-2">
 <span className="font-headline-md text-headline-md text-on-surface font-bold">08 – 14</span>
-<span className="text-on-surface-variant text-body-md">Tháng Thủ Công</span>
+<span className="text-on-surface-variant text-body-md">{t("bespoke.timeUnit")}</span>
 </div>
-<span className="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">Hơn 600 giờ gia công tỉ mỉ</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">{t("bespoke.timeSub")}</span>
 </div>
 <div className="bg-surface-container-low/90 backdrop-blur-md p-space-lg flex flex-col items-center justify-center text-center">
-<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">Bảo Chứng Độc Bản Toàn Cầu</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary mb-1">{t("bespoke.proofTitle")}</span>
 <div className="flex items-center gap-2 mt-1">
 <span className="material-symbols-outlined text-primary text-[22px]">verified</span>
 <span className="font-title-editorial text-body-md text-on-surface uppercase tracking-wider">Sole Custody Registry</span>
 </div>
-<span className="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">Hộ chiếu số hóa Blockchain &amp; Triện Thụy Sĩ</span>
+<span className="font-body-sm text-body-sm text-on-surface-variant/70 mt-1">{t("bespoke.proofSub")}</span>
 </div>
 </div>
 </div>
@@ -145,11 +147,11 @@ export default function Page() {
 <span className="font-label-spec text-label-spec uppercase tracking-[0.2em]">Geneva Archive Ledger</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight">
-            Di Sản Đã Hoàn Thành <span className="text-secondary italic font-serif">N°01/01</span>
+            {t("bespoke.archiveTitle")} <span className="text-secondary italic font-serif">N°01/01</span>
 </h2>
 </div>
 <p className="font-body-md text-body-md text-on-surface-variant max-w-md">
-          Các cỗ máy được lưu giữ vĩnh viễn trong kho tàng lịch sử xưởng Genève. Mỗi thiết kế được niêm phong khuôn đúc, không bao giờ tái sản xuất.
+          {t("bespoke.archiveSub")}
         </p>
 </div>
 {/* 3 Unique Masterpieces Grid */}
@@ -188,18 +190,18 @@ export default function Page() {
 <span className="text-on-surface font-medium">AC-9801 Flying Tourbillon (3Hz)</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Chất liệu:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specMaterial")}</span>
 <span className="text-on-surface font-medium">Platinum 950 &amp; Thiên Thạch</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Bảo hành di sản:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specWarranty")}</span>
 <span className="text-primary font-medium">Trọn đời (Lifetime Escapement)</span>
 </div>
 </div>
 <div className="flex items-center gap-space-sm pt-space-xs">
 <button className="flex-1 py-2 px-3 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1 border border-outline-variant/30">
 <span className="material-symbols-outlined text-[16px]">menu_book</span>
-<span>Hồ Sơ Lưu Trữ</span>
+<span>{t("bespoke.archiveFile")}</span>
 </button>
 <button className="p-2 rounded bg-surface-container-high hover:text-primary text-on-surface-variant transition-colors border border-outline-variant/30" title="Chi tiết vi cơ học">
 <span className="material-symbols-outlined text-[18px]">tune</span>
@@ -241,18 +243,18 @@ export default function Page() {
 <span className="text-on-surface font-medium">AC-7700 Twin Column-Wheel</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Chất liệu:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specMaterial")}</span>
 <span className="text-on-surface font-medium">Vàng 18K 5N Rose Gold &amp; Grand Feu</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Tiêu chuẩn:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specStandard")}</span>
 <span className="text-primary font-medium">Poinçon de Genève Certified</span>
 </div>
 </div>
 <div className="flex items-center gap-space-sm pt-space-xs">
 <button className="flex-1 py-2 px-3 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1 border border-outline-variant/30">
 <span className="material-symbols-outlined text-[16px]">menu_book</span>
-<span>Hồ Sơ Lưu Trữ</span>
+<span>{t("bespoke.archiveFile")}</span>
 </button>
 <button className="p-2 rounded bg-surface-container-high hover:text-primary text-on-surface-variant transition-colors border border-outline-variant/30" title="Chi tiết vi cơ học">
 <span className="material-symbols-outlined text-[18px]">tune</span>
@@ -290,22 +292,22 @@ export default function Page() {
             </p>
 <div className="space-y-2 border-t border-b border-outline-variant/20 py-space-sm mb-space-md font-body-sm">
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Âm học:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specAcoustic")}</span>
 <span className="text-on-surface font-medium">Cathedral Gong (Cung Trầm F/A)</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Hoàn thiện:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specFinish")}</span>
 <span className="text-on-surface font-medium">Hand-skeletonized Skeleton Art</span>
 </div>
 <div className="flex justify-between text-on-surface-variant">
-<span className="font-label-badge uppercase text-secondary">Âm vang đo đạc:</span>
+<span className="font-label-badge uppercase text-secondary">{t("bespoke.specMeasured")}</span>
 <span className="text-primary font-medium">68dB tại phòng thử âm Genève</span>
 </div>
 </div>
 <div className="flex items-center gap-space-sm pt-space-xs">
 <button className="flex-1 py-2 px-3 rounded bg-surface-container-high hover:bg-surface-bright text-primary font-label-spec text-label-spec uppercase tracking-wider transition-colors flex items-center justify-center gap-1 border border-outline-variant/30">
 <span className="material-symbols-outlined text-[16px]">menu_book</span>
-<span>Hồ Sơ Lưu Trữ</span>
+<span>{t("bespoke.archiveFile")}</span>
 </button>
 <button className="p-2 rounded bg-surface-container-high hover:text-primary text-on-surface-variant transition-colors border border-outline-variant/30" title="Chi tiết vi cơ học">
 <span className="material-symbols-outlined text-[18px]">tune</span>
@@ -322,13 +324,13 @@ export default function Page() {
 <div className="text-center max-w-3xl mx-auto mb-space-3xl">
 <div className="inline-flex items-center gap-space-xs text-primary mb-space-xs">
 <span className="material-symbols-outlined text-[18px]">architecture</span>
-<span className="font-label-spec text-label-spec uppercase tracking-[0.25em]">Atelier de Création Sur-Mesure</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.25em]">{t("bespoke.configuratorEyebrow")}</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight mb-space-xs">
-          Trình Cấu Hình Ủy Thác <span className="text-primary italic font-serif">Độc Bản</span>
+          {t("bespoke.configuratorTitle")} <span className="text-primary italic font-serif">{t("bespoke.configuratorOne")}</span>
 </h2>
 <p className="font-body-md text-body-md text-on-surface-variant">
-          Lựa chọn các nền tảng kỹ nghệ vi cơ học đỉnh cao để phác thảo cỗ máy ước mơ của quý khách. Hội đồng Nghệ nhân Aurel &amp; Co. sẽ phản hồi bản dựng kỹ thuật bảo mật trong vòng 24 giờ.
+          {t("bespoke.configuratorSub")}
         </p>
 </div>
 <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
@@ -340,11 +342,11 @@ export default function Page() {
 <div className="flex items-center gap-space-sm">
 <span className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">1</span>
 <div>
-<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">Cỗ Máy Cơ Khí Đỉnh Cao</h3>
+<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">{t("bespoke.stepMovement")}</h3>
 <span className="font-label-spec text-label-spec text-secondary uppercase">Movement Archetype &amp; Complications</span>
 </div>
 </div>
-<span className="font-label-badge text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded uppercase">Bắt buộc</span>
+<span className="font-label-badge text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded uppercase">{t("bespoke.required")}</span>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md" id="opt-movements">
 <label className={movLabel(movement === "tourbillon")}>
@@ -391,11 +393,11 @@ export default function Page() {
 <div className="flex items-center gap-space-sm">
 <span className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">2</span>
 <div>
-<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">Chất Liệu Vỏ Quý Hiếm</h3>
+<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">{t("bespoke.stepMaterial")}</h3>
 <span className="font-label-spec text-label-spec text-secondary uppercase">Case Metallurgy &amp; Finishing</span>
 </div>
 </div>
-<span className="font-label-badge text-[10px] text-secondary bg-surface-container-high px-2 py-0.5 rounded uppercase">Tùy chọn đúc riêng</span>
+<span className="font-label-badge text-[10px] text-secondary bg-surface-container-high px-2 py-0.5 rounded uppercase">{t("bespoke.customCast")}</span>
 </div>
 <div className="grid grid-cols-2 sm:grid-cols-4 gap-space-sm" id="opt-materials">
 <label className={matLabel(material === "rose-gold")}>
@@ -430,7 +432,7 @@ export default function Page() {
 <div className="flex items-center gap-space-sm">
 <span className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">3</span>
 <div>
-<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">Nghệ Thuật Mặt Số Métiers d'Art</h3>
+<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">{t("bespoke.stepDial")}</h3>
 <span className="font-label-spec text-label-spec text-secondary uppercase">Dial Craftsmanship &amp; Rare Handcrafts</span>
 </div>
 </div>
@@ -476,7 +478,7 @@ export default function Page() {
 <div className="flex items-center gap-space-sm">
 <span className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-label-badge text-body-sm font-bold border border-primary/40">4</span>
 <div>
-<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">Dấu Ấn Cá Nhân Hóa Độc Quyền</h3>
+<h3 className="font-title-editorial text-title-editorial text-on-surface uppercase">{t("bespoke.stepPersonal")}</h3>
 <span className="font-label-spec text-label-spec text-secondary uppercase">Personalized Signature &amp; Crest</span>
 </div>
 </div>
@@ -514,56 +516,56 @@ export default function Page() {
 <div className="bg-surface-container-high rounded p-space-xl border border-primary/40 shadow-2xl relative overflow-hidden">
 <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-xl pointer-events-none"></div>
 <div className="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm mb-space-md">
-<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary">Dự Toán Ủy Thác</span>
+<span className="font-label-badge text-label-badge uppercase tracking-[0.2em] text-secondary">{t("bespoke.estimateTitle")}</span>
 <span className="font-label-badge text-[10px] text-primary bg-primary/20 px-2 py-0.5 rounded font-bold">ESTIMATION</span>
 </div>
 {/* Dynamic Selected Summary Items */}
 <div className="space-y-space-sm font-body-sm pb-space-md border-b border-outline-variant/20">
 <div className="flex justify-between">
-<span className="text-on-surface-variant">Cỗ máy cơ khí:</span>
+<span className="text-on-surface-variant">{t("bespoke.estMovement")}</span>
 <span className="text-on-surface font-semibold text-right" id="summary-movement">{MOVEMENTS[movement].name}</span>
 </div>
 <div className="flex justify-between">
-<span className="text-on-surface-variant">Chất liệu vỏ:</span>
+<span className="text-on-surface-variant">{t("bespoke.estMaterial")}</span>
 <span className="text-on-surface font-semibold text-right" id="summary-material">{MATERIALS[material].name}</span>
 </div>
 <div className="flex justify-between">
-<span className="text-on-surface-variant">Nghệ thuật mặt:</span>
+<span className="text-on-surface-variant">{t("bespoke.estDial")}</span>
 <span className="text-on-surface font-semibold text-right" id="summary-dial">{DIALS[dial].name}</span>
 </div>
 <div className="flex justify-between">
-<span className="text-on-surface-variant">Dấu ấn cá nhân:</span>
+<span className="text-on-surface-variant">{t("bespoke.estPersonal")}</span>
 <span className="text-secondary font-semibold text-right" id="summary-addon">{addonNames || "—"}</span>
 </div>
 </div>
 {/* Metrics: Lead Time & Estimation Price */}
 <div className="pt-space-md space-y-space-sm mb-space-lg">
 <div className="flex items-baseline justify-between">
-<span className="font-body-sm text-on-surface-variant">Thời gian chế tác:</span>
+<span className="font-body-sm text-on-surface-variant">{t("bespoke.estTime")}</span>
 <span className="font-title-editorial text-body-md text-primary font-bold" id="summary-duration">{MOVEMENTS[movement].duration}</span>
 </div>
 <div className="flex flex-col pt-2 border-t border-outline-variant/20">
-<span className="font-label-badge text-label-badge uppercase tracking-wider text-secondary">Ngân Sách Ủy Thác Ước Tính:</span>
+<span className="font-label-badge text-label-badge uppercase tracking-wider text-secondary">{t("bespoke.estBudget")}</span>
 <div className="flex items-baseline gap-1 mt-1">
 <span className="font-headline-md text-headline-md text-primary font-bold tracking-tight" id="summary-price">{fmtUsd(total)}</span>
 <span className="font-body-sm text-body-sm text-on-surface-variant">USD*</span>
 </div>
-<span className="text-[11px] text-on-surface-variant/70 italic mt-0.5">*Đã bao gồm thuế hải quan ngoại giao &amp; chuyên xe an ninh</span>
+<span className="text-[11px] text-on-surface-variant/70 italic mt-0.5">{t("bespoke.estTaxNote")}</span>
 </div>
 </div>
 {/* Action Button: Jump to Inquiry Form */}
 <a className="w-full py-space-sm px-space-md rounded bg-primary hover:bg-secondary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] font-bold flex items-center justify-center gap-space-xs transition-all shadow-[0_4px_20px_rgba(242,202,80,0.3)]" href="#bespoke-inquiry">
-<span>Gửi Yêu Cầu Khảo Sát Kín</span>
+<span>{t("bespoke.sendSurvey")}</span>
 <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
 </a>
 <button onClick={addBespokeToVault} className="mt-space-sm w-full py-space-sm px-space-md rounded bg-surface-container-high hover:bg-primary hover:text-on-primary text-on-surface font-label-spec text-label-spec uppercase tracking-[0.15em] font-bold flex items-center justify-center gap-space-xs transition-all">
-<span>{bespokeAdded ? "Đã Thêm Vào Vault ✓" : "Thêm Cấu Hình Vào Vault"}</span>
+<span>{bespokeAdded ? t("bespoke.addedVault") : t("bespoke.addVault")}</span>
 <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
 </button>
 <div className="mt-space-md p-space-sm rounded bg-surface-container-lowest text-center border border-outline-variant/20">
 <span className="text-[11px] text-on-surface-variant flex items-center justify-center gap-1">
 <span className="material-symbols-outlined text-primary text-[14px]">lock</span>
-                Cam kết ký kết thỏa thuận bảo mật NDA trước khi diện kiến
+                {t("bespoke.ndaNote")}
               </span>
 </div>
 </div>
@@ -580,10 +582,10 @@ export default function Page() {
 <span className="font-label-spec text-label-spec uppercase tracking-[0.25em]">Le Protocole de Haute Horlogerie</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight">
-          Hành Trình Chế Tác <span className="text-primary italic font-serif">05 Giai Đoạn</span>
+          {t("bespoke.journeyTitle")} <span className="text-primary italic font-serif">{t("bespoke.journeyCount")}</span>
 </h2>
 <p className="font-body-md text-body-md text-on-surface-variant mt-2">
-          Từ ý tưởng sơ khởi đến kiệt tác cơ khí hiện hữu trên cổ tay – một nghi thức danh giá kéo dài hàng trăm giờ miệt mài.
+          {t("bespoke.journeySubFull")}
         </p>
 </div>
 {/* Timeline Cards Grid */}
@@ -595,14 +597,14 @@ export default function Page() {
 <span className="font-headline-md text-headline-md text-primary font-title-editorial font-bold">01</span>
 <span className="material-symbols-outlined text-secondary text-[24px]">key</span>
 </div>
-<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Diện Kiến Bí Mật</h4>
+<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">{t("bespoke.step1Title")}</h4>
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Private Salon Consultation</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-              Hội kiến kín cùng Giám đốc Sáng tạo và Trưởng Nghệ nhân tại Genève, Zürich hoặc tư gia để ghi nhận phong thái và tinh thần mong muốn.
+              {t("bespoke.step1Body")}
             </p>
 </div>
 <div className="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
-            Thời lượng: 2 - 4 Tuần
+            {t("bespoke.step1Time")}
           </div>
 </div>
 {/* Step 2 */}
@@ -612,14 +614,14 @@ export default function Page() {
 <span className="font-headline-md text-headline-md text-primary font-title-editorial font-bold">02</span>
 <span className="material-symbols-outlined text-secondary text-[24px]">brush</span>
 </div>
-<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Phác Thảo Gouache</h4>
+<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">{t("bespoke.step2Title")}</h4>
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Artistic Blueprint &amp; 3D</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-              Thực hiện bản vẽ màu nước nghệ thuật Gouache tỉ lệ 1:1 cùng mô hình cơ khí 3D mô phỏng góc đặt chi tiết và ánh sắc kim loại.
+              {t("bespoke.step2Body")}
             </p>
 </div>
 <div className="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
-            Thời lượng: 4 - 6 Tuần
+            {t("bespoke.step2Time")}
           </div>
 </div>
 {/* Step 3 */}
@@ -629,14 +631,14 @@ export default function Page() {
 <span className="font-headline-md text-headline-md text-primary font-title-editorial font-bold">03</span>
 <span className="material-symbols-outlined text-secondary text-[24px]">precision_manufacturing</span>
 </div>
-<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Đúc Phôi &amp; Chế Tác</h4>
+<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">{t("bespoke.step3Title")}</h4>
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Atelier Hand-Finishing</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-              Hơn 600 giờ gọt giũa thủ công các chi tiết cầu nối, đánh bóng đen miroir, vát cạnh và chạm khắc hoa văn gia huy độc bản.
+              {t("bespoke.step3Body")}
             </p>
 </div>
 <div className="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
-            Thời lượng: 6 - 9 Tháng
+            {t("bespoke.step3Time")}
           </div>
 </div>
 {/* Step 4 */}
@@ -646,14 +648,14 @@ export default function Page() {
 <span className="font-headline-md text-headline-md text-primary font-title-editorial font-bold">04</span>
 <span className="material-symbols-outlined text-secondary text-[24px]">hourglass_empty</span>
 </div>
-<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Kiểm Định 1,000 Giờ</h4>
+<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">{t("bespoke.step4Title")}</h4>
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Master Chronometer Testing</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-              Trải qua quy chuẩn thử nghiệm khắt khe 1,000 giờ trong 6 vị trí không gian và 3 dải nhiệt độ, vượt trên cả tiêu chuẩn COSC.
+              {t("bespoke.step4Body")}
             </p>
 </div>
 <div className="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
-            Thời lượng: ~ 6 Tuần
+            {t("bespoke.step4Time")}
           </div>
 </div>
 {/* Step 5 */}
@@ -663,14 +665,14 @@ export default function Page() {
 <span className="font-headline-md text-headline-md text-primary font-title-editorial font-bold">05</span>
 <span className="material-symbols-outlined text-secondary text-[24px]">local_police</span>
 </div>
-<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">Nghi Lễ Bàn Giao</h4>
+<h4 className="font-title-editorial text-body-md text-on-surface uppercase mb-space-xs">{t("bespoke.step5Title")}</h4>
 <span className="font-label-badge text-[10px] text-secondary tracking-widest uppercase block mb-space-sm">Solemn Handover Protocol</span>
 <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
-              Bàn giao trang trọng tại tư gia cùng đội xe bọc thép an ninh hoặc dạ tiệc riêng tại Lâu đài Genève kèm chứng thư số hóa NFT độc bản.
+              {t("bespoke.step5Body")}
             </p>
 </div>
 <div className="mt-space-md pt-space-xs border-t border-outline-variant/20 text-[11px] text-secondary font-label-spec">
-            Độc quyền vĩnh cửu
+            {t("bespoke.step5Time")}
           </div>
 </div>
 </div>
@@ -685,13 +687,13 @@ export default function Page() {
 <div>
 <div className="inline-flex items-center gap-space-xs text-primary mb-space-xs">
 <span className="material-symbols-outlined text-[18px]">verified_user</span>
-<span className="font-label-spec text-label-spec uppercase tracking-[0.2em]">Protocole de Confidentialité Absolue</span>
+<span className="font-label-spec text-label-spec uppercase tracking-[0.2em]">{t("bespoke.formEyebrow")}</span>
 </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight mb-space-md">
-              Khởi Đầu Hành Trình Sở Hữu <span className="text-primary italic font-serif">Di Sản Độc Nhất</span>
+              {t("bespoke.formTitle")} <span className="text-primary italic font-serif">{t("bespoke.formTitleOne")}</span>
 </h2>
 <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed mb-space-xl">
-              Thư ký Hội đồng Nghệ nhân Aurel &amp; Co. sẽ trực tiếp kết nối cùng quý vị qua kênh liên lạc cơ mật. Toàn bộ thông tin danh tính và nội dung trao đổi được bảo đảm tuyệt đối theo Thỏa thuận Bảo Mật NDA Thụy Sĩ.
+              {t("bespoke.formSub")}
             </p>
 <div className="space-y-space-md">
 <div className="flex items-start gap-space-md p-space-md bg-surface-container-low rounded border border-outline-variant/20">
@@ -723,22 +725,22 @@ export default function Page() {
 <form className="space-y-space-md" id="bespoke-form" >
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Danh Xưng &amp; Họ Tên Thượng Khách *</label>
-<input className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Ví dụ: Mr. Alexandre Nguyen" required type="text"/>
+<label htmlFor="bespoke-name" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">{t("bespoke.formName")}</label>
+<input id="bespoke-name" className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Mr. Alexandre Nguyen" required type="text"/>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Kênh Bảo Mật (Signal / WhatsApp / Phone) *</label>
-<input className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="+84 90 000 0000" required type="tel"/>
+<label htmlFor="bespoke-channel" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">{t("bespoke.formChannel")}</label>
+<input id="bespoke-channel" className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="+84 90 000 0000" required type="tel"/>
 </div>
 </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Email Liên Lạc Cơ Mật *</label>
-<input className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="vip.collector@domain.com" required type="email"/>
+<label htmlFor="bespoke-email" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">{t("bespoke.formEmail")}</label>
+<input id="bespoke-email" className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="vip.collector@domain.com" required type="email"/>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Quốc Gia &amp; Thành Phố Tiếp Đón *</label>
-<input className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Genève / TP. Hồ Chí Minh / Hà Nội" required type="text"/>
+<label htmlFor="bespoke-country" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">{t("bespoke.formCountry")}</label>
+<input id="bespoke-country" className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Genève / Ho Chi Minh City / Hanoi" required type="text"/>
 </div>
 </div>
 <div>
@@ -751,19 +753,19 @@ export default function Page() {
 </select>
 </div>
 <div>
-<label className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Ý Tưởng Hoặc Câu Chuyện Muốn Gửi Gắm Vào Cỗ Máy</label>
-<textarea className="w-full bg-surface-container-high p-space-md rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder="Chia sẻ về biểu tượng gia đình, câu chuyện thành tựu, các loại đá quý phong thủy hoặc chi tiết máy cơ khí quý khách muốn độc quyền đưa vào tác phẩm..." rows={4}></textarea>
+<label htmlFor="bespoke-idea" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">{t("bespoke.formIdea")}</label>
+<textarea id="bespoke-idea" className="w-full bg-surface-container-high p-space-md rounded text-body-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30" placeholder={t("bespoke.formIdeaPh")} rows={4}></textarea>
 </div>
 <div className="flex items-start gap-space-sm pt-space-xs">
 <input className="accent-primary w-4 h-4 rounded mt-0.5" id="nda-consent" required type="checkbox"/>
 <label className="font-body-sm text-body-sm text-on-surface-variant leading-tight cursor-pointer" htmlFor="nda-consent">
-                Tôi yêu cầu bảo mật thông tin tuyệt đối và đồng ý để Thư ký Hội đồng Nghệ nhân Aurel &amp; Co. gửi văn bản Thỏa thuận Bảo mật NDA (Non-Disclosure Agreement) trước buổi diện kiến.
+                {t("bespoke.formConsent")}
               </label>
 </div>
 <div className="pt-space-sm">
 <button className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all flex items-center justify-center gap-space-sm shadow-[0_6px_25px_rgba(242,202,80,0.35)]" type="submit">
 <span className="material-symbols-outlined text-[20px]">shield_with_heart</span>
-<span>Gửi Yêu Cầu Ủy Thác Độc Bản &amp; Ký Kết NDA</span>
+<span>{t("bespoke.formSubmit")}</span>
 </button>
 </div>
 </form>
@@ -772,9 +774,9 @@ export default function Page() {
 <div className="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-space-md">
 <span className="material-symbols-outlined text-[36px]">done_all</span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface uppercase mb-space-xs">Yêu Cầu Đã Được Niêm Phong</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface uppercase mb-space-xs">{t("bespoke.formDone")}</h3>
 <p className="font-body-md text-body-md text-on-surface-variant max-w-md mb-space-lg">
-              Thư ký Hội đồng Nghệ nhân Aurel &amp; Co. đã tiếp nhận hồ sơ bí mật của Quý Khách. Thư xác nhận bảo mật và dự thảo NDA sẽ được gửi tới phương thức liên lạc đã chọn trong vòng 24 giờ.
+              {t("bespoke.formDoneSub")}
             </p>
 <span className="font-label-badge text-label-badge text-primary uppercase tracking-widest border border-primary/30 px-3 py-1 rounded">
               Dossier Protocol: #AUC-2025-05U
