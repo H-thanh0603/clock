@@ -7,7 +7,8 @@ ledger persistence, rate limiting.
   (cap 200 message), sống qua restart host.
 - ``PooledStorefront``: ``StorefrontBackend`` delegate theo
   ``session.session_id`` — mỗi chat session có 1 tài khoản shopper riêng
-  (``shop+<8 ký tự>@...``, tự register) nên giỏ hàng không còn dùng chung.
+  (``shop+<principal_for(sid)>@...``, tự register với mật khẩu dẫn xuất)
+  nên giỏ hàng không còn dùng chung.
   Merchant giữ 1 admin client chung (backoffice là view chung, audit theo
   operator id từng session).
 - ``load_ledger``/``save_ledger``: persist ``ChangeLedger`` (pending +
@@ -17,6 +18,8 @@ ledger persistence, rate limiting.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import re
 import time
@@ -29,6 +32,16 @@ from aurel_agents.activity import ActivityLog
 _SESSION_OK = re.compile(r"[^A-Za-z0-9_-]")
 
 MAX_TRANSCRIPT_MESSAGES = 200
+
+
+def principal_for(session_id: str) -> str:
+    """Id entity đầy đủ entropy cho 1 session chat.
+
+    Trước đây dùng ``sid[:8]`` — với session id cùng prefix (a2a:*), phần
+    cắt 8 ký tự chỉ còn 1 hex sai biệt → cả thế giới A2A dồn vào ~16
+    tài khoản/memory bucket DÙNG CHUNG giỏ và đơn của nhau (audit).
+    """
+    return hashlib.sha256(session_id.encode()).hexdigest()[:16]
 
 
 def sanitize_session_id(raw: str) -> str:
@@ -211,8 +224,25 @@ class PooledStorefront:
     def _email_for(self, session_id: str) -> str:
         base = self._settings.shopper_email
         local, _, domain = base.partition("@")
-        prefix = sanitize_session_id(session_id)[:8] or "default"
+        prefix = principal_for(session_id)
         return f"{local}+{prefix}@{domain}" if domain else f"{local}+{prefix}"
+
+    def _password_for(self, session_id: str) -> str:
+        """Mật khẩu shopper theo phiên — KHÔNG dùng default cố định trong repo.
+
+        Default "AgentShopper1!" từng làm MỌI tài khoản auto-register dùng
+        chung 1 mật khẩu ai đọc repo cũng biết (audit). Mặc định giờ là
+        HMAC(backend_url, sid) — deterministic (client tạo lại sau evict vẫn
+        login được) nhưng suy ra được chỉ khi biết sid (uuid4, không đoán
+        được). AGENT_SHOPPER_PASSWORD đặt tường minh vẫn được tôn trọng.
+        """
+        if self._settings.shopper_password:
+            return self._settings.shopper_password
+        return hmac.new(
+            self._settings.backend_url.encode(),
+            session_id.encode(),
+            hashlib.sha256,
+        ).hexdigest()
 
     async def _evict_idle(self) -> None:
         """Evict session không dùng quá IDLE_EVICT_S (giải phóng RAM + socket)."""
@@ -266,7 +296,7 @@ class PooledStorefront:
             client = ClockClient(
                 self._settings.backend_url,
                 self._email_for(sid),
-                self._settings.shopper_password,
+                self._password_for(sid),
                 register_if_new=True,
                 trace_id=self._traces.get(sid),
             )

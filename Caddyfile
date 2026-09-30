@@ -17,6 +17,19 @@
 	}
 
 	# AI agents (cùng origin để tránh CORS prod): FE gọi /agent/* → host :8100.
+	# CHỈ endpoint public của shop được đi thẳng; các route ops (merchant,
+	# activity, monitor/run, alerts ops-scope) PHẢI qua Next /api/agent/*
+	# — nơi verify role ADMIN. Để mở /agent/* = bỏ qua admin-gate, chỉ còn
+	# 1 token tĩnh (audit SEC finding).
+	handle_path /agent/merchant* {
+		respond 404
+	}
+	handle_path /agent/activity {
+		respond 404
+	}
+	handle_path /agent/shop/monitor* {
+		respond 404
+	}
 	handle_path /agent/* {
 		reverse_proxy agent:8100
 	}

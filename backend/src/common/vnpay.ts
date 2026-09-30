@@ -98,6 +98,9 @@ export function buildPayUrl(input: CreateVnpayUrlInput) {
 /** Kiểm tra checksum VNPay trả về (return + IPN). */
 export function verifyReturn(params: Record<string, string>) {
   const { hashSecret } = vnpayEnv();
+  // Fail-closed: secret trống → HMAC key rỗng, ai cũng ký được → mọi callback
+  // giả đều "đạt". Bắt buộc có VNPAY_HASH_SECRET thì mới verify.
+  if (!hashSecret) return false;
   const received = params.vnp_SecureHash ?? "";
   const rest: Record<string, string> = {};
   for (const [k, v] of Object.entries(params)) {

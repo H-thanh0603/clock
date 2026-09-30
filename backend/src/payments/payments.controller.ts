@@ -90,7 +90,7 @@ export class PaymentsController {
   // throttle thì script spam link đốt hạn mức VNPay + phình bảng payment.
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   create(
-    @Body() body: { orderId?: string },
+    @Body() body: { orderId?: string; contact?: string },
     @CurrentUser() user: SessionUser | null,
     @Req() req: Request,
   ) {
@@ -98,6 +98,7 @@ export class PaymentsController {
       String(body.orderId ?? ''),
       user?.id ?? null,
       req,
+      String(body.contact ?? ''),
     );
   }
 

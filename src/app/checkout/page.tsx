@@ -126,7 +126,7 @@ export default function Page() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ orderId: data.orderId }),
+          body: JSON.stringify({ orderId: data.orderId, contact }),
         });
         const pd = await pr.json();
         if (!pr.ok)

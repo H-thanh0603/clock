@@ -4,9 +4,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { decodeJwt } from 'jose';
-import { DELEGATION_MAX_AGE, signDelegation, signSession } from '../common/session';
+import { decodeJwt, jwtVerify } from 'jose';
+import {
+  DELEGATION_MAX_AGE,
+  sessionSecret,
+  signDelegation,
+  signSession,
+} from '../common/session';
 
 export type PublicUser = {
   id: string;
@@ -120,7 +126,11 @@ export class AuthService {
     if (!user || user.role === 'ADMIN') {
       throw new UnauthorizedException('Không cấp được quyền hành động hộ');
     }
-    const dkey = `${Date.now().toString(36)}${Math.floor(Math.random() * 0xffffffff).toString(36)}`;
+    const dkey = randomBytes(16).toString('hex');
+    // Dọn vé đã hết hạn (volatile — không còn dùng được nữa) để bảng không lớn vô hạn.
+    this.prisma.delegationKey
+      .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+      .catch(() => null);
     await this.prisma.delegationKey.create({
       data: {
         key: dkey,
@@ -159,7 +169,20 @@ export class AuthService {
   ): Promise<{ token: string; expires_in: number } | null> {
     let payload: Record<string, unknown>;
     try {
-      payload = decodeJwt(oldToken) as Record<string, unknown>;
+      // Verify chữ ký + iss/aud. jose luôn check exp (không có tùy chọn bỏ),
+      // nhưng lỗi 'jwt_expired' chỉ được ném SAU khi chữ ký đã hợp lệ →
+      // chấp nhận vé hết hạn đúng ý nghĩa refresh (TTL thật do bản ghi dkey
+      // bên dưới quyết định). Mọi lỗi khác (sai chữ ký/aud/iss) → từ chối.
+      try {
+        payload = (await jwtVerify(oldToken, sessionSecret(), {
+          algorithms: ['HS256'],
+          issuer: 'aurel-backend',
+          audience: 'aurel-agent',
+        })).payload as Record<string, unknown>;
+      } catch (e) {
+        if ((e as { code?: string })?.code !== 'jwt_expired') return null;
+        payload = decodeJwt(oldToken) as Record<string, unknown>;
+      }
     } catch {
       return null;
     }
@@ -170,17 +193,18 @@ export class AuthService {
     ) {
       return null;
     }
-    let rec: { userId: string; version: number } | null = null;
+    let rec: { userId: string; version: number; expiresAt: Date } | null = null;
     try {
       rec = await this.prisma.delegationKey.findUnique({
         where: { key: payload.dkey },
-        select: { userId: true, version: true },
+        select: { userId: true, version: true, expiresAt: true },
       });
     } catch {
       return null;
     }
-    // dkey đã dùng/xóa, hoặc vé của user khác → từ chối câm (không lộ lý do).
+    // dkey đã dùng/xóa, hết hạn tuyệt đối, hoặc vé của user khác → từ chối câm.
     if (!rec || rec.userId !== requesterId) return null;
+    if (rec.expiresAt.getTime() <= Date.now()) return null;
     const user = await this.prisma.user.findUnique({
       where: { id: requesterId },
     });

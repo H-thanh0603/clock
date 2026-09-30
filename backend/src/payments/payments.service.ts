@@ -16,6 +16,7 @@ import {
   type SettleDeps,
 } from '../common/vnpay';
 import { signOrderCode } from '../orders/orders.service';
+import { sameContact } from '../common/phone';
 
 function backendBaseUrl(): string {
   return (
@@ -120,15 +121,26 @@ export class PaymentsService {
   }
 
   /** Tạo URL thanh toán VNPay cho đơn vừa chốt. */
-  async createPayUrl(orderId: string, userId: string | null, req: Request) {
+  async createPayUrl(
+    orderId: string,
+    userId: string | null,
+    req: Request,
+    guestContact?: string,
+  ) {
     if (!orderId) throw new BadRequestException('Thiếu orderId');
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: { payments: { orderBy: { createdAt: 'desc' }, take: 1 } },
     });
     if (!order) throw new NotFoundException('Không thấy đơn');
-    if (order.userId && order.userId !== userId)
+    if (order.userId) {
+      if (order.userId !== userId) throw new ForbiddenException('Không có quyền');
+    } else if (!sameContact(order.contact, guestContact ?? '')) {
+      // Đơn vãng lai (userId null) không có sở hữu DB — bắt buộc chứng minh
+      // đúng contact đã đặt (như tra cứu/hủy đơn), nếu không ai cầm orderId
+      // cũng mint được payment row và khóa người mua thật (3 PENDING).
       throw new ForbiddenException('Không có quyền');
+    }
     // Chỉ tạo thanh toán cho đơn đang PENDING (chặn re-pay đơn đã xong).
     if (order.status !== 'PENDING')
       throw new BadRequestException('Đơn không ở trạng thái chờ thanh toán');
@@ -157,12 +169,9 @@ export class PaymentsService {
       amountVnd: expectedVnd,
       orderInfo: `Thanh toan don ${order.code} Aurel Co`,
       returnUrl: `${backendBaseUrl()}/payments/vnpay/return`,
-      // req.ip đã là client thật sau trust-proxy (main.ts) — ưu tiên nó,
-      // fallback XFF như cũ khi chạy trước proxy không chuẩn.
-      ipAddr:
-        req.ip ??
-        req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ??
-        '127.0.0.1',
+      // req.ip đã là client thật sau trust-proxy (main.ts). KHÔNG fallback
+      // đọc XFF thô — trị trái nhất do client tự đặt, VNPay chỉ dùng log.
+      ipAddr: req.ip || '127.0.0.1',
     });
     return { url };
   }
@@ -311,6 +320,18 @@ export class PaymentsService {
     try {
       const order = await this.prisma.order.findUnique({ where: { code } });
       if (order) {
+        if (order.status !== 'PAID') {
+          // Tiền đã thu nhưng đơn không còn PENDING lúc settle (cron expire/
+          // cancel xen giữa) → không auto-correct, báo merchant hoàn tiền tay.
+          this.log.error(
+            `SETTLE RACE: VNPay thu tiền đơn ${code} nhưng order đang ${order.status} — cần hoàn tiền thủ công`,
+          );
+          void this.notify
+            .enqueueText(
+              `🚨 <b>Thu tiền nhầm đơn ${code}</b>: VNPay success nhưng đơn đang ${order.status} — kiểm tra hoàn tiền thủ công.`,
+            )
+            .catch(() => null);
+        }
         await this.notify.orderPaid(code, Number(order.totalVnd));
         // Hóa đơn điện tử cho đơn đã thu tiền (idempotent, không chặn callback).
         await this.invoices.ensureForOrder({

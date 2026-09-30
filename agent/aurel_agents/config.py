@@ -61,7 +61,10 @@ class Settings:
 
     # tài khoản demo
     shopper_email: str = "agent-shopper@aurel.local"
-    shopper_password: str = "AgentShopper1!"
+    # Mặc định TRỐNG — mật khẩu shopper suy ra per-session (HMAC của sid,
+    # xem session_pool._password_for). Đặt AGENT_SHOPPER_PASSWORD chỉ để
+    # override cố ý; không bao giờ commit default dùng chung mọi tài khoản.
+    shopper_password: str = ""
     admin_email: str = "admin@aurel.local"
     # Không default mật khẩu admin — thiếu AGENT_ADMIN_PASSWORD thì merchant
     # agent không login được (503 rõ ràng) thay vì lén dùng "Admin123!".
@@ -130,7 +133,7 @@ class Settings:
             backend_url=os.getenv("AUREL_BACKEND_URL") or "http://localhost:4000",
             frontend_url=os.getenv("AUREL_FRONTEND_URL") or "http://localhost:3100",
             shopper_email=os.getenv("AGENT_SHOPPER_EMAIL") or "agent-shopper@aurel.local",
-            shopper_password=os.getenv("AGENT_SHOPPER_PASSWORD") or "AgentShopper1!",
+            shopper_password=os.getenv("AGENT_SHOPPER_PASSWORD") or "",
             admin_email=os.getenv("AGENT_ADMIN_EMAIL") or "admin@aurel.local",
             admin_password=os.getenv("AGENT_ADMIN_PASSWORD") or "",
             host=os.getenv("AGENT_HOST") or "127.0.0.1",

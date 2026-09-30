@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomInt, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -12,6 +12,7 @@ import { orderRisk } from '../common/jev';
 import { PaymentsService } from '../payments/payments.service';
 import { linePrice } from '../common/pricing';
 import { sameContact } from '../common/phone';
+import { escapeTelegramHtml } from '../inquiries/inquiries.controller';
 import { sessionSecret } from '../common/session';
 
 const METHODS = ['centurion', 'escrow', 'deposit', 'vnpay', 'cod'] as const;
@@ -28,10 +29,12 @@ export function simulatedMethodsEnabled(): boolean {
 }
 
 function orderCode() {
-  // 6 chữ số crypto-random (không dùng Math.random — không gian đoán được;
-  // mã đơn lộ qua URL tra cứu/hủy theo SĐT nên phải khó dò). Trùng thì
+  // 10 ký tự hex crypto-random (~40 bit): 6 chữ số trước đây chỉ ~20 bit,
+  // sổ đơn đoán được dù có throttle. Không dùng Math.random. Trùng thì
   // transaction bên dưới bắt P2002 và thử lại.
-  return `AC-${new Date().getFullYear()}-${randomInt(100000, 1000000)}`;
+  return `AC-${new Date().getFullYear()}-${randomBytes(5)
+    .toString('hex')
+    .toUpperCase()}`;
 }
 
 export type ItemInput = {
@@ -545,7 +548,7 @@ export class OrdersService {
         }).then((risk) => {
           if (risk?.risky)
             return this.notify.enqueueText(
-              `⚠️ <b>Cần xem lại đơn ${code}</b> (Jev: ${risk.reason ?? 'risky'})\nKhách: ${customerName} — ${contact}`,
+              `⚠️ <b>Cần xem lại đơn ${code}</b> (Jev: ${escapeTelegramHtml(risk.reason ?? 'risky')})\nKhách: ${escapeTelegramHtml(customerName)} — ${escapeTelegramHtml(contact)}`,
             );
         });
       }

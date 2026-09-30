@@ -15,7 +15,46 @@
  * LAN proxy nội bộ), coi entry công cộng đầu tiên từ phải sang là client
  * thật. Caddy append IP thật vào CUỐI XFF nên entry cuối-do-Caddy-thêm
  * (socket peer) luôn nằm trong dải trust → req.ip = client công cộng.
+ *
+ * SIẾT CHO PROD: cùng docker network với Caddy còn có agent/mcp — chúng nối
+ * thẳng vào backend (peer thuộc dải trust) nên tự set XFF giả vô hạn được.
+ * Đặt TRUSTED_PROXY_IPS (CSV, IP hoặc CIDR v4) = chỉ các proxy thật (Caddy)
+ * được tin; mọi peer khác kể cả RFC1918 → not trusted (req.ip = socket).
  */
+
+/** Danh sách tường minh từ env; rỗng → fallback dải RFC1918/loopback cũ. */
+function explicitTrustList(): string[] {
+  return (process.env.TRUSTED_PROXY_IPS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function ipToLong(ip: string): number | null {
+  const p = ip.split('.');
+  if (p.length !== 4) return null;
+  let n = 0;
+  for (const part of p) {
+    const x = Number(part);
+    if (!Number.isInteger(x) || x < 0 || x > 255) return null;
+    n = n * 256 + x;
+  }
+  return n;
+}
+
+function matchesTrustedEntry(ip: string, entry: string): boolean {
+  if (entry === ip) return true;
+  const slash = entry.indexOf('/');
+  if (slash === -1) return false;
+  const base = ipToLong(entry.slice(0, slash));
+  const bits = Number(entry.slice(slash + 1));
+  const val = ipToLong(ip);
+  if (base === null || val === null || !Number.isInteger(bits) || bits < 0 || bits > 32)
+    return false;
+  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+  return (val & mask) >>> 0 === (base & mask) >>> 0;
+}
+
 export function isTrustedProxyIp(ip: string): boolean {
   const v = (ip ?? '').trim().toLowerCase();
   if (!v) return false;
@@ -23,6 +62,8 @@ export function isTrustedProxyIp(ip: string): boolean {
   const inner = v.startsWith('::ffff:') ? v.slice('::ffff:'.length) : v;
   if (inner === '127.0.0.1' || inner === '::1' || v === '::1') return true;
   if (inner.startsWith('127.')) return true;
+  const list = explicitTrustList();
+  if (list.length > 0) return list.some((e) => matchesTrustedEntry(inner, e));
   if (inner.startsWith('10.')) return true;
   if (inner.startsWith('192.168.')) return true;
   // 172.16.0.0/12 — docker bridge mặc định (172.18.0.x, 172.19.0.x...).

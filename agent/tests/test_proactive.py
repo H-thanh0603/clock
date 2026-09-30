@@ -853,6 +853,7 @@ def test_retention_cleanup_transcripts_and_stores(tmp_path):
         WatchStore,
         cleanup_expired,
     )
+    from aurel_agents.session_pool import principal_for
 
     sessions = tmp_path / "sessions"
     sessions.mkdir()
@@ -870,7 +871,7 @@ def test_retention_cleanup_transcripts_and_stores(tmp_path):
     watches = WatchStore(tmp_path / "w.json")
     alerts = AlertFeed(tmp_path / "a.json")
     tickets = TicketStore(tmp_path / "t.json")
-    watches.add("shopper:keep2222", "chrono-x", "restock")  # active → giữ transcript
+    watches.add(f"shopper:{principal_for('keep2222')}", "chrono-x", "restock")  # active → giữ transcript
     t = tickets.open("u1", "đã xử lý xong")[0]
     tickets.resolve(t.ticket_id)  # resolved cũ
 
@@ -1043,12 +1044,15 @@ def test_watch_cancel_requires_owner_session(tmp_path):
 
     import aurel_agents.host as host
     from aurel_agents.proactive import AlertFeed, TicketStore, WatchStore
+    from aurel_agents.session_pool import principal_for
 
     host._watch_store = WatchStore(tmp_path / "w.json")
     host._alert_feed = AlertFeed(tmp_path / "a.json")
     host._ticket_store = TicketStore(tmp_path / "t.json")
 
-    w = host._watch_store.add("shopper:owner123", "chrono-x", "restock")
+    w = host._watch_store.add(
+        f"shopper:{principal_for('owner123xxxxxxxxxxxxxxxx')}", "chrono-x", "restock"
+    )
     client = TestClient(host.app)
 
     # session lạ → 403, watch vẫn active
@@ -1142,8 +1146,10 @@ def test_forget_wipes_own_session_only(tmp_path, monkeypatch):
 
     sid_mine = "mysess01abcdef"
     sid_other = "otherss99zzzzzz"
-    user_mine = "shopper:mysess01"
-    user_other = "shopper:otherss9"
+    from aurel_agents.session_pool import principal_for
+
+    user_mine = f"shopper:{principal_for(sid_mine)}"
+    user_other = f"shopper:{principal_for(sid_other)}"
 
     # transcript 2 session
     from aurel_agents.session_pool import TranscriptStore

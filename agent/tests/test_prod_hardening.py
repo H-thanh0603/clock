@@ -85,7 +85,7 @@ def test_ledger_save_load_roundtrip(tmp_path):
 def test_pooled_shopper_email_derivation():
     from types import SimpleNamespace
 
-    from aurel_agents.session_pool import PooledStorefront
+    from aurel_agents.session_pool import PooledStorefront, principal_for
 
     pool = PooledStorefront(
         SimpleNamespace(
@@ -94,7 +94,9 @@ def test_pooled_shopper_email_derivation():
             backend_url="http://localhost:4000",
         )
     )
-    assert pool._email_for("abcdef123456") == "agent-shopper+abcdef12@aurel.local"
+    assert pool._email_for("abcdef123456") == (
+        f"agent-shopper+{principal_for('abcdef123456')}@aurel.local"
+    )
     assert pool._email_for("abcdef123456") != pool._email_for("zzzzzzzz9999")
 
 
@@ -275,12 +277,16 @@ def test_alerts_shop_scope_public_but_filtered():
     from fastapi.testclient import TestClient
 
     import aurel_agents.host as host
+    from aurel_agents.session_pool import principal_for
 
     client = TestClient(host.app)
     # Publish trực tiếp vào feed module-level rồi dọn (tránh rò rỉ state).
     feed = host._alert_feed
     before = len(feed.all())
-    mine = feed.publish("restock", "Về hàng", "chi tiết", {"user_id": "shopper:deadbeef"})
+    mine = feed.publish(
+        "restock", "Về hàng", "chi tiết",
+        {"user_id": f"shopper:{principal_for('deadbeef99')}"},
+    )
     other = feed.publish("restock", "Về hàng", "chi tiết", {"user_id": "shopper:otherusr"})
     ops = feed.publish("low_stock", "Tồn kho thấp", "chi tiết", {})
     try:

@@ -80,6 +80,7 @@ from aurel_agents.session_pool import (
     RateLimiter,
     TranscriptStore,
     load_ledger,
+    principal_for,
     sanitize_session_id,
     save_ledger,
 )
@@ -577,7 +578,7 @@ async def _run_shopping_turn(
     )
     context = ShoppingSessionContext(
         session_id=sid,
-        user_id=f"shopper:{sid[:8]}",
+        user_id=f"shopper:{principal_for(sid)}",
         page=page,
     )
     state = ShoppingSessionState()
@@ -658,7 +659,15 @@ async def _run_shopping_turn(
             )
         else:
             logger.exception("Lỗi shopping turn")
-            yield _sse({"type": "error", "message": str(error)})
+            # str(error) có thể chứa body response BE (PII/internal) — chỉ
+            # log server-side, client nhận thông điệp generic + trace id.
+            yield _sse(
+                {
+                    "type": "error",
+                    "message": "Lỗi phía server, vui lòng thử lại."
+                    + (f" (trace: {trace_id})" if trace_id else ""),
+                }
+            )
         return
     finally:
         _transcripts.save(sid)
@@ -692,7 +701,7 @@ async def _run_merchant_turn(agent: Any, message: str, session_id: str):
     context = MerchantSessionContext(
         session_id=sid,
         merchant_id="aurel",
-        operator=f"operator:{sid[:8]}",
+        operator=f"operator:{principal_for(sid)}",
     )
     state = MerchantSessionState()
 
@@ -819,9 +828,9 @@ def _open_ticket(
     ``ticket_escalated`` để feed không nuốt mất diễn biến.
     """
     # Mã đơn AC-YYYY-NNNNNN nếu khách nhắc
-    match = re.search(r"AC-\d{4}-\d{6}", message)
+    match = re.search(r"AC-\d{4}-[0-9A-Z]{6,}", message)
     ticket, escalated = _ticket_store.open(
-        user_id=f"shopper:{sanitize_session_id(session_id)[:8]}",
+        user_id=f"shopper:{principal_for(sanitize_session_id(session_id))}",
         summary=message[:400],
         order_id=match.group(0) if match else None,
         severity=severity,
@@ -926,10 +935,10 @@ def _ticket_history_for(message: str, session_id: str) -> str | None:
     Chỉ trả về khi cùng mã đơn — tránh trộn 2 vụ việc khác nhau của cùng
     khách thành một mớ ngữ cảnh đánh lừa model.
     """
-    match = re.search(r"AC-\d{4}-\d{6}", message)
+    match = re.search(r"AC-\d{4}-[0-9A-Z]{6,}", message)
     if not match:
         return None
-    user_id = f"shopper:{sanitize_session_id(session_id)[:8]}"
+    user_id = f"shopper:{principal_for(sanitize_session_id(session_id))}"
     for t in _ticket_store.all():
         if (
             getattr(t, "status", None) == "open"
@@ -1168,7 +1177,7 @@ async def alerts(  # noqa: B008 — FastAPI inject
     safe_limit = max(1, min(limit, 200))
     if scope == "shop":
         sid = sanitize_session_id(session_id)
-        user_id = f"shopper:{sid[:8]}"
+        user_id = f"shopper:{principal_for(sid)}"
         items = shop_alerts_for(_alert_feed.recent(200), user_id)[-safe_limit:][::-1]
         return {
             "alerts": [a.model_dump(mode="json") for a in items],
@@ -1219,7 +1228,7 @@ async def shop_watches(session_id: str = "") -> dict:
     không lộ watch của người khác, nên không cần token.
     """
     sid = sanitize_session_id(session_id)
-    user_id = f"shopper:{sid[:8]}"
+    user_id = f"shopper:{principal_for(sid)}"
     return {"watches": [w.model_dump(mode="json") for w in _watch_store.for_user(user_id)]}
 
 
@@ -1231,7 +1240,7 @@ async def shop_watch_cancel(watch_id: str, session_id: str = "") -> dict:
     đoán được (timestamp + counter). So khớp user_id suy từ session.
     """
     sid = sanitize_session_id(session_id)
-    user_id = f"shopper:{sid[:8]}"
+    user_id = f"shopper:{principal_for(sid)}"
     watch = _watch_store.get(watch_id)
     if watch is None or not watch.active:
         raise HTTPException(status_code=404, detail="Không tìm thấy watch (hoặc đã tắt)")
@@ -1258,7 +1267,7 @@ async def shop_forget(req: ForgetRequest) -> dict:
     from aurel_agents.memory_store import LockedJsonFileMemoryStore
 
     sid = sanitize_session_id(req.session_id)
-    user_id = f"shopper:{sid[:8]}"
+    user_id = f"shopper:{principal_for(sid)}"
     removed_transcript = _transcripts.delete(sid)
     # Memory: subject = session.user_id (shopping) — xem executor.memory_subject.
     store = LockedJsonFileMemoryStore(MEMORY_STORE_FILE)

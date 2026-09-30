@@ -159,11 +159,22 @@ export class NotifyService {
     return `${n.toLocaleString('vi-VN')} ₫`;
   }
 
+  private esc(v: string): string {
+    return String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   /** Đơn mới (mọi phương thức) — KHÔNG chặn response đặt hàng. */
   async orderCreated(o: OrderNotify): Promise<void> {
+    // PII khách là input tự do — escape trước khi ghép vào HTML (audit NV-2
+    // như inquiries): không cho khách nhét <a href> vào alert của shop.
+    const name = this.esc(o.customerName);
+    const contact = this.esc(o.contact);
     const lines = [
       `🧾 <b>Đơn mới ${o.code}</b> (${o.status})`,
-      `Khách: ${o.customerName} — ${o.contact}`,
+      `Khách: ${name} — ${contact}`,
       `Món: ${o.itemCount} • Tổng: $${o.totalUsd.toLocaleString()} (~${this.fmtVnd(o.totalVnd)})`,
       `Đã thu: $${o.totalUsd === 0 ? 0 : o.paidUsd.toLocaleString()} qua ${o.method}`,
     ];

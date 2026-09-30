@@ -16,12 +16,19 @@ token hết hạn 7 ngày — gặp 401 thì tự login lại đúng tokenVersio
 from __future__ import annotations
 
 import logging
+import re
 from types import TracebackType
 from typing import Any
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# Path API ghép từ tham số model/user tự do (slug, order code, id...).
+# Chặn traversal/query/fragment/control char: mọi segment phải thuộc charset
+# hẹp, không "..", không escape — không cho tool đẩy request sang route
+# khác khi client đang mang cookie session (admin trên merchant path).
+_PATH_RE = re.compile(r"^/[A-Za-z0-9_\-./:@+~]*$")
 
 SESSION_COOKIE = "aurel_session"
 DELEGATION_COOKIE = "aurel_delegation"
@@ -213,6 +220,8 @@ class ClockClient:
         """Gọi BE; tự kèm CSRF; 401 → login lại 1 lần rồi retry."""
         headers: dict[str, str] = {}
         effective = path.split("?")[0]
+        if not _PATH_RE.match(effective) or ".." in effective.split("/"):
+            raise ClockApiError(400, f"Path API không hợp lệ: {effective[:80]!r}")
         needs_csrf = method.upper() in WRITE_METHODS and effective not in CSRF_EXEMPT_PATHS
         if needs_csrf:
             if not self._csrf_token:

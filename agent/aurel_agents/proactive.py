@@ -683,9 +683,11 @@ def cleanup_expired(
             try:
                 if path.stat().st_mtime > cutoff:
                     continue
-                # user của session = shopper:<8 prefix đầu file name>
+                # user của session = shopper:<principal_for(file name)>
                 sid = path.stem
-                user_id = f"shopper:{sid[:8]}"
+                from aurel_agents.session_pool import principal_for
+
+                user_id = f"shopper:{principal_for(sid)}"
                 if user_id in active_watch_users or user_id in open_task_users:
                     continue  # còn watch chờ báo / task đang mở — giữ transcript
                 path.unlink(missing_ok=True)

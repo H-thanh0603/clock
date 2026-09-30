@@ -327,7 +327,10 @@ function DeepLinkLauncher({
   onProduct: (slug: string) => void;
   busy: boolean;
 }) {
-  /** Đọc ?q= + ?product= (nút "Hỏi concierge" từ trang detail). */
+  /** Đọc ?q= + ?product= (nút "Hỏi concierge" từ trang detail).
+   *  CHỈ prefill ô nhập — KHÔNG tự send: link độc (?q=) không được phép
+   *  điều khiển agent của nạn nhân chạy tool (giỏ/watch/task) mà không có
+   *  một cú Enter nào. */
   const search = useSearchParams();
   const fired = useRef(false);
   useEffect(() => {
@@ -337,7 +340,7 @@ function DeepLinkLauncher({
     if (!q) return;
     fired.current = true;
     if (product) onProduct(product);
-    onAsk(q);
+    onAsk(q.slice(0, 500));
   }, [search, onAsk, onProduct, busy]);
   return null;
 }
@@ -372,7 +375,7 @@ export default function AgentChatPage() {
       {/* Deep-link từ nút "Hỏi concierge" trên trang sản phẩm */}
       <Suspense fallback={null}>
         <DeepLinkLauncher
-          onAsk={send}
+          onAsk={(q) => setInput(q)}
           onProduct={setPageProduct}
           busy={busy}
         />

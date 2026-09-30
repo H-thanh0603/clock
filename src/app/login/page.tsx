@@ -10,10 +10,19 @@ function AuthForm() {
   const { t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Chống open-redirect: chỉ cho path nội bộ (không scheme, không //).
+  // Chống open-redirect: lọc startsWith("/") dính "/\evil.com" (browser/URL
+  // chuẩn phân tách \ như / → host ngoài). Check bằng URL parse lấy origin
+  // thật — chỉ nhận cùng-origin, fallback "/" (tính lúc submit, client-only).
   const rawNext = searchParams.get("next") || "/";
-  const next =
-    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+  const safeNext = (): string => {
+    try {
+      const u = new URL(rawNext, window.location.origin);
+      if (u.origin !== window.location.origin) return "/";
+      return `${u.pathname}${u.search}${u.hash}`;
+    } catch {
+      return "/";
+    }
+  };
   const { user, login, register, logout } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -29,7 +38,7 @@ function AuthForm() {
     try {
       if (mode === "login") await login(email, password);
       else await register(name, email, password);
-      router.push(next);
+      router.push(safeNext());
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi xác thực");
@@ -167,6 +176,7 @@ function AuthForm() {
 }
 
 export default function LoginPage() {
+  const { t } = useLocale();
   return (
     <div className="mx-auto max-w-page px-6 py-16 md:px-8">
       <div className="mx-auto max-w-md">
@@ -175,11 +185,10 @@ export default function LoginPage() {
             Circle Privé • Genève
           </span>
           <h1 className="font-display mt-3 text-4xl font-medium">
-            Cổng <span className="text-gold-gradient">Thượng Khách</span>
+            {t("auth.gateA")} <span className="text-gold-gradient">{t("auth.gateB")}</span>
           </h1>
           <p className="font-body-md text-body-md mt-3 text-on-surface-variant/85">
-            Đăng nhập để đồng bộ Vault giữa các thiết bị, theo dõi đơn hàng và
-            nhận ưu tiên phân bổ phiên bản giới hạn.
+            {t("auth.gateSub")}
           </p>
         </div>
         <div className="gold-border-card p-8">

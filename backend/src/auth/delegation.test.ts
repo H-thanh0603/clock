@@ -59,18 +59,22 @@ describe('delegation refresh', () => {
     // (id/email/name/role/tokenVersion). Fake cũ thiếu email → vé ký ra
     // thiếu email → verifyDelegationToken từ chối (đúng code, sai fake).
     const snapshot = { email: 'a@x', name: null, ...user };
-    const keys = new Map<string, { userId: string; version: number }>();
+    const keys = new Map<
+      string,
+      { userId: string; version: number; expiresAt: Date }
+    >();
     return {
       user: { findUnique: () => Promise.resolve(snapshot) },
       delegationKey: {
         create: ({
           data,
         }: {
-          data: { key: string; userId: string; version: number };
+          data: { key: string; userId: string; version: number; expiresAt: Date };
         }) => {
           keys.set(String(data.key), {
             userId: String(data.userId),
             version: Number(data.version),
+            expiresAt: data.expiresAt,
           });
           return Promise.resolve(data);
         },

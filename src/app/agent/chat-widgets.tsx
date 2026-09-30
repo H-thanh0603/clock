@@ -439,7 +439,20 @@ export function UxEvent({ event }: { event: Extract<AgentEvent, { type: "ui" }> 
  */
 function OrderPlaced({ payload }: { payload: Record<string, unknown> }) {
   const code = String(payload.order_code ?? "");
-  const payUrl = typeof payload.pay_url === "string" ? payload.pay_url : "";
+  const rawPay = typeof payload.pay_url === "string" ? payload.pay_url : "";
+  // pay_url đến từ SSE (model/host kiểm soát) — chỉ nhận https vào đúng
+  // cổng VNPay, chống link phishing/data: đội lốt nút "Sang VNPay".
+  const payUrl = (() => {
+    try {
+      const u = new URL(rawPay);
+      return u.protocol === "https:" &&
+        (u.hostname === "vnpayment.vn" || u.hostname.endsWith(".vnpayment.vn"))
+        ? rawPay
+        : "";
+    } catch {
+      return "";
+    }
+  })();
   const total = Number(payload.total_usd ?? 0);
   return (
     <Card className="border-primary/40">

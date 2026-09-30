@@ -38,4 +38,11 @@ export async function proxy(req: NextRequest) {
   }
 }
 
-export const config = { matcher: ["/admin/:path*"] };
+export const config = {
+  // Match MỌI route động (trừ static/asset): proxy luôn ghi đè x-pathname
+  // bằng pathname thật — nếu chỉ match /admin, khách gửi header
+  // "x-pathname: /admin" giả trên route khác để lột chrome shop được.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|uploads/|images/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|xml|json|woff2?)$).*)",
+  ],
+};
