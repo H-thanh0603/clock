@@ -62,8 +62,21 @@ export default async function Page({
       availability: product.inBoutique
         ? "https://schema.org/InStock"
         : "https://schema.org/PreOrder",
-      itemCondition: "https://schema.org/NewCondition",
+      itemCondition:
+        product.condition === "PRE_OWNED"
+          ? "https://schema.org/UsedCondition"
+          : "https://schema.org/NewCondition",
     },
+    // AggregateRating chỉ khi DB có đủ cặp value — không bịa điểm.
+    ...(product.ratingValue && product.ratingCount
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: product.ratingValue,
+            reviewCount: product.ratingCount,
+          },
+        }
+      : {}),
   };
   // BreadcrumbList — máy hiểu cấu trúc catalog → SERP breadcrumb đẹp.
   const breadcrumbLd = {
@@ -208,6 +221,43 @@ export default async function Page({
 </div>
 </div>
 <DetailPurchase product={product} />
+{/* Panel chứng thư CPO — "tín hiệu lòng tin" của store vật lý bản online
+    (research 2026: online chỉ ~10% doanh số vì thiếu kiểm định hiển hình). */}
+{product.condition === "PRE_OWNED" && (
+  <div className="rounded border border-primary/40 bg-primary/5 p-space-md">
+    <div className="flex items-center gap-space-sm">
+      <span className="material-symbols-outlined text-primary text-[22px]">verified</span>
+      <h3 className="font-label-spec text-label-spec uppercase tracking-[0.2em] text-primary">{S.cpoTitle}</h3>
+    </div>
+    <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">{S.cpoBody}</p>
+    <div className="grid grid-cols-2 gap-space-md mt-space-sm font-body-sm">
+      <div>
+        <p className="text-on-surface-variant/70">{S.cpoCertified}</p>
+        <p className="text-on-surface font-semibold">{product.certifiedBy ?? "Aurel & Co. Atelier"}</p>
+      </div>
+      <div>
+        <p className="text-on-surface-variant/70">{S.cpoIssued}</p>
+        <p className="text-on-surface font-semibold">
+          {product.certifiedAt ? new Date(product.certifiedAt).toLocaleDateString(en ? "en-GB" : "vi-VN") : "—"}
+        </p>
+      </div>
+    </div>
+    {(product.serviceHistory ?? []).length > 0 && (
+      <>
+        <p className="font-label-badge text-label-badge uppercase tracking-widest text-primary mt-space-sm">{S.cpoHistory}</p>
+        <ul className="mt-1 border-l border-primary/30 pl-space-md">
+          {(product.serviceHistory ?? []).map((h, i) => (
+            <li key={i} className="font-body-sm text-body-sm text-on-surface-variant py-1">
+              <span className="text-primary font-semibold mr-2">{h.date}</span>
+              <span className="text-on-surface">{h.label}</span>
+              {h.detail ? <span className="opacity-70"> — {h.detail}</span> : null}
+            </li>
+          ))}
+        </ul>
+      </>
+    )}
+  </div>
+)}
 {/* Agentic web: quick-action theo ngữ cảnh (G1-3) — mỗi nút là 1 việc
     agent làm giỏi nhất ở trang này, bấm là thấy agent LÀM VIỆC. Agent nhận
     context trang (PageContext product) khi mở /agent. */}

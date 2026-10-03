@@ -84,6 +84,16 @@ model Product {
   stock            Int      @default(1)
   specs            Json
   narrative        String   @db.Text
+  // --- Certified Pre-Owned (nâng cấp thị trường 2026: resale là kênh tăng
+  // trưởng nhanh nhất ngành, +4–6%/năm — cần chứng nhận minh bạch online).
+  // condition: "NEW" (mặc định) | "PRE_OWNED"
+  condition       String?
+  certifiedBy     String?
+  certifiedAt     DateTime?
+  serviceHistory  Json?
+  // Điểm tổng hợp cho AggregateRating JSON-LD (chỉ render khi có đủ 2 value).
+  ratingValue     Float?
+  ratingCount     Int?
   orderItems       OrderItem[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -91,6 +101,7 @@ model Product {
   // List catalog: filter theo bộ sưu tập + sort giá; sort newest (audit DB-001).
   @@index([collection, priceUsd])
   @@index([createdAt])
+  @@index([condition])
 }
 
 model Order {
@@ -308,6 +319,15 @@ model Inquiry {
   createdAt DateTime @default(now())
 
   @@index([type, status, createdAt])
+}
+
+/// Email nuôi dưỡng (nurture) từ footer newsletter — khách tương lai của
+/// phân khúc entry/pre-owned; opt-out bằng cách xóa dòng (demo: không có
+/// mail provider unsubscribe).
+model NewsletterSubscriber {
+  email     String   @id
+  source    String?
+  createdAt DateTime @default(now())
 }
 
 /// Hóa đơn điện tử cho đơn đã PAID — sinh khi VNPay confirm. `status`:

@@ -24,6 +24,11 @@ export async function productStrings(locale: Locale) {
     returnTitle: t("product.returnTitle"),
     returnBody: t("product.returnBody"),
     specsTitle: t("product.specsTitle"),
+    cpoTitle: t("product.cpoTitle"),
+    cpoBody: t("product.cpoBody"),
+    cpoCertified: t("product.cpoCertified"),
+    cpoIssued: t("product.cpoIssued"),
+    cpoHistory: t("product.cpoHistory"),
     status: (inBoutique: boolean) =>
       inBoutique ? t("product.inStock") : t("product.preOrder"),
   };

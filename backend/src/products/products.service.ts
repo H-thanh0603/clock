@@ -24,6 +24,14 @@ export type ProductDto = {
   stock: number;
   specs: { label: string; value: string }[];
   narrative: string;
+  /** Certified Pre-Owned — null/'NEW' = hàng mới showroom. */
+  condition: string | null;
+  certifiedBy: string | null;
+  certifiedAt: string | null;
+  serviceHistory: { date: string; label: string; detail?: string }[];
+  /** AggregateRating cho JSON-LD — chỉ render khi cả 2 có value. */
+  ratingValue: number | null;
+  ratingCount: number | null;
 };
 
 function toDto(row: {
@@ -47,6 +55,12 @@ function toDto(row: {
   /** List projection không select 2 field này → nullish fallback. */
   specs?: unknown;
   narrative?: string;
+  condition?: string | null;
+  certifiedBy?: string | null;
+  certifiedAt?: Date | null;
+  serviceHistory?: unknown;
+  ratingValue?: number | null;
+  ratingCount?: number | null;
 }): ProductDto {
   return {
     slug: row.slug,
@@ -68,6 +82,15 @@ function toDto(row: {
     stock: row.stock,
     specs: (row.specs as { label: string; value: string }[] | undefined) ?? [],
     narrative: row.narrative ?? '',
+    condition: row.condition ?? null,
+    certifiedBy: row.certifiedBy ?? null,
+    certifiedAt: row.certifiedAt ? row.certifiedAt.toISOString() : null,
+    serviceHistory:
+      (row.serviceHistory as
+        { date: string; label: string; detail?: string }[]
+        | undefined) ?? [],
+    ratingValue: row.ratingValue ?? null,
+    ratingCount: row.ratingCount ?? null,
   };
 }
 
@@ -82,6 +105,11 @@ export type ProductQuery = {
   material?: string;
   size?: string;
   complications?: string[];
+  /** 'PRE_OWNED' | 'NEW' (NEW = null hoặc 'NEW' trong DB). */
+  condition?: string;
+  /** Khoá giá server-side cho journey "chiếc đầu tiên" + barbell tier. */
+  minUsd?: number;
+  maxUsd?: number;
 };
 
 /**
@@ -122,6 +150,8 @@ const MATERIAL_WHERE: Record<string, Record<string, unknown>> = {
 };
 
 const SIZE_WHERE: Record<string, Record<string, unknown>> = {
+  // slim ≤37.5mm — cổ tay nhỏ / khách nữ & Gen Z (trend downsizing).
+  '36': { diameterMm: { lte: 37.5 } },
   '39': { diameterMm: { lte: 39.5 } },
   '40': { AND: [{ diameterMm: { gt: 39.5 } }, { diameterMm: { lte: 40.5 } }] },
   '41': { AND: [{ diameterMm: { gt: 40.5 } }, { diameterMm: { lt: 42.5 } }] },
@@ -169,7 +199,10 @@ export class ProductsService {
       query.movements?.length ||
         (query.material && MATERIAL_WHERE[query.material]) ||
         (query.size && SIZE_WHERE[query.size]) ||
-        query.complications?.length,
+        query.complications?.length ||
+        query.condition ||
+        Number.isFinite(query.minUsd) ||
+        Number.isFinite(query.maxUsd),
     );
     // Catalog public chỉ hiện SP đang trưng bày — admin tắt inBoutique
     // nghĩa là "ẩn khỏi cửa hàng" (audit P3: trước đây vẫn hiện).
@@ -189,6 +222,16 @@ export class ProductsService {
         .filter(Boolean);
       if (ors.length) and.push({ OR: ors });
     }
+    // Condition filter: PRE_OWNED = đúng dòng certified cũ; NEW = hàng mới
+    // (bao gồm các row cũ chưa có cột condition → null).
+    if (query.condition === 'PRE_OWNED') and.push({ condition: 'PRE_OWNED' });
+    else if (query.condition === 'NEW')
+      and.push({ OR: [{ condition: null }, { condition: 'NEW' }] });
+    // Price lock server-side (FE slider trước đây chỉ decorative).
+    const minUsd = Number(query.minUsd);
+    const maxUsd = Number(query.maxUsd);
+    if (Number.isFinite(minUsd) && minUsd > 0) and.push({ priceUsd: { gte: Math.floor(minUsd) } });
+    if (Number.isFinite(maxUsd) && maxUsd > 0) and.push({ priceUsd: { lte: Math.floor(maxUsd) } });
     if (q) {
       // Full-text qua Meilisearch (typo-tolerance: "tourbillan" vẫn ra).
       // Meili chỉ trả slug theo relevance — Prisma vẫn là nguồn dữ liệu +
@@ -267,6 +310,11 @@ export class ProductsService {
           complications: true,
           inBoutique: true,
           stock: true,
+          // CPO badge + rating hiển thị ngay trên card (nhẹ, không phải Text/JSON).
+          condition: true,
+          certifiedBy: true,
+          ratingValue: true,
+          ratingCount: true,
         },
       }),
       this.prisma.product.count({ where }),

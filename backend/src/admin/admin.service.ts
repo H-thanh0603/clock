@@ -449,6 +449,42 @@ export class AdminService {
         data[k] = (body[k] as unknown[]).map((x) => String(x));
     }
     if (body.specs !== undefined) data.specs = body.specs;
+    // --- Certified Pre-Owned (chỉ admin được sửa; validate chặt) ---
+    if (body.condition !== undefined) {
+      const c = String(body.condition ?? '').trim().toUpperCase();
+      data.condition = c === 'PRE_OWNED' ? 'PRE_OWNED' : null;
+    }
+    if (body.certifiedBy !== undefined)
+      data.certifiedBy = String(body.certifiedBy).trim().slice(0, 160) || null;
+    if (body.certifiedAt !== undefined) {
+      const raw = String(body.certifiedAt ?? '').trim();
+      if (!raw) data.certifiedAt = null;
+      else {
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime()))
+          throw new BadRequestException('certifiedAt không phải ngày hợp lệ');
+        data.certifiedAt = d;
+      }
+    }
+    if (body.serviceHistory !== undefined) {
+      const arr = Array.isArray(body.serviceHistory) ? body.serviceHistory : [];
+      data.serviceHistory = arr
+        .slice(0, 24)
+        .map((h) => ({
+          date: String((h as { date?: string })?.date ?? '').slice(0, 24),
+          label: String((h as { label?: string })?.label ?? '').slice(0, 120),
+          detail: String((h as { detail?: string })?.detail ?? '').slice(0, 300),
+        }))
+        .filter((h) => h.date && h.label);
+    }
+    if (body.ratingValue !== undefined) {
+      const rv = Number(body.ratingValue);
+      data.ratingValue = Number.isFinite(rv) && rv > 0 && rv <= 5 ? rv : null;
+    }
+    if (body.ratingCount !== undefined) {
+      const rc = Math.floor(Number(body.ratingCount) || 0);
+      data.ratingCount = rc > 0 ? rc : null;
+    }
     if (body.diameterMm !== undefined)
       data.diameterMm = Number(body.diameterMm) || 0;
     if (body.stock !== undefined)

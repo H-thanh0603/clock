@@ -78,6 +78,13 @@ async function main() {
       inBoutique: p.inBoutique,
       specs: p.specs,
       narrative: p.narrative,
+      // CPO + rating (nullable — hàng mới giữ nguyên null)
+      condition: p.condition ?? null,
+      certifiedBy: p.certifiedBy ?? null,
+      certifiedAt: p.certifiedAt ? new Date(p.certifiedAt) : null,
+      serviceHistory: (p.serviceHistory ?? undefined) as never,
+      ratingValue: p.ratingValue ?? null,
+      ratingCount: p.ratingCount ?? null,
     };
     const existing = await prisma.product.findUnique({
       where: { slug: p.slug },

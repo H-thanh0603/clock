@@ -28,6 +28,15 @@ export type Product = {
   images: string[];
   specs: { label: string; value: string }[];
   narrative: string;
+  /** "PRE_OWNED" = hàng hiệu cũ đã kiểm định CPO; thiếu = hàng mới. */
+  condition?: "NEW" | "PRE_OWNED";
+  certifiedBy?: string;
+  /** ISO date — ngày atelier kiểm định xong. */
+  certifiedAt?: string;
+  serviceHistory?: { date: string; label: string; detail?: string }[];
+  /** Chỉ set cả cặp — JSON-LD AggregateRating + card rating. */
+  ratingValue?: number;
+  ratingCount?: number;
 };
 
 export const products: Product[] = [
@@ -246,6 +255,162 @@ export const products: Product[] = [
     specs: [],
     narrative:
       "Ngăn chứa 02 bộ dây sơ cua bọc nhung Alcantara chống từ tính, dụng cụ thay dây vi cơ học và khóa 18K đồng điệu.",
+  },
+  // ---- Certified Pre-Owned (dòng "mồi" heritage — người mua lần đầu tin
+  // brand lớn; research 2026: resale +4–6%/năm, nhanh nhất ngành) ----
+  {
+    slug: "omega-speedmaster-11064-cpo",
+    name: "Omega Speedmaster Professional 11064-1",
+    reference: "CPO-OMS-11064",
+    collection: "sport",
+    priceUsd: 6800,
+    priceVnd: 171360000,
+    shortDescription:
+      "Truyền nhân của 'Moonwatch' — máy lên cót 863, mặtstep dial đen tuyền. Kiểm định CPO 124 điểm, còn hộp certificate gốc.",
+    badges: ["CERTIFIED PRE-OWNED"],
+    strapLabel: "Alligator đen • 42mm",
+    calibre: "Cal. Lemania 863 (manual)",
+    diameterMm: 42,
+    caseMaterial: "Stainless steel",
+    complications: ["Chronograph", "Tachymeter"],
+    inBoutique: true,
+    stock: 1,
+    cardImage:
+      "/images/high-tech-luxury-chronograph-watch-crafted-from-black-forged.jpg",
+    images: [
+      "/images/high-tech-luxury-chronograph-watch-crafted-from-black-forged.jpg",
+    ],
+    specs: [
+      { label: "Tình trạng", value: "Very good — patina đều, kim nguyên bản" },
+      { label: "Năm sản xuất", value: "1992" },
+      { label: "Kiểm định", value: "Aurel Atelier CPO 124 điểm + test biên độ 275°" },
+    ],
+    narrative:
+      "Chiếc 'Speedy' thế hệ 11064 là cây cầu giữa di sản Apollo và sưu tập hiện đại. Hàng consign chính chủ, đã được atelier tháo máy kiểm tra toàn bộ.",
+    condition: "PRE_OWNED",
+    certifiedBy: "Aurel & Co. Atelier — Certified Pre-Owned",
+    certifiedAt: "2026-08-14",
+    serviceHistory: [
+      { date: "2025-11", label: "Full service", detail: "Thay dầu, hiệu chỉnh biên độ" },
+      { date: "2026-08", label: "Kiểm định CPO", detail: "124 điểm, test chống nước, thay seal" },
+    ],
+    ratingValue: 4.8,
+    ratingCount: 34,
+  },
+  {
+    slug: "cartier-tank-must-1988-cpo",
+    name: "Cartier Tank Must de Cartier",
+    reference: "CPO-CTM-1988",
+    collection: "classic",
+    priceUsd: 4200,
+    priceVnd: 105840000,
+    shortDescription:
+      "Biểu tượng dress-watch dáng chữ H — máy quartz cao cấp đời đầu, vỏ steel 27mm thanh mảnh hợp cổ tay nhỏ.",
+    badges: ["CERTIFIED PRE-OWNED"],
+    strapLabel: "Da bê đen • 27mm",
+    calibre: "Cal. 185 quartz haute précision",
+    diameterMm: 27,
+    caseMaterial: "Stainless steel",
+    complications: ["Small Seconds"],
+    inBoutique: true,
+    stock: 1,
+    cardImage:
+      "/images/classic-dress-watch-with-18k-rose-gold-case-opaline-cream-su.jpg",
+    images: [
+      "/images/classic-dress-watch-with-18k-rose-gold-case-opaline-cream-su.jpg",
+    ],
+    specs: [
+      { label: "Tình trạng", value: "Excellent — chưa đánh bóng, số nguyên bản" },
+      { label: "Năm sản xuất", value: "1988" },
+      { label: "Kiểm định", value: "Aurel Atelier CPO + thay pin Sabatier" },
+    ],
+    narrative:
+      "Tank là 'chiếc đồng hồ đầu tiên' kinh điển cho cả nam lẫn nữ — vừa hộp, vừa giấy, giá vào dễ nhất bộ sưu tập CPO.",
+    condition: "PRE_OWNED",
+    certifiedBy: "Aurel & Co. Atelier — Certified Pre-Owned",
+    certifiedAt: "2026-09-02",
+    serviceHistory: [
+      { date: "2026-09", label: "Kiểm định CPO", detail: "Test mạch, thay pin, vệ sinh vỏ" },
+    ],
+    ratingValue: 4.7,
+    ratingCount: 21,
+  },
+  {
+    slug: "seiko-presage-cocktail-cpo",
+    name: "Seiko Presage 'Cocktail Time' Sharp Edge",
+    reference: "CPO-SPS-SRPE",
+    collection: "classic",
+    priceUsd: 950,
+    priceVnd: 23940000,
+    shortDescription:
+      "Entry-point mechanical đáng tin nhất thị trường — máy 6R51 72h, mặt hoạ tiết lấy cảm hứng whisky, case Sharp Edge 38.8mm.",
+    badges: ["CERTIFIED PRE-OWNED"],
+    strapLabel: "Da nâu • 38.8mm",
+    calibre: "Cal. 6R51 automatic",
+    diameterMm: 38.8,
+    caseMaterial: "Stainless steel",
+    complications: ["Power Reserve Indicator", "Date"],
+    inBoutique: true,
+    stock: 2,
+    cardImage: "/images/brushed-titanium-luxury-dive-watch-with-rotating-ceramic-bez.jpg",
+    images: [
+      "/images/brushed-titanium-luxury-dive-watch-with-rotating-ceramic-bez.jpg",
+    ],
+    specs: [
+      { label: "Tình trạng", value: "Like-new — mua 2024, đeo <6 tháng" },
+      { label: "Năm sản xuất", value: "2024" },
+      { label: "Kiểm định", value: "Aurel Atelier CPO 124 điểm + timing 4 tư thế" },
+    ],
+    narrative:
+      "Cửa ngõ vào thế giới mechanical: giá 'tập gõ', kiểm định như hàng hiệu — hành trình nâng cấp lên Grand Complication bắt đầu từ đây.",
+    condition: "PRE_OWNED",
+    certifiedBy: "Aurel & Co. Atelier — Certified Pre-Owned",
+    certifiedAt: "2026-09-10",
+    serviceHistory: [
+      { date: "2026-09", label: "Kiểm định CPO", detail: "Timing 4 tư thế ±4s/ngày" },
+    ],
+    ratingValue: 4.6,
+    ratingCount: 58,
+  },
+  {
+    slug: "aurel-heritage-chronometre-1974-cpo",
+    name: "Aurel Heritage Chronomètre 1974",
+    reference: "CPO-AUC-1974",
+    collection: "classic",
+    priceUsd: 9800,
+    priceVnd: 246960000,
+    shortDescription:
+      "Di sản nhà Aurel — máy 17 chân kính đạt chuẩn observatory, vỏ vàng hồng 18k 36mm, số hiệu khắc tay mặt sau.",
+    badges: ["CERTIFIED PRE-OWNED", "ARCHIVE"],
+    strapLabel: "Vàng hồng 18k • 36mm",
+    calibre: "Cal. Aurel 17J observatory",
+    diameterMm: 36,
+    caseMaterial: "18k rose gold",
+    complications: ["Chronomètre", "Small Seconds"],
+    inBoutique: true,
+    stock: 1,
+    cardImage:
+      "/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg",
+    images: [
+      "/images/macro-high-end-photograph-of-a-luxury-swiss-skeleton-rose-go.jpg",
+    ],
+    specs: [
+      { label: "Tình trạng", value: "Collector grade — nguyên bản 92%" },
+      { label: "Năm sản xuất", value: "1974" },
+      { label: "Kiểm định", value: "Atelier phục hồi 2025, chứng thư biên độ + hồ sơ lưu trữ Genève" },
+    ],
+    narrative:
+      "Một chương lịch sử manufacture có thể đeo được. Archive house cấp chứng thư xuất xưởng gốc kèm lịch sử phục hồi đầy đủ.",
+    condition: "PRE_OWNED",
+    certifiedBy: "Aurel & Co. Atelier — Certified Pre-Owned",
+    certifiedAt: "2025-12-20",
+    serviceHistory: [
+      { date: "1974", label: "Xuất xưởng Genève" },
+      { date: "2025", label: "Phục hồi atelier", detail: "Re-lume, cân cót mới, đánh bóng bảo tồn" },
+      { date: "2025-12", label: "Kiểm định CPO" },
+    ],
+    ratingValue: 4.9,
+    ratingCount: 12,
   },
 ];
 

@@ -18,6 +18,10 @@ export type ProductListParams = {
   sort?: "featured" | "price-asc" | "price-desc" | "newest";
   page?: number;
   limit?: number;
+  /** Lọc dòng Certified Pre-Owned / hàng mới. */
+  condition?: "PRE_OWNED" | "NEW";
+  minUsd?: number;
+  maxUsd?: number;
 };
 
 /** Trang catalog có phân trang/search/sort. opts.noStore cho backoffice. */
@@ -31,6 +35,9 @@ export async function getProductPage(
   if (params.sort) qs.set("sort", params.sort);
   if (params.page) qs.set("page", String(params.page));
   if (params.limit) qs.set("limit", String(params.limit));
+  if (params.condition) qs.set("condition", params.condition);
+  if (params.minUsd) qs.set("minUsd", String(params.minUsd));
+  if (params.maxUsd) qs.set("maxUsd", String(params.maxUsd));
   const q = qs.toString();
   return apiJson<ProductPage>(`/products${q ? `?${q}` : ""}`, {
     ...(opts.noStore ? { cache: "no-store" as const } : { next: { revalidate: 60 } }),

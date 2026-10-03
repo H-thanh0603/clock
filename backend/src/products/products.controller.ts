@@ -16,6 +16,9 @@ export class ProductsController {
     @Query('material') material?: string,
     @Query('size') size?: string,
     @Query('complications') complications?: string,
+    @Query('condition') condition?: string,
+    @Query('minUsd') minUsd?: string,
+    @Query('maxUsd') maxUsd?: string,
   ) {
     return this.products.list({
       q,
@@ -28,6 +31,10 @@ export class ProductsController {
       material,
       size,
       complications: complications?.split(',').map((s) => s.trim()).filter(Boolean),
+      condition:
+        condition === 'PRE_OWNED' || condition === 'NEW' ? condition : undefined,
+      minUsd: minUsd ? Number(minUsd) : undefined,
+      maxUsd: maxUsd ? Number(maxUsd) : undefined,
     });
   }
 

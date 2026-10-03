@@ -9,6 +9,15 @@ import { useWishlist } from "@/components/WishlistProvider";
 import { useLocale } from "@/components/LocaleProvider";
 import { mediaUrl } from "@/lib/media";
 
+/** Dải giá server-side (barbell entry ↔ grail — research 2026: khách dồn 2
+ *  đầu, phân khúc giữa yếu). [minUsd, maxUsd], 0 = không chặn đầu đó. */
+const BAND_USD: Record<string, [number, number]> = {
+  entry: [0, 1500],
+  mid: [1500, 10000],
+  high: [10000, 100000],
+  grail: [100000, 0],
+};
+
 function WishBtn({ slug }: { slug: string }) {
   const { has, toggle } = useWishlist();
   const wished = has(slug);
@@ -29,6 +38,10 @@ export default function Page() {
   const [mat, setMat] = useState("");
   const [size, setSize] = useState("");
   const [comp, setComp] = useState<string[]>([]);
+  // Lọc condition (Certified Pre-Owned) + dải giá server-side — thay slider
+  // decorative cũ (nút Apply/checkbox ma không dẫn lọc đi đâu cả).
+  const [cond, setCond] = useState("");
+  const [band, setBand] = useState("");
   const [sort, setSort] = useState("featured");
   const [open, setOpen] = useState(false);
   const [cols, setCols] = useState<2 | 3>(3);
@@ -54,6 +67,8 @@ export default function Page() {
     if (sp.get("size")) setSize(sp.get("size")!);
     if (compParam.length) setComp(compParam);
     if (sp.get("sort")) setSort(sp.get("sort")!);
+    if (sp.get("condition") === "PRE_OWNED") setCond("PRE_OWNED");
+    if (sp.get("band") && BAND_USD[sp.get("band")!]) setBand(sp.get("band")!);
     if (sp.get("q")) {
       setQ(sp.get("q")!);
       setDebouncedQ(sp.get("q")!);
@@ -90,6 +105,12 @@ export default function Page() {
     if (mat) qs.set("material", mat);
     if (size) qs.set("size", size);
     if (comp.length) qs.set("complications", comp.join(","));
+    if (cond) qs.set("condition", cond);
+    const [bMin, bMax] = BAND_USD[band] ?? [0, 0];
+    if (band) {
+      if (bMin > 0) qs.set("minUsd", String(bMin));
+      if (bMax > 0) qs.set("maxUsd", String(bMax));
+    }
     fetch(apiUrl(`/products?${qs.toString()}`))
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -120,7 +141,7 @@ export default function Page() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQ, sort, page, mov, mat, size, comp]);
+  }, [debouncedQ, sort, page, mov, mat, size, comp, cond, band]);
 
   // Đồng bộ filter chính vào URL — back/share/reload giữ được trạng thái.
   useEffect(() => {
@@ -131,12 +152,14 @@ export default function Page() {
     if (mat) qs.set("material", mat);
     if (size) qs.set("size", size);
     if (comp.length) qs.set("complications", comp.join(","));
+    if (cond) qs.set("condition", cond);
+    if (band) qs.set("band", band);
     if (sort !== "featured") qs.set("sort", sort);
     if (page > 1) qs.set("page", String(page));
     const url = qs.size > 0 ? `/collections?${qs}` : "/collections";
     // replace (không push) — không spam history mỗi lần tick filter.
     window.history.replaceState(null, "", url);
-  }, [hydrated, debouncedQ, mov, mat, size, comp, sort, page]);
+  }, [hydrated, debouncedQ, mov, mat, size, comp, sort, page, cond, band]);
 
   // Áp filter Jev gợi ý: reset q + filter cũ, set đúng 1 filter mới.
   const applyHint = () => {
@@ -163,6 +186,8 @@ export default function Page() {
     setMat("");
     setSize("");
     setComp([]);
+    setCond("");
+    setBand("");
     setSort("featured");
     setQ("");
     setPage(1);
@@ -170,7 +195,8 @@ export default function Page() {
 
   const pageCount = Math.max(1, Math.ceil(total / LIMIT));
 
-  const activeCount = mov.length + (mat ? 1 : 0) + (size ? 1 : 0) + comp.length;
+  const activeCount =
+    mov.length + (mat ? 1 : 0) + (size ? 1 : 0) + comp.length + (cond ? 1 : 0) + (band ? 1 : 0);
 
   return (
 
@@ -339,6 +365,7 @@ export default function Page() {
 <div className="flex flex-col gap-space-sm">
 <span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.diameter")}</span>
 <div className="flex items-center justify-between gap-space-xs">
+<button onClick={() => setSize(size === "36" ? "" : "36")} className={size === "36" ? "flex-1 py-2 rounded bg-primary text-center font-label-spec text-label-spec text-on-primary font-bold shadow" : "flex-1 py-2 rounded bg-surface-container text-center font-label-spec text-label-spec text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all"}>36</button>
 <button onClick={() => setSize(size === "39" ? "" : "39")} className={size === "39" ? "flex-1 py-2 rounded bg-primary text-center font-label-spec text-label-spec text-on-primary font-bold shadow" : "flex-1 py-2 rounded bg-surface-container text-center font-label-spec text-label-spec text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all"}>39mm</button>
 <button onClick={() => setSize(size === "40" ? "" : "40")} className={size === "40" ? "flex-1 py-2 rounded bg-primary text-center font-label-spec text-label-spec text-on-primary font-bold shadow" : "flex-1 py-2 rounded bg-surface-container text-center font-label-spec text-label-spec text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all"}>40mm</button>
 <button onClick={() => setSize(size === "41" ? "" : "41")} className={size === "41" ? "flex-1 py-2 rounded bg-primary text-center font-label-spec text-label-spec text-on-primary font-bold shadow" : "flex-1 py-2 rounded bg-surface-container text-center font-label-spec text-label-spec text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-all"}>41mm</button>
@@ -355,21 +382,21 @@ export default function Page() {
 <button onClick={() => toggleComp("skeleton")} className={comp.includes("skeleton") ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>{t("collections.skeleton")}</button>
 </div>
 </div>
-{/* Mức giá Khoảng từ $15,000 -> $250,000+ */}
+{/* Mức giá — band chips THẬT (trước là slider decorative không lọc gì) */}
 <div className="flex flex-col gap-space-sm">
 <div className="flex items-center justify-between">
 <span className="font-label-spec text-label-spec uppercase tracking-[0.15em] text-primary">{t("collections.priceRange")}</span>
-<span className="font-label-badge text-label-badge text-secondary">$15,000 — $250,000+</span>
 </div>
-<div className="w-full bg-surface-container-high h-1.5 rounded-full relative mt-2">
-<div className="absolute left-1/6 right-1/4 top-0 bottom-0 bg-primary rounded-full"></div>
-<div className="w-3.5 h-3.5 rounded-full bg-primary absolute left-1/6 -top-1 shadow cursor-pointer"></div>
-<div className="w-3.5 h-3.5 rounded-full bg-primary absolute right-1/4 -top-1 shadow cursor-pointer"></div>
+<div className="flex flex-wrap gap-space-xs">
+{([["entry","collections.bandEntry"],["mid","collections.bandMid"],["high","collections.bandHigh"],["grail","collections.bandGrail"]] as const).map(([id, key]) => (
+<button key={id} onClick={() => { setBand(band === id ? "" : id); setPage(1); }} className={band === id ? "px-2.5 py-1 rounded bg-surface-container-high text-secondary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer" : "px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-primary font-label-badge text-label-badge uppercase tracking-wider cursor-pointer"}>{t(key)}</button>
+))}
 </div>
-<div className="flex justify-between text-[11px] font-label-badge text-on-surface-variant mt-1">
-<span>375 Triệu ₫</span>
-<span>6,25 Tỷ ₫+</span>
-</div>
+{/* Certified Pre-Owned — bật/tắt dòng hàng hiệu cũ đã kiểm định */}
+<button onClick={() => { setCond(cond === "PRE_OWNED" ? "" : "PRE_OWNED"); setPage(1); }} className={`flex items-center gap-space-xs px-2.5 py-1.5 rounded font-label-badge text-label-badge uppercase tracking-wider cursor-pointer transition-colors ${cond === "PRE_OWNED" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:text-primary"}`}>
+<span className="material-symbols-outlined text-[16px]">verified</span>
+{t("collections.cpoOnly")}
+</button>
 </div>
 {/* Trạng thái & Địa điểm Boutique */}
 <div className="flex flex-col gap-space-sm">
@@ -389,7 +416,7 @@ export default function Page() {
 </label>
 </div>
 </div>
-<button className="w-full py-space-sm px-space-md rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] font-semibold hover:bg-secondary transition-colors shadow">
+<button onClick={() => setOpen(false)} className="w-full py-space-sm px-space-md rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.15em] font-semibold hover:bg-secondary transition-colors shadow">
             {t("collections.applyFilter")}
           </button>
 </div>

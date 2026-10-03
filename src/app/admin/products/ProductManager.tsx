@@ -24,6 +24,13 @@ type Draft = {
   badges: string;
   complications: string;
   inBoutique: boolean;
+  // Certified Pre-Owned
+  condition: string;
+  certifiedBy: string;
+  certifiedAt: string;
+  serviceHistory: string;
+  ratingValue: string;
+  ratingCount: string;
 };
 
 const EMPTY: Draft = {
@@ -44,6 +51,12 @@ const EMPTY: Draft = {
   badges: "",
   complications: "",
   inBoutique: true,
+  condition: "NEW",
+  certifiedBy: "",
+  certifiedAt: "",
+  serviceHistory: "",
+  ratingValue: "",
+  ratingCount: "",
 };
 
 function toDraft(p: Product): Draft {
@@ -65,6 +78,14 @@ function toDraft(p: Product): Draft {
     badges: p.badges.join(", "),
     complications: p.complications.join(", "),
     inBoutique: p.inBoutique,
+    condition: p.condition ?? "NEW",
+    certifiedBy: p.certifiedBy ?? "",
+    certifiedAt: p.certifiedAt ? String(p.certifiedAt).slice(0, 10) : "",
+    serviceHistory: (p.serviceHistory ?? [])
+      .map((h) => `${h.date} | ${h.label}${h.detail ? ` | ${h.detail}` : ""}`)
+      .join("\n"),
+    ratingValue: p.ratingValue ? String(p.ratingValue) : "",
+    ratingCount: p.ratingCount ? String(p.ratingCount) : "",
   };
 }
 
@@ -80,6 +101,19 @@ function splitCommas(v: string) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** Textarea CPO: mỗi dòng "ngày | việc đã làm | chi tiết (tùy chọn)". */
+function parseServiceHistory(v: string) {
+  return v
+    .split("\n")
+    .map((line) => line.split("|").map((x) => x.trim()))
+    .filter((parts) => parts[0] && parts[1])
+    .map(([date, label, detail]) => ({
+      date,
+      label,
+      ...(detail ? { detail } : {}),
+    }));
 }
 
 /** Giá trị trong diff audit (old/new) → chuỗi ngắn, an toàn để hiển thị. */
@@ -222,6 +256,12 @@ export function ProductManager({
         badges: splitCommas(editing.badges),
         complications: splitCommas(editing.complications),
         inBoutique: editing.inBoutique,
+        condition: editing.condition === "PRE_OWNED" ? "PRE_OWNED" : "NEW",
+        certifiedBy: editing.certifiedBy.trim() || null,
+        certifiedAt: editing.certifiedAt || null,
+        serviceHistory: parseServiceHistory(editing.serviceHistory),
+        ratingValue: editing.ratingValue ? Number(editing.ratingValue) : null,
+        ratingCount: editing.ratingCount ? Number(editing.ratingCount) : null,
         ...(isNew ? { slug: editing.slug } : {}),
       };
       const res = await csrfFetch(
@@ -672,6 +712,96 @@ export function ProductManager({
                   value={editing.narrative}
                   onChange={(e) =>
                     setEditing({ ...editing, narrative: e.target.value })
+                  }
+                />
+              </label>
+              {/* Certified Pre-Owned — chỉ hiện khi là hàng cũ; BE validate chặt */}
+              <label className="block">
+                <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                  Tình trạng phân phối
+                </span>
+                <select
+                  className={inputCls}
+                  value={editing.condition}
+                  onChange={(e) =>
+                    setEditing({ ...editing, condition: e.target.value })
+                  }
+                >
+                  <option value="NEW">Hàng mới (NEW)</option>
+                  <option value="PRE_OWNED">Certified Pre-Owned</option>
+                </select>
+              </label>
+              {editing.condition === "PRE_OWNED" && (
+                <>
+                  <label className="block">
+                    <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                      Đơn vị kiểm định
+                    </span>
+                    <input
+                      className={inputCls}
+                      value={editing.certifiedBy}
+                      placeholder="Aurel & Co. Atelier — Certified Pre-Owned"
+                      onChange={(e) =>
+                        setEditing({ ...editing, certifiedBy: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                      Ngày cấp chứng thư
+                    </span>
+                    <input
+                      className={inputCls}
+                      type="date"
+                      value={editing.certifiedAt}
+                      onChange={(e) =>
+                        setEditing({ ...editing, certifiedAt: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="block md:col-span-2">
+                    <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                      Lịch sử kiểm định / service — mỗi dòng: ngày | việc làm | chi tiết (tùy chọn)
+                    </span>
+                    <textarea
+                      className={inputCls}
+                      rows={3}
+                      value={editing.serviceHistory}
+                      placeholder={"2026-08 | Full service | Thay dầu, cân timing"}
+                      onChange={(e) =>
+                        setEditing({ ...editing, serviceHistory: e.target.value })
+                      }
+                    />
+                  </label>
+                </>
+              )}
+              <label className="block">
+                <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                  Rating (0–5)
+                </span>
+                <input
+                  className={inputCls}
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  max={5}
+                  value={editing.ratingValue}
+                  onChange={(e) =>
+                    setEditing({ ...editing, ratingValue: e.target.value })
+                  }
+                />
+              </label>
+              <label className="block">
+                <span className="font-label-spec text-label-spec tracking-wider text-on-surface-variant uppercase">
+                  Số đánh giá
+                </span>
+                <input
+                  className={inputCls}
+                  type="number"
+                  min={0}
+                  value={editing.ratingCount}
+                  onChange={(e) =>
+                    setEditing({ ...editing, ratingCount: e.target.value })
                   }
                 />
               </label>
