@@ -1,37 +1,30 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { AdminService } from './admin.service';
 
-/**
- * Copy guardrail (chặn mềm): Jev thấy claim rủi ro → response kèm jevWarning,
- * vẫn tạo record. Jev tắt → không warning.
- */
 const OLD_ENV = { ...process.env };
+import { AdminCampaignsService } from './admin-campaigns.service';
 
-function makeSvc() {
-  const prisma = {
-    product: { findMany: () => Promise.resolve([]) },
-    promotion: {
-      create: ({ data }: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'promo-1', ...data }),
-      findMany: () => Promise.resolve([]),
-    },
-    campaign: {
-      create: ({ data }: { data: Record<string, unknown> }) =>
-        Promise.resolve({ id: 'c-1', ...data }),
-    },
-  } as never;
-  return new AdminService(prisma, {} as never, { upsertProduct: async () => {} } as never, {} as never);
-}
+describe('AdminCampaignsService', () => {
+  it('tạo campaign + update status hợp lệ', async () => {
+    const prisma = {
+      campaign: {
+        create: ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'c-1', ...data }),
+        update: ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'c-1', ...data }),
+      },
+    };
+    const svc = new AdminCampaignsService(prisma as never);
+    const c = await svc.createCampaign({ name: 'Launch', budgetUsd: 500 }, 'a1');
+    expect(c.status).toBe('draft');
+    const u = await svc.updateCampaign('c-1', { status: 'active' });
+    expect(u.status).toBe('active');
+    await expect(svc.updateCampaign('c-1', { status: 'bogus' })).rejects.toThrow(
+      /Status campaign/,
+    );
+  });
+});
 
-const PROMO = {
-  name: 'Sale',
-  listingSlugs: ['a'],
-  discountPct: 10,
-  startsAt: '2026-09-01',
-  endsAt: '2026-09-30',
-};
-
-describe('AdminService Jev copy guardrail', () => {
+describe('AdminCampaignsService Jev copy guardrail', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
   });
@@ -41,13 +34,15 @@ describe('AdminService Jev copy guardrail', () => {
     vi.unstubAllGlobals();
   });
 
-  it('thiếu key → tạo bình thường, không warning', async () => {
-    delete process.env.JEV_API_KEY;
-    const svc = makeSvc();
-    const r = (await svc.createPromotion(PROMO, 'a1')) as Record<string, unknown>;
-    expect(r.name).toBe('Sale');
-    expect(r.jevWarning).toBeUndefined();
-  });
+  function makeSvc() {
+    const prisma = {
+      campaign: {
+        create: ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ id: 'c-1', ...data }),
+      },
+    } as never;
+    return new AdminCampaignsService(prisma);
+  }
 
   it('claim rủi ro → vẫn tạo + kèm jevWarning', async () => {
     process.env.JEV_API_KEY = 'k';

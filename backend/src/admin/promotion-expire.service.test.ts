@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PromotionExpireService } from './promotion-expire.service';
 import type { PrismaService } from '../prisma/prisma.service';
-import type { AdminService } from './admin.service';
+import type { AdminPromotionsService } from './admin-promotions.service';
 
 /**
  * Cron hồi giá promotion hết hạn (đường tiền — BIZ-HIGH-02):
@@ -24,7 +24,7 @@ function makeSvc(due: string[], opts: { fail?: string[] } = {}) {
       closed.push(id);
       return Promise.resolve({});
     },
-  } as unknown as AdminService;
+  } as unknown as AdminPromotionsService;
 
   return { svc: new PromotionExpireService(prisma, admin), closed };
 }

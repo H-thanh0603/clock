@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { AdminService } from './admin.service';
+import { AdminPromotionsService } from './admin-promotions.service';
 
 /**
  * Đóng promotion đã qua endsAt (cron 15 phút/lần): hồi giá SP về snapshot
- * gốc + đánh active=false qua AdminService.closePromotion.
+ * gốc + đánh active=false qua AdminPromotionsService.closePromotion.
  *
  * Vì sao cần: apply promotion ghi đè giá SP về giá KM — không có vòng này,
  * giá KM ở lại vĩnh viễn sau khi hết hạn (audit BIZ-HIGH-02). Logic tách
@@ -17,7 +17,7 @@ export class PromotionExpireService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly admin: AdminService,
+    private readonly admin: AdminPromotionsService,
   ) {}
 
   /** Mỗi 15 phút một lần; logic tách ra method public để test được. */
