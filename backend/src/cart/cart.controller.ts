@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PrismaCartStorage } from '../common/cart-storage';
 import {
   addToCart,
@@ -26,6 +27,8 @@ import type { SessionUser } from '../common/session';
 
 @Controller('cart')
 @UseGuards(RequiredAuthGuard)
+// Auth rồi vẫn throttle write — global 200/phút quá rộng cho endpoint ghi giỏ.
+@Throttle({ default: { limit: 40, ttl: 60_000 } })
 export class CartController {
   constructor(
     private readonly storage: PrismaCartStorage,

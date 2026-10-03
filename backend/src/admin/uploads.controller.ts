@@ -29,6 +29,29 @@ export function resolveUploadExt(originalname: string): string | null {
 }
 
 /**
+ * Sniff magic bytes → loại file thật, không tin MIME/ext client khai.
+ * Polyglot (file .jpg chứa HTML/JS) hoặc .jpg thực chất là GIF/SVG đều bị
+ * chặn ở đây. Không thêm dep: chỉ cần 12 byte đầu.
+ */
+export function sniffImageMime(buf: Buffer): string | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
+    return 'image/jpeg';
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 &&
+    buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a
+  )
+    return 'image/png';
+  if (
+    buf.length >= 12 &&
+    buf.toString('ascii', 0, 4) === 'RIFF' &&
+    buf.toString('ascii', 8, 12) === 'WEBP'
+  )
+    return 'image/webp';
+  return null;
+}
+
+/**
  * Upload ảnh sản phẩm cho admin. StorageService tự chọn S3-compatible
  * (S3_BUCKET cấu hình) hoặc disk fallback — API giữ nguyên cho FE.
  */
@@ -62,8 +85,12 @@ export class UploadsController {
         'Đuôi file không hợp lệ (chỉ .jpg/.jpeg/.png/.webp)',
       );
     }
+    // Magic bytes — chặn polyglot/giả MIME (ext + MIME client khai đều giả được).
+    const sniffed = sniffImageMime(file.buffer);
+    if (!sniffed)
+      throw new BadRequestException('File không phải ảnh JPEG/PNG/WebP hợp lệ');
     const key = `${Date.now()}-${randomBytes(8).toString('hex')}${ext}`;
-    const stored = await this.storage.put(key, file.buffer, file.mimetype);
+    const stored = await this.storage.put(key, file.buffer, sniffed);
     return { url: stored.url, storage: stored.storage };
   }
 }
