@@ -43,12 +43,16 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 
+# vitest reporter output
+.vitest/
+
 # python (agent/)
 agent/.venv/
 agent/**/__pycache__/
 agent/.pytest_cache/
 agent/.ruff_cache/
 agent/data/
+agent/uv.lock
 *.egg-info/
 
 # tool cục bộ (mỗi máy một kiểu, không vào repo)
