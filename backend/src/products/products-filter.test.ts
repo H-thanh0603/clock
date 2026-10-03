@@ -90,3 +90,41 @@ describe('ProductsService.list — condition + price band', () => {
     expect(a).toContainEqual({ slug: { in: ['cpo-speedy'] } });
   });
 });
+
+/**
+ * listBySlugs (q + Meili hit + không filter): Prisma trả row theo bất kỳ thứ
+ * tự, service phải trả ĐÚNG thứ tự relevance của Meili và bỏ slug không có row.
+ */
+describe('ProductsService.list — relevance order (listBySlugs)', () => {
+  const row = (slug: string) => ({ ...ROW, slug });
+
+  it('giữ thứ tự slug Meili, không theo thứ tự Prisma', async () => {
+    const prisma = {
+      product: {
+        // Prisma trả ngược thứ tự Meili
+        findMany: () => Promise.resolve([row('third'), row('first'), row('second')]),
+      },
+    } as never;
+    const meili = {
+      enabled: true,
+      searchSlugs: () => Promise.resolve(['first', 'second', 'third']),
+    } as never;
+    const svc = new ProductsService(prisma, meili);
+    const r = await svc.list({ q: 'x' });
+    expect(r.items.map((i) => i.slug)).toEqual(['first', 'second', 'third']);
+    expect(r.total).toBe(3);
+  });
+
+  it('slug Meili trỏ row đã ẩn/không tồn tại → bỏ khỏi items', async () => {
+    const prisma = {
+      product: { findMany: () => Promise.resolve([row('first')]) },
+    } as never;
+    const meili = {
+      enabled: true,
+      searchSlugs: () => Promise.resolve(['first', 'ghost']),
+    } as never;
+    const svc = new ProductsService(prisma, meili);
+    const r = await svc.list({ q: 'x' });
+    expect(r.items.map((i) => i.slug)).toEqual(['first']);
+  });
+});
