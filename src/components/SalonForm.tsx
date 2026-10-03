@@ -20,6 +20,8 @@ export default function SalonForm() {
     email: "",
     location: "Private Salon Saigon (Quận 1)",
     interest: "Grand Complication Tourbillon",
+    date: "",
+    time: "10:00 – 11:00",
     note: "",
     agree: false,
   });
@@ -41,7 +43,14 @@ export default function SalonForm() {
           phone: form.phone,
           email: form.email || undefined,
           message: form.note || undefined,
-          payload: { location: form.location, interest: form.interest },
+          // Slot thật (ngày + khung giờ) — concierge xác nhận Telegram là
+          // giữ lịch; bỏ trống ngày = "sớm nhất thuận tiện".
+          payload: {
+            location: form.location,
+            interest: form.interest,
+            date: form.date || "ASAP",
+            time: form.time,
+          },
         }),
       });
       if (!res.ok) throw new Error();
@@ -131,8 +140,33 @@ export default function SalonForm() {
           <option>Bespoke Métiers d&apos;Art Độc Bản</option>
         </select>
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+        <div>
+          <label className={label} htmlFor="salon-f6">Ngày Hẹn Dự Kiến</label>
+          <input id="salon-f6"
+            className={field}
+            type="date"
+            min={new Date().toISOString().slice(0, 10)}
+            value={form.date}
+            onChange={(e) => setForm({ ...form, date: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className={label} htmlFor="salon-f7">Khung Giờ Tiệc Trà</label>
+          <select id="salon-f7"
+            className={field}
+            value={form.time}
+            onChange={(e) => setForm({ ...form, time: e.target.value })}
+          >
+            <option>10:00 – 11:00</option>
+            <option>14:00 – 15:00</option>
+            <option>16:00 – 17:00</option>
+            <option>19:00 – 20:00 (trưng bày đêm)</option>
+          </select>
+        </div>
+      </div>
       <div>
-        <label className={label}>
+          <label className={label}>
           Ghi Chú Đặc Biệt (Rượu champagne, sở thích ẩm thực hoặc bảo mật)
         </label>
         <textarea

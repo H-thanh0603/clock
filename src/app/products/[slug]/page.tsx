@@ -94,6 +94,7 @@ export default async function Page({
   <div className="flex flex-col w-full">
   <script
         type="application/ld+json"
+        // pi-lens-ignore: no-dangerously-set-inner-html
         dangerouslySetInnerHTML={{ __html: safeJsonLd([jsonLd, breadcrumbLd]) }}
       />
 {/* Subtle Ambient Glow Background Aura */}

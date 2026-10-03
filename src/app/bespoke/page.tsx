@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from "react";
 import { useCart } from "@/components/CartProvider";
+import { csrfFetch } from "@/lib/api-client";
 import { site } from "@/data/site";
 import { mediaUrl } from "@/lib/media";
 import { useLocale } from "@/components/LocaleProvider";
@@ -12,6 +13,10 @@ const MOVEMENTS = {
   repeater: { name: "Minute Repeater Cathedral", price: 280000, duration: "12 – 14 Tháng" },
   chronograph: { name: "Chronographe Monopoussoir", price: 150000, duration: "8 – 10 Tháng" },
   perpetual: { name: "Celestial Perpetual Calendar", price: 210000, duration: "10 – 12 Tháng" },
+  // Barbell entry tier (research 2026: khách dồn về 2 đầu giá, giữa yếu) +
+  // moonphase — complication thẩm mỹ tăng nhanh nhất ngành (+15% đơn vị).
+  "first-timepiece": { name: "Automatic Classique — First Timepiece", price: 6800, duration: "3 – 4 Tháng" },
+  moonphase: { name: "Moonphase Astronomique", price: 88000, duration: "6 – 8 Tháng" },
 } as const;
 type MovementKey = keyof typeof MOVEMENTS;
 
@@ -45,6 +50,11 @@ export default function Page() {
   const [gem, setGem] = useState(false);
   const [bespokeAdded, setBespokeAdded] = useState(false);
 
+  // Dossier inquiry form — trước đây là <form> chết (submit không đi đâu).
+  const [dossierSent, setDossierSent] = useState(false);
+  const [dossierSending, setDossierSending] = useState(false);
+  const [dossierErr, setDossierErr] = useState("");
+
   const total = useMemo(
     () =>
       MOVEMENTS[movement].price +
@@ -74,6 +84,47 @@ export default function Page() {
     });
     setBespokeAdded(true);
     window.setTimeout(() => setBespokeAdded(false), 2000);
+  };
+
+  const submitDossier = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const val = (id: string) =>
+      (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value ?? "";
+    const name = val("bespoke-name").trim();
+    const phone = val("bespoke-channel").trim();
+    if (!name || !phone) {
+      setDossierErr("Cần họ tên và số liên lạc — concierge gọi lại trong 2 giờ.");
+      return;
+    }
+    setDossierSending(true);
+    setDossierErr("");
+    try {
+      const res = await csrfFetch("/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "BESPOKE",
+          name,
+          phone,
+          email: val("bespoke-email").trim() || undefined,
+          message: `Khu vực: ${val("bespoke-country")}. Ngân sách: ${val("bespoke-budget")}. Ý tưởng: ${val("bespoke-idea")}`.slice(0, 1900),
+          payload: {
+            movement: MOVEMENTS[movement].name,
+            material: MATERIALS[material].name,
+            dial: DIALS[dial].name,
+            addons: addonNames || null,
+            estimatedUsd: total,
+            duration: MOVEMENTS[movement].duration,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setDossierSent(true);
+    } catch {
+      setDossierErr("Không gửi được hồ sơ — vui lòng thử lại.");
+    } finally {
+      setDossierSending(false);
+    }
   };
 
   const movLabel = (active: boolean) =>
@@ -384,6 +435,24 @@ export default function Page() {
 </div>
 <p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Lịch vạn niên thiên văn hiển thị chu kỳ mặt trăng thật chính xác 122 năm.</p>
 <span className="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $210,000</span>
+</label>
+<label className={movLabel(movement === "moonphase")}>
+<input checked={movement === "moonphase"} onChange={() => setMovement("moonphase")} className="sr-only" name="movement" type="radio" value="moonphase"/>
+<div className="flex justify-between items-start mb-2">
+<span className="font-title-editorial text-body-md text-on-surface font-semibold group-hover:text-primary">Moonphase Astronomique</span>
+<span className={`material-symbols-outlined text-[20px] check-indicator ${movement === "moonphase" ? "text-primary" : "text-outline-variant"}`}>{movement === "moonphase" ? "radio_button_checked" : "radio_button_unchecked"}</span>
+</div>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Ông trăng thiên văn sai số 1 ngày/122 năm — complication thẩm mỹ được săn đón nhất 2025-26, mặt moon-glass thạch anh khói.</p>
+<span className="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $88,000</span>
+</label>
+<label className={movLabel(movement === "first-timepiece")}>
+<input checked={movement === "first-timepiece"} onChange={() => setMovement("first-timepiece")} className="sr-only" name="movement" type="radio" value="first-timepiece"/>
+<div className="flex justify-between items-start mb-2">
+<span className="font-title-editorial text-body-md text-on-surface font-semibold group-hover:text-primary">First Timepiece — Automatic Classique</span>
+<span className={`material-symbols-outlined text-[20px] check-indicator ${movement === "first-timepiece" ? "text-primary" : "text-outline-variant"}`}>{movement === "first-timepiece" ? "radio_button_checked" : "radio_button_unchecked"}</span>
+</div>
+<p className="font-body-sm text-body-sm text-on-surface-variant/80 mb-space-xs">Chiếc Aurel đầu tiên: máy automatic 38.5mm lên cót đôi 60h, khắc tay mặt sau — hành trình sưu tập bắt đầu từ đây.</p>
+<span className="font-label-spec text-label-spec text-primary mt-auto">Khởi điểm: $6,800</span>
 </label>
 </div>
 </div>
@@ -722,7 +791,7 @@ export default function Page() {
 </div>
 {/* Right Column: Bespoke Dossier Inquiry Form (7 cols) */}
 <div className="lg:col-span-7 bg-surface-container-low p-space-xl md:p-space-2xl rounded border border-outline-variant/30 shadow-2xl relative">
-<form className="space-y-space-md" id="bespoke-form" >
+<form className="space-y-space-md" id="bespoke-form" onSubmit={submitDossier} noValidate >
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
 <label htmlFor="bespoke-name" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">{t("bespoke.formName")}</label>
@@ -746,6 +815,7 @@ export default function Page() {
 <div>
 <label htmlFor="bespoke-budget" className="block font-label-spec text-label-spec uppercase tracking-wider text-secondary mb-space-xs">Hạn Mức Ngân Sách Dự Kiến Dành Cho Dự Án</label>
 <select id="bespoke-budget" className="w-full bg-surface-container-high px-space-md py-space-sm rounded text-body-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-primary border border-outline-variant/30">
+<option value="7-30k">$7,000 – $30,000 USD (First Timepiece / Moonphase)</option>
 <option value="150-250k">$150,000 – $250,000 USD (Chrono Monopusher / Tourbillon Classic)</option>
 <option value="250-400k">$250,000 – $400,000 USD (Flying Tourbillon / Perpetual Celestial)</option>
 <option value="400-600k">$400,000 – $600,000 USD (Minute Repeater / Grand Feu Dragon)</option>
@@ -763,14 +833,17 @@ export default function Page() {
               </label>
 </div>
 <div className="pt-space-sm">
-<button className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all flex items-center justify-center gap-space-sm shadow-[0_6px_25px_rgba(242,202,80,0.35)]" type="submit">
+<button className="w-full py-space-md px-space-lg rounded bg-primary text-on-primary font-label-spec text-label-spec uppercase tracking-[0.2em] font-bold hover:bg-secondary transition-all flex items-center justify-center gap-space-sm shadow-[0_6px_25px_rgba(242,202,80,0.35)] disabled:opacity-60" type="submit" disabled={dossierSending}>
 <span className="material-symbols-outlined text-[20px]">shield_with_heart</span>
-<span>{t("bespoke.formSubmit")}</span>
+<span>{dossierSending ? "…" : t("bespoke.formSubmit")}</span>
 </button>
+{dossierErr && (
+<p className="font-body-sm text-body-sm text-red-400 mt-2" role="alert">{dossierErr}</p>
+)}
 </div>
 </form>
-{/* Confirmation message overlay (hidden initially) */}
-<div className="hidden absolute inset-0 bg-surface-container-low/95 backdrop-blur-md flex flex-col items-center justify-center p-space-2xl text-center rounded" id="form-success">
+{/* Confirmation message overlay — hiện sau khi dossier gửi thành công */}
+<div className={`${dossierSent ? "" : "hidden "}absolute inset-0 bg-surface-container-low/95 backdrop-blur-md flex flex-col items-center justify-center p-space-2xl text-center rounded`} id="form-success">
 <div className="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-space-md">
 <span className="material-symbols-outlined text-[36px]">done_all</span>
 </div>
