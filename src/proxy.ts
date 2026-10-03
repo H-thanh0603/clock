@@ -12,7 +12,18 @@ export async function proxy(req: NextRequest) {
     requestHeaders.set("x-pathname", req.nextUrl.pathname);
     return NextResponse.next({ request: { headers: requestHeaders } });
   };
-  if (!req.nextUrl.pathname.startsWith("/admin")) return next();
+  if (!req.nextUrl.pathname.startsWith("/admin")) {
+    // /widget-gallery là storybook nội bộ cho visual regression — không
+    // cho public vào prod (robots chỉ chặn index, không chặn truy cập).
+    // Cookie/dev → cho qua để Playwright chụp; prod public → 404.
+    if (
+      req.nextUrl.pathname.startsWith("/widget-gallery") &&
+      process.env.NODE_ENV === "production"
+    ) {
+      return new NextResponse(null, { status: 404 });
+    }
+    return next();
+  }
   try {
     const base = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(
       /\/$/,
