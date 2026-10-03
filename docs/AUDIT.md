@@ -127,7 +127,7 @@ CI: test (FE+BE) → build → deploy: backup → build → migrate deploy (cont
 ### 🟢 YES — Production-ready (quy mô nhỏ ≤ ~10k users), có thể thu tiền thật
 
 1. Không còn mục P0/P1 nào mở — mỗi mục có commit + test tương ứng (§4).
-2. Bộ test logic tiền/nghiệp vụ: **106 BE + 6 FE**, phủ auth, CSRF, VNPay (sign/settle/expire), cart price trust, oversell, double-restock, dedup đơn, notify queue, payload cap, bcrypt boundary.
+2. Bộ test logic tiền/nghiệp vụ: **292 BE + 57 FE** (đợt 16/09: 215 BE; đợt 20/09: 229 BE; sau tách commit & đợt dọn 04/10: wishlist/promotion-expire/relevance + uploads magic-byte + payments controller), phủ auth, CSRF, VNPay (sign/settle/expire/mapping), cart price trust, oversell, double-restock, dedup đơn, notify queue, payload cap, bcrypt boundary.
 3. Ranh giới an toàn còn lại được **nói rõ thay vì giấu**: OFFSET pagination, guard SELECT/request, notify in-memory queue, statsCache process-local — tất cả chỉ đúng với 1 BE instance + <1M dòng đơn. Khi vượt: theo §6.
 
 ## 6. Còn mở (chấp nhận có chủ đích — KHÔNG làm trước khi cần)
@@ -137,11 +137,11 @@ CI: test (FE+BE) → build → deploy: backup → build → migrate deploy (cont
 | Keyset pagination thay OFFSET | Order/Product > 1M dòng |
 | Cache guard 5s / stateless + tokenVersion thưa | > vài trăm RPS auth'd |
 | BullMQ + Redis cho notify (in-memory queue hiện tại chết khi restart container — mất tối đa vài thông báo đang retry) | > 500 đơn/ngày hoặc BE ≥ 2 instance |
-| ProductEvent old/new value | Khi cần audit trail thật (yêu cầu tài chính/pháp lý) |
-| Meilisearch thay ILIKE | Catalog > ~50k SP hoặc cần typo-tolerance tiếng Việt |
-| Payments controller test (handleReturn/handleIpn mapping) | Rảnh — logic mỏng, đã test tầng vnpay.ts |
-| e2e (Playwright) checkout flow | Trước khi chạy chiến dịch marketing lớn |
-| OFFSITE backup (S3/rclone) | Ngay khi có dữ liệu khách thật — hiện backup cùng VPS với DB (đã doc rsync cron trong PRODUCTION.md) |
+| ~~ProductEvent old/new value~~ ✅ ĐÃ XONG (đợt 20/09: `changes` Json + `productDiff`) | — |
+| ~~Meilisearch thay ILIKE~~ ✅ ĐÃ XONG (meili service + compose, fallback Prisma) | — |
+| ~~Payments controller test~~ ✅ ĐÃ XONG (đợt 04/10: mapping fail-closed/intent-guard/return-redirect/ipn) | — |
+| ~~e2e (Playwright) checkout flow~~ ✅ ĐÃ XONG (`e2e/checkout.spec.ts`) | — |
+| ~~OFFSITE backup (S3/rclone)~~ ✅ ĐÃ XONG (`scripts/offsite-backup.sh`, đợt 16/09) | — |
 
 ## 7. Scale (giữ nguyên kết luận gốc — vẫn chính xác)
 
