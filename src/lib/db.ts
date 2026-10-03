@@ -44,14 +44,6 @@ export async function getProductPage(
   });
 }
 
-/** Toàn bộ catalog (cho admin). Giữ chữ ký cũ trả Product[]. */
-export async function getProducts(): Promise<Product[]> {
-  const page = await apiJson<ProductPage>("/products?limit=50", {
-    next: { revalidate: 60 },
-  });
-  return page.items;
-}
-
 export async function getProduct(slug: string): Promise<Product | null> {
   try {
     return await apiJson<Product>(`/products/${encodeURIComponent(slug)}`, {
