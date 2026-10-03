@@ -16,6 +16,7 @@ export async function productStrings(locale: Locale) {
     tryAR: t("product.tryAR"),
     limited: t("product.limited"),
     compareCta: t("product.compareCta"),
+    comparePageCta: t("product.comparePageCta"),
     watchCta: t("product.watchCta"),
     securityTitle: t("product.securityTitle"),
     securityBody: t("product.securityBody"),

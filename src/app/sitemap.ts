@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { apiJson } from "@/lib/api";
+import { journalArticles } from "@/data/journal";
 
 /**
  * Sitemap động: trang tĩnh + mọi sản phẩm đang trưng bày.
@@ -36,6 +37,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.85,
     },
+    ...journalArticles.map((a) => ({
+      url: `${base}/journal/${a.slug}`,
+      lastModified: new Date(a.date),
+      changeFrequency: "yearly" as const,
+      priority: 0.5,
+    })),
     {
       url: `${base}/legal/privacy`,
       lastModified: now,

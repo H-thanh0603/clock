@@ -1,6 +1,7 @@
 
 import DetailPurchase from "@/components/DetailPurchase";
 import Image from "next/image";
+import Link from "next/link";
 import { getProduct } from "@/lib/db";
 import VaultAddButton from "@/components/VaultAddButton";
 import AskConciergeButton from "@/components/AskConciergeButton";
@@ -275,6 +276,12 @@ export default async function Page({
     question={en ? watchQuestionEn(product.name) : watchQuestion(product.name)}
     label={S.watchCta}
   />
+  <Link
+    href={`/compare?slugs=${encodeURIComponent(product.slug)}`}
+    className="px-space-md py-2.5 rounded border border-outline-variant/40 font-label-spec text-label-spec uppercase tracking-wider text-on-surface-variant hover:text-primary hover:border-primary/50 transition-colors"
+  >
+    {S.comparePageCta}
+  </Link>
 </div>
 {/* Security & Atelier Assurances */}
 <div className="grid grid-cols-1 gap-space-xs pt-space-xs font-body-sm text-body-sm text-on-surface-variant">
